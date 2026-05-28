@@ -15,7 +15,7 @@ const router = createRouter({
     {
       path: '/rooms/:roomId',
       name: 'room-detail',
-      component: () => import('./HomeView.vue'),
+      component: () => import('./chat/components/ChatRoomView.vue'),
     },
     {
       path: '/auth/callback',
