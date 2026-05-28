@@ -16,6 +16,13 @@ function createRoomApi(overrides: Partial<RoomApiLike> = {}): RoomApiLike {
     join: vi.fn(async (roomId: string) => room(roomId, `Room ${roomId}`)),
     ignoreInvitation: vi.fn(async () => undefined),
     leave: vi.fn(async () => undefined),
+    create: vi.fn(async (params) => room('created-1', params.name)),
+    update: vi.fn(async (roomId, params) => room(roomId, params.name ?? roomId)),
+    delete: vi.fn(async () => undefined),
+    mute: vi.fn(async () => undefined),
+    members: vi.fn(async () => [{ id: 'user-1', username: 'alice', name: 'Alice' }]),
+    createInvitation: vi.fn(async () => ({ id: 'invite-2', roomId: 'room-1' })),
+    invitationsOutbox: vi.fn(async () => [{ id: 'invite-2', roomId: 'room-1' }]),
     ...overrides,
   };
 }
@@ -104,5 +111,52 @@ describe('roomStore', () => {
     store.preserveStartTarget({ type: 'room', roomId: 'deep-1' });
 
     expect(store.pendingStartRoomId).toBe('deep-1');
+  });
+
+  it('creates, updates, deletes, leaves, and mutes rooms', async () => {
+    const api = createRoomApi();
+    const store = useRoomStore();
+
+    await store.createRoom({ name: 'Created', description: 'Desc', joinMode: 'public' }, api);
+    await store.updateRoom('created-1', { name: 'Renamed' }, api);
+    await store.muteRoom('created-1', api);
+    await store.leaveRoom('created-1', api);
+    await store.deleteRoom('created-1', api);
+
+    expect(api.create).toHaveBeenCalledWith({ name: 'Created', description: 'Desc', joinMode: 'public' });
+    expect(api.update).toHaveBeenCalledWith('created-1', { name: 'Renamed' });
+    expect(api.mute).toHaveBeenCalledWith('created-1');
+    expect(api.leave).toHaveBeenCalledWith('created-1');
+    expect(api.delete).toHaveBeenCalledWith('created-1');
+  });
+
+  it('loads paginated members and invitation outbox, and creates invitations', async () => {
+    const api = createRoomApi();
+    const store = useRoomStore();
+
+    await store.loadMembers('room-1', api);
+    await store.loadMembers('room-1', api, { untilId: 'user-1' });
+    await store.loadInvitationOutbox('room-1', api);
+    await store.createInvitation('room-1', api);
+
+    expect(api.members).toHaveBeenCalledWith('room-1', { limit: 30 });
+    expect(api.members).toHaveBeenCalledWith('room-1', { limit: 30, untilId: 'user-1' });
+    expect(api.invitationsOutbox).toHaveBeenCalledWith('room-1', { limit: 30 });
+    expect(api.createInvitation).toHaveBeenCalledWith('room-1');
+    expect(store.membersByRoomId['room-1']).toEqual([{ id: 'user-1', username: 'alice', name: 'Alice' }]);
+    expect(store.outboxInvitations).toEqual([{ id: 'invite-2', roomId: 'room-1' }]);
+  });
+
+  it('exposes permission failure states from management APIs', async () => {
+    const api = createRoomApi({
+      delete: vi.fn(async () => {
+        throw new Error('permission denied');
+      }),
+    });
+    const store = useRoomStore();
+
+    await store.deleteRoom('room-1', api);
+
+    expect(store.error).toBe('permission denied');
   });
 });

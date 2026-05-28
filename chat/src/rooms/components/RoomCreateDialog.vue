@@ -1,0 +1,60 @@
+<template>
+  <form
+    class="side-panel"
+    @submit.prevent="submit"
+  >
+    <h2>{{ i18n.t('rooms.create') }}</h2>
+    <input
+      v-model="name"
+      class="room-direct-join__input"
+      :placeholder="i18n.t('rooms.create')"
+    >
+    <textarea
+      v-model="description"
+      class="message-composer__input"
+      placeholder="description"
+    />
+    <select
+      v-model="joinMode"
+      class="room-direct-join__input"
+    >
+      <option value="public">
+        public
+      </option>
+      <option value="invite">
+        invite
+      </option>
+    </select>
+    <button
+      class="app-button"
+      type="submit"
+      :disabled="name.trim() === ''"
+    >
+      {{ i18n.t('rooms.create') }}
+    </button>
+  </form>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue';
+import { i18n } from '@/i18n';
+import type { RoomCreateParams } from '../roomApi';
+
+const emit = defineEmits<{
+  create: [params: RoomCreateParams];
+}>();
+
+const name = ref('');
+const description = ref('');
+const joinMode = ref('public');
+
+function submit(): void {
+  if (name.value.trim() === '') {
+    return;
+  }
+
+  emit('create', { name: name.value.trim(), description: description.value.trim(), joinMode: joinMode.value });
+  name.value = '';
+  description.value = '';
+}
+</script>

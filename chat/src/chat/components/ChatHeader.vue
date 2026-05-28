@@ -18,11 +18,37 @@
     >
       {{ i18n.t('realtime.polling') }}
     </span>
+    <div class="chat-header__actions">
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('common.search')"
+        @click="$emit('search')"
+      >
+        <Search :size="18" />
+      </button>
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('rooms.members')"
+        @click="$emit('members')"
+      >
+        <Users :size="18" />
+      </button>
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('common.settings')"
+        @click="$emit('manage')"
+      >
+        <Settings :size="18" />
+      </button>
+    </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft } from '@lucide/vue';
+import { ArrowLeft, Search, Settings, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 
 defineProps<{
@@ -33,5 +59,8 @@ defineProps<{
 
 defineEmits<{
   back: [];
+  search: [];
+  members: [];
+  manage: [];
 }>();
 </script>

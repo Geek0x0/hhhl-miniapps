@@ -4,7 +4,7 @@ import { API_BASE_URL, DEFAULT_PAGE_SIZE } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import type { ChatMessage, DriveFile, PaginationParams } from '@/shared/types';
 import { createFileApi } from '@/files/fileApi';
-import { createChatApi, type CreateRoomMessageParams } from './chatApi';
+import { createChatApi, type CreateRoomMessageParams, type SearchMessagesParams } from './chatApi';
 import { createPendingMessage, failPendingMessage, removePendingMessage, retryPendingMessage, sendPendingMessage, type OutgoingMessage } from './outgoingQueue';
 import { mergeTimeline, removeTimelineMessage, replacePendingMessage, type TimelineEntry } from './timelineMerge';
 
@@ -14,6 +14,7 @@ export interface ChatApiLike {
   delete: (messageId: string) => Promise<unknown>;
   react: (messageId: string, reaction: string) => Promise<unknown>;
   unreact: (messageId: string) => Promise<unknown>;
+  search: (params: SearchMessagesParams) => Promise<ChatMessage[]>;
 }
 
 export interface SendOptions {
@@ -35,6 +36,9 @@ export interface ChatState {
   replyTarget: ChatMessage | null;
   quoteTarget: ChatMessage | null;
   reactionsByMessageId: Record<string, string>;
+  searchLoading: boolean;
+  searchError: string | null;
+  searchResults: ChatMessage[];
 }
 
 function createDefaultChatApi(): ChatApiLike {
@@ -91,6 +95,9 @@ export const useChatStore = defineStore('chat', {
     replyTarget: null,
     quoteTarget: null,
     reactionsByMessageId: {},
+    searchLoading: false,
+    searchError: null,
+    searchResults: [],
   }),
   actions: {
     clearComposerContext() {
@@ -241,6 +248,24 @@ export const useChatStore = defineStore('chat', {
       }
 
       this.reactionsByMessageId = { ...this.reactionsByMessageId, [messageId]: reaction };
+    },
+
+    async searchMessages(params: Omit<SearchMessagesParams, 'roomId' | 'limit'> & { limit?: number }, api: ChatApiLike = createDefaultChatApi()) {
+      if (this.roomId == null || params.query.trim() === '') {
+        return;
+      }
+
+      this.searchLoading = true;
+      this.searchError = null;
+
+      try {
+        const results = await api.search({ ...params, query: params.query.trim(), roomId: this.roomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
+        this.searchResults = [...this.searchResults, ...results];
+      } catch (error) {
+        this.searchError = messageFromError(error);
+      } finally {
+        this.searchLoading = false;
+      }
     },
 
     async deleteMessage(messageId: string, api: ChatApiLike = createDefaultChatApi()) {

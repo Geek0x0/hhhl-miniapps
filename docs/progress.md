@@ -19,7 +19,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 9: Implement Chat Timeline, Composer, Pending Messages, Replies, Quotes, Deletion, And Reactions - complete
 - Task 10: Implement Realtime Streaming And Polling Fallback - complete
 - Task 11: Implement File And Image Upload Sending - complete
-- Task 12: Implement Search, Members, Room Creation, Invitations, And Management - pending
+- Task 12: Implement Search, Members, Room Creation, Invitations, And Management - complete
 - Task 13: Implement Settings, Logout, Diagnostics, And Local Data Clearing - pending
 - Task 14: Add Bot Link Tools And Documentation - pending
 - Task 15: Add Cloudflare Workers Deployment And GitHub Actions - pending
@@ -28,8 +28,8 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 11 complete. Added upload queue, file/image picker and preview UI, paste-image handling, progress list, and file upload-to-message sending.
-- Next task: Task 12, search, members, room creation, invitations, and management.
+- Task 12 complete. Added message search, members pagination, room creation, room management, invitation outbox/create, and permission error handling.
+- Next task: Task 13, settings, logout, diagnostics, and local data clearing.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -97,6 +97,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 11: `npm run typecheck` - passed.
 - Task 11: `npm run lint` - passed.
 - Task 11: `npm run build` - passed.
+- Task 11 commit: `feat(chat): add file upload sending`.
+- Task 12: `npm run test:run -- src/rooms src/chat` - failed first because management/search actions did not exist, then passed after implementation, 25 tests.
+- Task 12: `npm run test:run -- src/rooms src/chat src/App.test.ts` - passed, 27 tests.
+- Task 12: `npm run typecheck` - passed.
+- Task 12: `npm run lint` - passed.
+- Task 12: `npm run build` - passed.
 
 ## Review Log
 
@@ -122,3 +128,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 10 code quality: passed. WebSocket is adapted behind a testable interface, polling timers are isolated, realtime store owns subscribe/unsubscribe cleanup, chat store exposes explicit realtime mutation actions, and tests/lint/typecheck/build pass.
 - Task 11 spec compliance: passed. Upload queue enforces the 25 MB limit, supports queue/progress/success/failure/retry state, composer supports file selection and pasted images, previews queued files, uploads before sending, and preserves `fileId` when post-upload message sending fails.
 - Task 11 code quality: passed. Upload state transitions are pure and tested, upload transport remains behind `fileApi`, composer emits file actions without direct API coupling, and tests/lint/typecheck/build pass.
+- Task 12 spec compliance: passed. Added room create/update/delete/leave/mute actions, invitation outbox/create, members pagination, message search with room/query/user/pagination params, permission failure states, and panels for search, members, creation, and management.
+- Task 12 code quality: passed. Store actions keep API effects typed and isolated, members/outbox merges de-duplicate by ID, panels stay thin and reusable, and tests/lint/typecheck/build pass.

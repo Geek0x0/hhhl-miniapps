@@ -14,6 +14,7 @@ function createApi(overrides: Partial<ChatApiLike> = {}): ChatApiLike {
     delete: vi.fn(async () => undefined),
     react: vi.fn(async () => undefined),
     unreact: vi.fn(async () => undefined),
+    search: vi.fn(async () => [message('m2')]),
     ...overrides,
   };
 }
@@ -132,5 +133,32 @@ describe('chatStore', () => {
     await store.loadInitial('room-2', createApi());
     expect(store.replyTarget).toBeNull();
     expect(store.quoteTarget).toBeNull();
+  });
+
+  it('searches messages with room, query, user, and pagination params', async () => {
+    const api = createApi();
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello', userId: 'user-1' }, api);
+    await store.searchMessages({ query: 'hello', untilId: 'm2' }, api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', userId: 'user-1', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', untilId: 'm2', limit: 30 });
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m2', 'm2']);
+  });
+
+  it('exposes search permission failure states', async () => {
+    const api = createApi({
+      search: vi.fn(async () => {
+        throw new Error('permission denied');
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello' }, api);
+
+    expect(store.searchError).toBe('permission denied');
   });
 });

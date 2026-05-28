@@ -15,6 +15,7 @@
       :message="roomStore.error"
       @clear="roomStore.clearRoomError()"
     />
+    <RoomCreateDialog @create="roomStore.createRoom" />
 
     <p
       v-if="roomStore.loading"
@@ -62,6 +63,7 @@ import RoomDirectJoin from './RoomDirectJoin.vue';
 import RoomErrorState from './RoomErrorState.vue';
 import RoomInvitationList from './RoomInvitationList.vue';
 import RoomListItem from './RoomListItem.vue';
+import RoomCreateDialog from './RoomCreateDialog.vue';
 import { useRoomStore } from '../roomStore';
 
 const roomStore = useRoomStore();
