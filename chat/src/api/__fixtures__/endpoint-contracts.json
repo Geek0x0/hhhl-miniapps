@@ -1,0 +1,411 @@
+{
+  "chat/history": {
+    "endpoint": "chat/history",
+    "params": [
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "room",
+        "type": "Boolean"
+      }
+    ]
+  },
+  "chat/messages/context": {
+    "endpoint": "chat/messages/context",
+    "params": [
+      {
+        "name": "messageId",
+        "type": "String"
+      },
+      {
+        "name": "limitBefore",
+        "type": "Integer"
+      },
+      {
+        "name": "limitAfter",
+        "type": "Integer"
+      }
+    ]
+  },
+  "chat/messages/create-to-room": {
+    "endpoint": "chat/messages/create-to-room",
+    "params": [
+      {
+        "name": "text",
+        "type": "String"
+      },
+      {
+        "name": "fileId",
+        "type": "String"
+      },
+      {
+        "name": "toRoomId",
+        "type": "String"
+      },
+      {
+        "name": "replyId",
+        "type": "String"
+      },
+      {
+        "name": "quoteId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/messages/delete": {
+    "endpoint": "chat/messages/delete",
+    "params": [
+      {
+        "name": "messageId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/messages/react": {
+    "endpoint": "chat/messages/react",
+    "params": [
+      {
+        "name": "messageId",
+        "type": "String"
+      },
+      {
+        "name": "reaction",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/messages/room-timeline": {
+    "endpoint": "chat/messages/room-timeline",
+    "params": [
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      },
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/messages/search": {
+    "endpoint": "chat/messages/search",
+    "params": [
+      {
+        "name": "query",
+        "type": "String"
+      },
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/messages/show": {
+    "endpoint": "chat/messages/show",
+    "params": [
+      {
+        "name": "messageId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/messages/unreact": {
+    "endpoint": "chat/messages/unreact",
+    "params": [
+      {
+        "name": "messageId",
+        "type": "String"
+      },
+      {
+        "name": "reaction",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/create": {
+    "endpoint": "chat/rooms/create",
+    "params": [
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "description",
+        "type": "String"
+      },
+      {
+        "name": "joinMode",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/delete": {
+    "endpoint": "chat/rooms/delete",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/invitations/create": {
+    "endpoint": "chat/rooms/invitations/create",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/invitations/ignore": {
+    "endpoint": "chat/rooms/invitations/ignore",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/invitations/inbox": {
+    "endpoint": "chat/rooms/invitations/inbox",
+    "params": [
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/invitations/outbox": {
+    "endpoint": "chat/rooms/invitations/outbox",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/join": {
+    "endpoint": "chat/rooms/join",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/joining": {
+    "endpoint": "chat/rooms/joining",
+    "params": [
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/leave": {
+    "endpoint": "chat/rooms/leave",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/members": {
+    "endpoint": "chat/rooms/members",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/mute": {
+    "endpoint": "chat/rooms/mute",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "mute",
+        "type": "Boolean"
+      }
+    ]
+  },
+  "chat/rooms/owned": {
+    "endpoint": "chat/rooms/owned",
+    "params": [
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/show": {
+    "endpoint": "chat/rooms/show",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/update": {
+    "endpoint": "chat/rooms/update",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "description",
+        "type": "String"
+      },
+      {
+        "name": "joinMode",
+        "type": "String"
+      }
+    ]
+  },
+  "drive/files/create": {
+    "endpoint": "drive/files/create",
+    "params": [
+      {
+        "name": "folderId",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "comment",
+        "type": "String"
+      },
+      {
+        "name": "isSensitive",
+        "type": "Boolean"
+      },
+      {
+        "name": "force",
+        "type": "Boolean"
+      }
+    ]
+  },
+  "i": {
+    "endpoint": "i",
+    "params": []
+  },
+  "miauth/gen-token": {
+    "endpoint": "miauth/gen-token",
+    "params": [
+      {
+        "name": "session",
+        "type": "String"
+      },
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "description",
+        "type": "String"
+      },
+      {
+        "name": "iconUrl",
+        "type": "String"
+      },
+      {
+        "name": "permission",
+        "type": "Array"
+      },
+      {
+        "name": "grantees",
+        "type": "Array"
+      },
+      {
+        "name": "rank",
+        "type": "String"
+      }
+    ]
+  }
+}

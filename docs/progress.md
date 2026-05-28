@@ -10,7 +10,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 - Task 1: Scaffold `chat/` Vue Application And Tooling - complete
 - Task 2: Add Telegram Environment Adapter And Route Gate - complete
-- Task 3: Lock External API Contracts Into Fixtures - pending
+- Task 3: Lock External API Contracts Into Fixtures - complete
 - Task 4: Add Shared Types, Errors, Storage, And Logging - pending
 - Task 5: Implement API Client And Domain Endpoint Wrappers - pending
 - Task 6: Implement I18n And Telegram Theme Integration - pending
@@ -28,7 +28,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 2 complete. Preparing Task 3: external API contract fixtures.
+- Task 3 complete. Preparing Task 4: shared types, errors, storage, and logging.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -43,6 +43,13 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 2: `npm run typecheck` - passed.
 - Task 2: `npm run lint` - passed.
 - Task 2: `npm run build` - passed.
+- Task 2 commit: `feat(chat): add telegram environment gate`.
+- Task 3: `npm run contracts` - passed, 26 endpoint contracts written.
+- Task 3: `node scripts/probe-runtime-contracts.mjs` - passed.
+- Task 3: `npm run test:run -- src/api/contracts.test.ts` - passed, 3 tests.
+- Task 3: `npm run typecheck` - passed.
+- Task 3: `npm run lint` - passed.
+- Task 3: `npm run build` - passed.
 
 ## Review Log
 
@@ -50,3 +57,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 1 code quality: passed. Removed deprecated `lucide-vue-next` in favor of `@lucide/vue`, fixed TypeScript 6 path config, added `chat/.gitignore`, eliminated build warning, and lint passes with zero warnings.
 - Task 2 spec compliance: passed. Added `startapp` room parser, Telegram WebApp adapter, mock Telegram helper, Telegram-only prompt, App gate, and tests for environment detection, launch context, external links, and BackButton wrappers.
 - Task 2 code quality: passed. TypeScript, lint, build, App tests, and Telegram tests all pass; optional Telegram APIs are safely wrapped.
+- Task 3 spec compliance: passed. Added endpoint fetch script, runtime contract script, endpoint/runtime fixtures, contract loader, README documentation, and tests for required endpoint params and runtime values.
+- Task 3 code quality: passed. Scripts do not require user tokens, fixture scan found no concrete secrets, lint/typecheck/build pass.

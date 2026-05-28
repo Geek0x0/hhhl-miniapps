@@ -1,0 +1,22 @@
+{
+  "miauthCheckPathPattern": "/api/miauth/{session}/check",
+  "streamingUrlPattern": "wss://dc.hhhl.cc/streaming?i={token}",
+  "streamConnectMessage": {
+    "type": "connect",
+    "body": {
+      "channel": "main",
+      "id": "test-main",
+      "params": {},
+      "pong": true
+    }
+  },
+  "streamChannelEnvelope": {
+    "type": "ch",
+    "body": {
+      "id": "test-main",
+      "type": "eventName",
+      "body": {}
+    }
+  },
+  "driveUploadEndpoint": "/api/drive/files/create"
+}
