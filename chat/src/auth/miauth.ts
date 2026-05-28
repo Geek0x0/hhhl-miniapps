@@ -22,6 +22,10 @@ interface MiAuthCheckResponse {
   token?: string;
 }
 
+function createDefaultFetch(): typeof fetch {
+  return window.fetch.bind(window) as typeof fetch;
+}
+
 export function createMiAuthSession(options: CreateMiAuthSessionOptions = {}): string {
   return (options.randomUUID ?? crypto.randomUUID)();
 }
@@ -46,7 +50,7 @@ export function buildMiAuthUrl(options: BuildMiAuthUrlOptions): string {
 }
 
 export async function completeMiAuth(session: string, options: CompleteMiAuthOptions = {}): Promise<string> {
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl ?? createDefaultFetch();
   const baseUrl = options.baseUrl ?? API_BASE_URL;
   const path = getRuntimeContracts().miauthCheckPathPattern.replace('{session}', encodeURIComponent(session));
   const url = path.startsWith('/api/') ? `${baseUrl}${path.slice('/api'.length)}` : `${baseUrl}${path}`;

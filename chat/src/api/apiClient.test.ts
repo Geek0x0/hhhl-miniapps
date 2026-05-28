@@ -7,6 +7,33 @@ import { ApiClient } from './apiClient';
 setupMswServer();
 
 describe('ApiClient', () => {
+  it('binds the browser fetch implementation when no override is provided', async () => {
+    const originalFetch = window.fetch;
+    const fetchImpl = vi.fn(async function (this: Window | undefined) {
+      if (this !== window) {
+        throw new TypeError('Illegal invocation');
+      }
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as unknown as typeof fetch;
+
+    try {
+      window.fetch = fetchImpl;
+      const client = new ApiClient({
+        baseUrl: 'https://dc.hhhl.cc/api',
+        tokenProvider: () => null,
+      });
+
+      await expect(client.callEndpoint('i', {})).resolves.toEqual({ ok: true });
+      expect(fetchImpl).toHaveBeenCalledWith('https://dc.hhhl.cc/api/i', expect.objectContaining({ method: 'POST' }));
+    } finally {
+      window.fetch = originalFetch;
+    }
+  });
+
   it('posts endpoint params with the current token', async () => {
     const client = new ApiClient({
       baseUrl: 'https://dc.hhhl.cc/api',

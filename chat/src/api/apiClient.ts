@@ -10,6 +10,10 @@ export interface ApiClientOptions {
   timeoutMs?: number;
 }
 
+function createDefaultFetch(): typeof fetch {
+  return window.fetch.bind(window) as typeof fetch;
+}
+
 export class ApiClient {
   private readonly baseUrl: string;
   readonly tokenProvider: TokenProvider;
@@ -19,7 +23,7 @@ export class ApiClient {
   constructor(options: ApiClientOptions) {
     this.baseUrl = options.baseUrl ?? API_BASE_URL;
     this.tokenProvider = options.tokenProvider;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? createDefaultFetch();
     this.timeoutMs = options.timeoutMs ?? 15000;
   }
 

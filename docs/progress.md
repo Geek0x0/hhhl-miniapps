@@ -23,13 +23,13 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 13: Implement Settings, Logout, Diagnostics, And Local Data Clearing - complete
 - Task 14: Add Bot Link Tools And Documentation - complete
 - Task 15: Add Cloudflare Workers Deployment And GitHub Actions - complete
-- Task 16: Add E2E Tests For Telegram Gate, Auth, Deep Links, Chat, And Workers Routing - pending
+- Task 16: Add E2E Tests For Telegram Gate, Auth, Deep Links, Chat, And Workers Routing - complete
 - Task 17: Final Hardening, Accessibility, And Release Checklist - pending
 
 ## Current Checkpoint
 
-- Task 15 complete. Added Workers static assets config, SPA fallback redirects, build verification, Workers preview contract test, GitHub Actions CI/deploy workflow, and README deployment docs.
-- Next task: Task 16, E2E tests for Telegram gate, auth, deep links, chat, and Workers routing.
+- Task 16 complete. Added Playwright E2E coverage for Telegram gate, auth restore, startapp room deep links, chat happy path, and Workers-style SPA routing.
+- While adding E2E coverage, fixed a browser runtime bug where default `fetch` was stored and called without the `window` binding, causing auth restore to clear valid tokens before any API request reached the mock.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -120,6 +120,17 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 15: `npm run verify:workers` - passed.
 - Task 15: `npm run typecheck` - passed.
 - Task 15: `npm run lint` - passed.
+- Task 15 commit: `feat(chat): add workers deployment`.
+- Task 16: `npm run typecheck` - passed.
+- Task 16: `npm run lint` - passed.
+- Task 16: `npm run test:run -- src/test/workersPreview.test.ts` - passed, 2 tests.
+- Task 16: `npx playwright install chromium` - passed after the first E2E run reported missing Chromium.
+- Task 16: `npm run test:run -- src/api/apiClient.test.ts src/auth/miauth.test.ts` - passed, 8 tests.
+- Task 16: `npm run build` - passed.
+- Task 16: `npx playwright test tests/e2e/auth-flow.spec.ts tests/e2e/room-deeplink.spec.ts tests/e2e/chat-happy-path.spec.ts` - passed, 3 tests.
+- Task 16: `npm run e2e` - passed, 7 tests.
+- Task 16: `npm run test:run -- src/api/apiClient.test.ts src/auth/miauth.test.ts src/test/workersPreview.test.ts` - passed, 10 tests.
+- Task 16: `npm run verify:workers` - passed.
 
 ## Review Log
 
@@ -153,3 +164,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 14 code quality: passed. Link validation is deterministic, token rejection happens before URL generation, CLI exits non-zero on invalid input, and tests/typecheck/lint pass.
 - Task 15 spec compliance: passed. Added `wrangler.toml` with `dist` assets and 2026-05-28 compatibility date, SPA fallback redirects, build verification for app shell/assets/token-like leaks, CI workflow, and manual deployment docs.
 - Task 15 code quality: passed. Verification script uses filesystem-safe paths, deployment is gated by branch and Cloudflare secrets, and workers preview test/build/verify/typecheck/lint pass.
+- Task 16 spec compliance: passed. Added Playwright config and E2E specs for Telegram-only gating, MiAuth/auth restore, `startapp=room_...` deep-link preservation, chat message/search/members/file-preview workflow, and SPA routing for `/rooms/:roomId`, `/auth/callback`, and `/settings`.
+- Task 16 code quality: passed. E2E API mocks keep tokens out of URLs, default browser `fetch` is bound before use in the API client and MiAuth checker, and regression coverage protects against unbound-fetch auth restore failures; e2e/typecheck/lint/build/Workers verification pass.
