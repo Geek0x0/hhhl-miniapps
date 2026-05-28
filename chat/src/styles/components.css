@@ -264,6 +264,14 @@
   object-fit: cover;
 }
 
+.diagnostics-output {
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .chat-icon-button {
   display: inline-grid;
   width: 34px;

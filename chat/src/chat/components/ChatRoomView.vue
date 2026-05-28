@@ -8,6 +8,7 @@
       @search="activePanel = activePanel === 'search' ? null : 'search'"
       @members="showMembers"
       @manage="activePanel = activePanel === 'manage' ? null : 'manage'"
+      @settings="router.push('/settings')"
     />
     <SearchPanel
       v-if="activePanel === 'search'"

@@ -22,6 +22,11 @@ const router = createRouter({
       name: 'auth-callback',
       component: () => import('./HomeView.vue'),
     },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('./settings/components/SettingsView.vue'),
+    },
   ],
 });
 
