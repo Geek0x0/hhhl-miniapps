@@ -33,3 +33,17 @@ https://t.me/mybot?startapp=room_amlc1bekzi
 ```
 
 Configure the bot menu button in BotFather with the deployed Mini App URL. For group entry, send a room link using `startapp=room_<roomId>`. Update the BotFather URL when moving from a `*.workers.dev` deployment to a custom domain.
+
+## Cloudflare Workers Deployment
+
+Manual deployment:
+
+```bash
+cd chat
+npm ci
+npm run build
+npm run verify:workers
+npm run deploy
+```
+
+The Workers configuration serves static assets from `dist/` and uses SPA fallback routing for Mini App routes such as `/rooms/amlc1bekzi`, `/auth/callback`, and `/settings`.

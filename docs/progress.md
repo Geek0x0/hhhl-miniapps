@@ -22,14 +22,14 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 12: Implement Search, Members, Room Creation, Invitations, And Management - complete
 - Task 13: Implement Settings, Logout, Diagnostics, And Local Data Clearing - complete
 - Task 14: Add Bot Link Tools And Documentation - complete
-- Task 15: Add Cloudflare Workers Deployment And GitHub Actions - pending
+- Task 15: Add Cloudflare Workers Deployment And GitHub Actions - complete
 - Task 16: Add E2E Tests For Telegram Gate, Auth, Deep Links, Chat, And Workers Routing - pending
 - Task 17: Final Hardening, Accessibility, And Release Checklist - pending
 
 ## Current Checkpoint
 
-- Task 14 complete. Added Telegram startapp link builder, CLI script, BotFather documentation, and README usage notes.
-- Next task: Task 15, Cloudflare Workers deployment and GitHub Actions.
+- Task 15 complete. Added Workers static assets config, SPA fallback redirects, build verification, Workers preview contract test, GitHub Actions CI/deploy workflow, and README deployment docs.
+- Next task: Task 16, E2E tests for Telegram gate, auth, deep links, chat, and Workers routing.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -114,6 +114,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 14: `node scripts/generate-startapp-link.mjs --bot mybot --room amlc1bekzi` - passed and printed `https://t.me/mybot?startapp=room_amlc1bekzi`.
 - Task 14: `npm run typecheck` - passed.
 - Task 14: `npm run lint` - passed.
+- Task 14 commit: `docs(chat): add telegram bot link tools`.
+- Task 15: `npm run test:run -- src/test/workersPreview.test.ts` - passed, 2 tests.
+- Task 15: `npm run build` - passed.
+- Task 15: `npm run verify:workers` - passed.
+- Task 15: `npm run typecheck` - passed.
+- Task 15: `npm run lint` - passed.
 
 ## Review Log
 
@@ -145,3 +151,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 13 code quality: passed. Settings state is isolated in Pinia, diagnostics are redacted through shared helpers, logout reuses auth store cleanup, and tests/lint/typecheck/build pass.
 - Task 14 spec compliance: passed. Link builder outputs `https://t.me/<bot>?startapp=room_<roomId>`, rejects invalid usernames, empty room IDs, and token-like values; CLI prints only the URL; docs cover BotFather menu URL, group links, startapp format, and domain migration.
 - Task 14 code quality: passed. Link validation is deterministic, token rejection happens before URL generation, CLI exits non-zero on invalid input, and tests/typecheck/lint pass.
+- Task 15 spec compliance: passed. Added `wrangler.toml` with `dist` assets and 2026-05-28 compatibility date, SPA fallback redirects, build verification for app shell/assets/token-like leaks, CI workflow, and manual deployment docs.
+- Task 15 code quality: passed. Verification script uses filesystem-safe paths, deployment is gated by branch and Cloudflare secrets, and workers preview test/build/verify/typecheck/lint pass.
