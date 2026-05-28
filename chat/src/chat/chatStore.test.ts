@@ -49,6 +49,30 @@ describe('chatStore', () => {
     expect(store.outgoing[0]).toMatchObject({ localId: 'local-1', status: 'sent', serverId: 'm3' });
   });
 
+  it('uploads a file before sending and preserves fileId when sending fails', async () => {
+    const api = createApi({
+      createToRoom: vi.fn(async () => {
+        throw new Error('send failed');
+      }),
+    });
+    const uploadFile = vi.fn(async () => ({ id: 'file-1', name: 'hello.txt' }));
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.sendFile(new File(['hello'], 'hello.txt', { type: 'text/plain' }), { uploadFile }, api, {
+      idFactory: () => 'local-file-1',
+      now: () => '2026-01-01T00:00:03.000Z',
+    });
+
+    expect(uploadFile).toHaveBeenCalled();
+    expect(api.createToRoom).toHaveBeenCalledWith({ toRoomId: 'room-1', fileId: 'file-1' });
+    expect(store.outgoing[0]).toMatchObject({
+      localId: 'local-file-1',
+      status: 'failed',
+      payload: { toRoomId: 'room-1', fileId: 'file-1' },
+    });
+  });
+
   it('marks failed sends and retries them', async () => {
     const failingApi = createApi({
       createToRoom: vi.fn(async () => {

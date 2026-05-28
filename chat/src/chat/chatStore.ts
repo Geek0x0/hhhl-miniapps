@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 import { ApiClient } from '@/api/apiClient';
 import { API_BASE_URL, DEFAULT_PAGE_SIZE } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
-import type { ChatMessage, PaginationParams } from '@/shared/types';
+import type { ChatMessage, DriveFile, PaginationParams } from '@/shared/types';
+import { createFileApi } from '@/files/fileApi';
 import { createChatApi, type CreateRoomMessageParams } from './chatApi';
 import { createPendingMessage, failPendingMessage, removePendingMessage, retryPendingMessage, sendPendingMessage, type OutgoingMessage } from './outgoingQueue';
 import { mergeTimeline, removeTimelineMessage, replacePendingMessage, type TimelineEntry } from './timelineMerge';
@@ -18,6 +19,11 @@ export interface ChatApiLike {
 export interface SendOptions {
   idFactory?: () => string;
   now?: () => string;
+}
+
+export interface FileUploadLike {
+  uploadFile?: (file: File, onProgress?: (progress: number) => void) => Promise<DriveFile>;
+  upload?: (file: File, onProgress?: (progress: number) => void) => Promise<DriveFile>;
 }
 
 export interface ChatState {
@@ -41,6 +47,16 @@ function createDefaultChatApi(): ChatApiLike {
   return createChatApi(client) as ChatApiLike;
 }
 
+function createDefaultFileApi(): FileUploadLike {
+  const storage = createLocalStorageAdapter();
+  const client = new ApiClient({
+    baseUrl: API_BASE_URL,
+    tokenProvider: () => storage.getToken(),
+  });
+
+  return createFileApi(client);
+}
+
 function defaultIdFactory(): string {
   return `local-${crypto.randomUUID()}`;
 }
@@ -51,6 +67,18 @@ function messageFromError(error: unknown): string {
 
 function firstServerMessageId(timeline: TimelineEntry[]): string | undefined {
   return timeline.find((entry) => entry.kind === 'server')?.message.id;
+}
+
+function uploadWith(uploadApi: FileUploadLike, file: File): Promise<DriveFile> {
+  if (uploadApi.uploadFile != null) {
+    return uploadApi.uploadFile(file);
+  }
+
+  if (uploadApi.upload != null) {
+    return uploadApi.upload(file);
+  }
+
+  throw new Error('Upload transport is not configured');
 }
 
 export const useChatStore = defineStore('chat', {
@@ -119,6 +147,40 @@ export const useChatStore = defineStore('chat', {
         createdAt: (options.now ?? (() => new Date().toISOString()))(),
       });
 
+      this.outgoing = [...this.outgoing, pending];
+      this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
+      this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
+
+      try {
+        const serverMessage = await api.createToRoom(pending.payload);
+        this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
+        this.timeline = replacePendingMessage(this.timeline, localId, serverMessage);
+        this.clearComposerContext();
+      } catch (error) {
+        const message = messageFromError(error);
+        this.outgoing = failPendingMessage(this.outgoing, localId, message);
+        this.timeline = this.timeline.map((entry) => entry.kind === 'pending' && entry.localId === localId ? { ...entry, status: 'failed', error: message } : entry);
+        this.error = message;
+      }
+    },
+
+    async sendFile(file: File, uploadApi: FileUploadLike = createDefaultFileApi(), api: ChatApiLike = createDefaultChatApi(), options: SendOptions = {}) {
+      if (this.roomId == null) {
+        return;
+      }
+
+      const uploaded = await uploadWith(uploadApi, file);
+      const localId = (options.idFactory ?? defaultIdFactory)();
+      const pending = createPendingMessage({
+        localId,
+        roomId: this.roomId,
+        fileId: uploaded.id,
+        replyId: this.replyTarget?.id,
+        quoteId: this.quoteTarget?.id,
+        createdAt: (options.now ?? (() => new Date().toISOString()))(),
+      });
+
+      pending.localMessage.file = uploaded;
       this.outgoing = [...this.outgoing, pending];
       this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
       this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);

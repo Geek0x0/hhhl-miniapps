@@ -18,7 +18,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 8: Implement Room List, Direct Join, Invitations, And Deep Link Preservation - complete
 - Task 9: Implement Chat Timeline, Composer, Pending Messages, Replies, Quotes, Deletion, And Reactions - complete
 - Task 10: Implement Realtime Streaming And Polling Fallback - complete
-- Task 11: Implement File And Image Upload Sending - pending
+- Task 11: Implement File And Image Upload Sending - complete
 - Task 12: Implement Search, Members, Room Creation, Invitations, And Management - pending
 - Task 13: Implement Settings, Logout, Diagnostics, And Local Data Clearing - pending
 - Task 14: Add Bot Link Tools And Documentation - pending
@@ -28,8 +28,8 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 10 complete. Added streaming WebSocket client, polling fallback, realtime store, chat store event hooks, and degraded status display.
-- Next task: Task 11, file and image upload sending.
+- Task 11 complete. Added upload queue, file/image picker and preview UI, paste-image handling, progress list, and file upload-to-message sending.
+- Next task: Task 12, search, members, room creation, invitations, and management.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -91,6 +91,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 10: `npm run typecheck` - passed.
 - Task 10: `npm run lint` - passed.
 - Task 10: `npm run build` - passed.
+- Task 10 commit: `feat(chat): add realtime with polling fallback`.
+- Task 11: `npm run test:run -- src/files src/chat/chatStore.test.ts` - failed first because upload queue/sendFile did not exist, then passed after implementation, 12 tests.
+- Task 11: `npm run test:run -- src/files src/chat` - passed, 17 tests.
+- Task 11: `npm run typecheck` - passed.
+- Task 11: `npm run lint` - passed.
+- Task 11: `npm run build` - passed.
 
 ## Review Log
 
@@ -114,3 +120,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 9 code quality: passed. Timeline and outgoing queue logic are pure and tested, store effects are isolated behind a typed chat API, long message text wraps, and tests/lint/typecheck/build pass.
 - Task 10 spec compliance: passed. Realtime client builds URL from runtime contracts, sends contract connect/channel envelopes, normalizes room events, filters unrelated rooms, redacts token-bearing URLs in logs, and polling fallback uses `sinceId` with degraded status and backoff.
 - Task 10 code quality: passed. WebSocket is adapted behind a testable interface, polling timers are isolated, realtime store owns subscribe/unsubscribe cleanup, chat store exposes explicit realtime mutation actions, and tests/lint/typecheck/build pass.
+- Task 11 spec compliance: passed. Upload queue enforces the 25 MB limit, supports queue/progress/success/failure/retry state, composer supports file selection and pasted images, previews queued files, uploads before sending, and preserves `fileId` when post-upload message sending fails.
+- Task 11 code quality: passed. Upload state transitions are pure and tested, upload transport remains behind `fileApi`, composer emits file actions without direct API coupling, and tests/lint/typecheck/build pass.

@@ -27,6 +27,7 @@
       :reply-target="chatStore.replyTarget"
       :quote-target="chatStore.quoteTarget"
       @send="chatStore.sendText"
+      @send-file="chatStore.sendFile"
       @clear-context="chatStore.clearComposerContext()"
     />
   </main>

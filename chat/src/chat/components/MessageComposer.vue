@@ -13,18 +13,24 @@
       :message="quoteTarget"
       @clear="$emit('clearContext')"
     />
+    <UploadProgressList
+      :items="uploads"
+      @remove="removeUploadItem"
+    />
     <div class="message-composer__row">
+      <FilePickerButton @select="addFiles" />
       <textarea
         v-model="text"
         class="message-composer__input"
         :placeholder="i18n.t('chat.composerPlaceholder')"
         rows="1"
+        @paste="handlePaste"
       />
       <button
         class="chat-icon-button chat-icon-button--send"
         type="submit"
         :aria-label="i18n.t('common.send')"
-        :disabled="text.trim() === ''"
+        :disabled="text.trim() === '' && uploads.length === 0"
       >
         <Send :size="18" />
       </button>
@@ -33,9 +39,13 @@
 </template>
 
 <script setup lang="ts">
+/* global ClipboardEvent, File, URL, crypto */
 import { ref } from 'vue';
 import { Send } from '@lucide/vue';
 import { i18n } from '@/i18n';
+import FilePickerButton from '@/files/components/FilePickerButton.vue';
+import UploadProgressList from '@/files/components/UploadProgressList.vue';
+import { addUpload, removeUpload, validateUploadFile, type UploadItem } from '@/files/uploadQueue';
 import type { ChatMessage } from '@/shared/types';
 import ReplyPreview from './ReplyPreview.vue';
 
@@ -46,18 +56,60 @@ defineProps<{
 
 const emit = defineEmits<{
   send: [text: string];
+  sendFile: [file: File];
   clearContext: [];
 }>();
 
 const text = ref('');
+const uploads = ref<UploadItem[]>([]);
+
+function uploadId(): string {
+  return `upload-${crypto.randomUUID()}`;
+}
+
+function previewUrl(file: File): string | undefined {
+  return file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined;
+}
+
+function addFiles(files: File[]): void {
+  for (const file of files) {
+    if (!validateUploadFile(file).ok) {
+      continue;
+    }
+
+    uploads.value = addUpload(uploads.value, { id: uploadId(), file, previewUrl: previewUrl(file) });
+  }
+}
+
+function removeUploadItem(id: string): void {
+  const item = uploads.value.find((upload) => upload.id === id);
+  if (item?.previewUrl != null) {
+    URL.revokeObjectURL(item.previewUrl);
+  }
+  uploads.value = removeUpload(uploads.value, id);
+}
+
+function handlePaste(event: ClipboardEvent): void {
+  const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith('image/'));
+  if (files.length > 0) {
+    addFiles(files);
+  }
+}
 
 function submit(): void {
   const value = text.value.trim();
-  if (value === '') {
-    return;
+
+  if (value !== '') {
+    emit('send', value);
+    text.value = '';
   }
 
-  emit('send', value);
-  text.value = '';
+  for (const item of uploads.value) {
+    emit('sendFile', item.file);
+    if (item.previewUrl != null) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  }
+  uploads.value = [];
 }
 </script>
