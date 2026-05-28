@@ -2,18 +2,18 @@
 
 ## Context
 
-Build a Telegram Mini App that connects to the existing `dc.hhhl.cc` chat-room feature. The app is a pure frontend client deployed on Cloudflare Workers/Pages, initially under a `*.workers.dev` URL. It does not include a custom backend and does not use Telegram identity for product login, because `dc.hhhl.cc` does not support Telegram login.
+Build a Telegram Mini App that connects to the existing `dc.hhhl.cc` chat-room feature. The app is a pure frontend client whose source will be hosted on GitHub and whose primary deployment target is direct Cloudflare Workers static-asset deployment, initially under a `*.workers.dev` URL. It does not include a custom backend and does not use Telegram identity for product login, because `dc.hhhl.cc` does not support Telegram login.
 
 Users authenticate with `dc.hhhl.cc` through MiAuth. The Mini App stores the resulting user token locally by default and provides a settings action to log out and clear local credentials. Telegram is used only as the Mini App container and launch surface.
 
-The local project directory is currently empty and not a git repository. The design assumes a new frontend project will be created here after approval.
+The local project directory currently contains only this design document. The design assumes a new frontend project will be created here after approval, then pushed to GitHub for ongoing hosting and deployment automation.
 
 ## Goals
 
 - Provide a complete Telegram Mini App client for `dc.hhhl.cc` chat rooms.
 - Support full first-release chat functionality: room list, join, create, manage, invitations, members, text messages, replies, quotes, reactions, deletion, search, and file/image sending.
 - Use a pure frontend architecture with no private backend service.
-- Deploy as static frontend assets through Cloudflare Workers/Pages.
+- Deploy directly to Cloudflare Workers as static frontend assets, with GitHub-compatible deployment automation.
 - Support Telegram Bot menu entry and group links/buttons.
 - Support `startapp=room_<roomId>` deep links, falling back to the room list when no target is provided.
 - Support Chinese and English initially, with an extensible i18n structure.
@@ -23,6 +23,7 @@ The local project directory is currently empty and not a git repository. The des
 
 - Do not implement Telegram identity login or Telegram account to `dc.hhhl.cc` account mapping.
 - Do not build a custom backend, token proxy, push relay, or server-side credential store.
+- Do not require Cloudflare Pages. Pages-compatible output is acceptable, but direct Cloudflare Workers deployment is the supported deployment path.
 - Do not provide a full browser web client. Non-Telegram browser access shows a prompt to open in Telegram.
 - Do not implement global public room discovery unless `dc.hhhl.cc` exposes a verified API later. The first release only uses joined, owned, invited, manually entered, or deep-linked rooms.
 - Do not handle `dc.hhhl.cc` registration inside the Mini App. Users without an account are directed to `dc.hhhl.cc`.
@@ -255,6 +256,30 @@ https://t.me/<botUsername>?startapp=room_<roomId>
 
 The script does not handle tokens or user secrets.
 
+## GitHub And Cloudflare Workers Deployment
+
+The repository is intended to be hosted on GitHub and deployable directly to Cloudflare Workers without adding a custom backend service.
+
+Required project deployment assets:
+
+- `wrangler.toml` configured for Workers static assets.
+- A production build command that emits a static app directory, for example `dist/`.
+- SPA fallback routing so Telegram deep links, MiAuth return routes, and direct app paths serve the Mini App shell instead of a 404.
+- Environment-specific app URL configuration for local development, `*.workers.dev`, and future custom domains.
+- GitHub Actions workflow for build, test, and optional deployment through Cloudflare credentials stored as GitHub secrets.
+- Documentation for manual deployment with Wrangler, so the project can be deployed without GitHub Actions when needed.
+
+The Workers deployment is static-only. It must not introduce Worker request handlers that proxy `dc.hhhl.cc` API calls or store user tokens server-side. If a minimal Worker entry is needed for static asset serving or fallback routing, it remains infrastructure-only and does not become an application backend.
+
+Deployment acceptance criteria:
+
+- `npm run build` produces static assets suitable for Workers.
+- `wrangler deploy` can publish the Mini App directly to a `*.workers.dev` URL.
+- Refreshing any Mini App route returns the app shell.
+- MiAuth return routes work on the Workers URL.
+- Telegram BotFather can use the Workers HTTPS URL as the Mini App URL.
+- The same repository can later bind a custom domain without changing application logic.
+
 ## Local Persistence
 
 Local storage contains only necessary client state:
@@ -345,6 +370,7 @@ Use mocked `dc.hhhl.cc` APIs and mocked Telegram SDK to cover:
 - deleting and reacting with rollback on failure
 - WebSocket failure and polling fallback
 - logout and local data clearing
+- Workers SPA fallback route behavior in a local or preview deployment
 
 ### Telegram Acceptance Tests
 
@@ -373,7 +399,8 @@ The first public release includes the complete feature set. Development should s
 6. File/image upload and send.
 7. Search, members, room creation, invitations, and room management.
 8. Bot configuration docs and link helper script.
-9. Full test pass and Telegram device acceptance.
+9. Cloudflare Workers deployment config, GitHub Actions workflow, and deployment docs.
+10. Full test pass and Telegram device acceptance.
 
 No partial milestone is considered the public first release; the release gate is the complete accepted feature set.
 
@@ -382,7 +409,8 @@ No partial milestone is considered the public first release; the release gate is
 - Exact MiAuth callback behavior inside Telegram WebView must be verified against `dc.hhhl.cc` during implementation.
 - Exact streaming channel names and event payloads must be verified from the Sharkey/hhhl client or live API behavior.
 - File upload endpoint shape must be confirmed before implementing the upload module.
-- Cloudflare Workers static hosting must preserve HTTPS and routing needed for MiAuth return URLs and Telegram Mini App launch.
+- Cloudflare Workers static hosting must preserve HTTPS, SPA fallback routing, and MiAuth return routes needed for Telegram Mini App launch.
+- GitHub Actions deployment requires Cloudflare account credentials to be supplied as repository secrets; manual Wrangler deployment remains the fallback.
 - Future CORS changes on `dc.hhhl.cc` could affect pure frontend direct API access.
 
 These risks are known implementation risks, not unresolved product requirements.
