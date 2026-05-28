@@ -21,15 +21,15 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 11: Implement File And Image Upload Sending - complete
 - Task 12: Implement Search, Members, Room Creation, Invitations, And Management - complete
 - Task 13: Implement Settings, Logout, Diagnostics, And Local Data Clearing - complete
-- Task 14: Add Bot Link Tools And Documentation - pending
+- Task 14: Add Bot Link Tools And Documentation - complete
 - Task 15: Add Cloudflare Workers Deployment And GitHub Actions - pending
 - Task 16: Add E2E Tests For Telegram Gate, Auth, Deep Links, Chat, And Workers Routing - pending
 - Task 17: Final Hardening, Accessibility, And Release Checklist - pending
 
 ## Current Checkpoint
 
-- Task 13 complete. Added settings store, settings route, diagnostics panel, language preference, local clearing, and logout flow.
-- Next task: Task 14, bot link tools and documentation.
+- Task 14 complete. Added Telegram startapp link builder, CLI script, BotFather documentation, and README usage notes.
+- Next task: Task 15, Cloudflare Workers deployment and GitHub Actions.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -109,6 +109,11 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 13: `npm run typecheck` - passed.
 - Task 13: `npm run lint` - passed.
 - Task 13: `npm run build` - passed.
+- Task 13 commit: `feat(chat): add settings and logout`.
+- Task 14: `npm run test:run -- src/bot-tools` - failed first because link builder did not exist, then passed after implementation, 4 tests.
+- Task 14: `node scripts/generate-startapp-link.mjs --bot mybot --room amlc1bekzi` - passed and printed `https://t.me/mybot?startapp=room_amlc1bekzi`.
+- Task 14: `npm run typecheck` - passed.
+- Task 14: `npm run lint` - passed.
 
 ## Review Log
 
@@ -138,3 +143,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 12 code quality: passed. Store actions keep API effects typed and isolated, members/outbox merges de-duplicate by ID, panels stay thin and reusable, and tests/lint/typecheck/build pass.
 - Task 13 spec compliance: passed. Settings includes language preference, instance URL, realtime status, diagnostics with token redaction, local data clearing, and logout routing back through the login gate.
 - Task 13 code quality: passed. Settings state is isolated in Pinia, diagnostics are redacted through shared helpers, logout reuses auth store cleanup, and tests/lint/typecheck/build pass.
+- Task 14 spec compliance: passed. Link builder outputs `https://t.me/<bot>?startapp=room_<roomId>`, rejects invalid usernames, empty room IDs, and token-like values; CLI prints only the URL; docs cover BotFather menu URL, group links, startapp format, and domain migration.
+- Task 14 code quality: passed. Link validation is deterministic, token rejection happens before URL generation, CLI exits non-zero on invalid input, and tests/typecheck/lint pass.
