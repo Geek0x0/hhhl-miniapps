@@ -46,7 +46,7 @@
       <button
         class="chat-icon-button"
         type="button"
-        :aria-label="i18n.t('common.settings')"
+        :aria-label="i18n.t('rooms.manage')"
         @click="$emit('manage')"
       >
         <SlidersHorizontal :size="18" />

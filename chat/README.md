@@ -47,3 +47,7 @@ npm run deploy
 ```
 
 The Workers configuration serves static assets from `dist/` and uses SPA fallback routing for Mini App routes such as `/rooms/amlc1bekzi`, `/auth/callback`, and `/settings`.
+
+## Release Readiness
+
+Use [docs/release-checklist.md](docs/release-checklist.md) before changing the BotFather menu URL or announcing a production deployment.

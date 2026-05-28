@@ -7,7 +7,7 @@
         type="button"
         @click="$emit('loadMore')"
       >
-        {{ i18n.t('common.loading') }}
+        {{ i18n.t('rooms.loadMoreMembers') }}
       </button>
     </header>
     <ul class="side-panel__list">

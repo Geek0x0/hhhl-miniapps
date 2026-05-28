@@ -476,6 +476,27 @@
   }
 
   .message-composer__row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+  }
+}
+
+@media (max-width: 380px) {
+  .chat-header {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .chat-header__actions {
+    gap: 4px;
+  }
+
+  .chat-icon-button {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .message-composer__row {
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
   }
 }

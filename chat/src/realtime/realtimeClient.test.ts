@@ -63,6 +63,27 @@ describe('RealtimeClient', () => {
     });
   });
 
+  it('queues room subscriptions until the socket opens', () => {
+    FakeWebSocket.instances = [];
+    const client = createRealtimeClient({ tokenProvider: () => 'secret-token', WebSocketImpl: FakeWebSocket });
+
+    client.connect();
+    const socket = FakeWebSocket.instances[0];
+    client.subscribeRoom('room-1');
+
+    expect(socket.sent).toEqual([]);
+    socket.onopen?.();
+
+    expect(JSON.parse(socket.sent[0])).toEqual({
+      type: 'connect',
+      body: { channel: 'main', id: 'test-main', params: {}, pong: true },
+    });
+    expect(JSON.parse(socket.sent[1])).toEqual({
+      type: 'ch',
+      body: { id: 'test-main:room-1', type: 'connect', body: { roomId: 'room-1' } },
+    });
+  });
+
   it('normalizes room message events and ignores unrelated rooms', () => {
     FakeWebSocket.instances = [];
     const onEvent = vi.fn();

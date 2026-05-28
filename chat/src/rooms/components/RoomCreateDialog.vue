@@ -7,16 +7,19 @@
     <input
       v-model="name"
       class="room-direct-join__input"
+      :aria-label="i18n.t('rooms.name')"
       :placeholder="i18n.t('rooms.create')"
     >
     <textarea
       v-model="description"
       class="message-composer__input"
-      placeholder="description"
+      :aria-label="i18n.t('rooms.description')"
+      :placeholder="i18n.t('rooms.description')"
     />
     <select
       v-model="joinMode"
       class="room-direct-join__input"
+      :aria-label="i18n.t('rooms.joinMode')"
     >
       <option value="public">
         public

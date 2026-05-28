@@ -24,12 +24,11 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 14: Add Bot Link Tools And Documentation - complete
 - Task 15: Add Cloudflare Workers Deployment And GitHub Actions - complete
 - Task 16: Add E2E Tests For Telegram Gate, Auth, Deep Links, Chat, And Workers Routing - complete
-- Task 17: Final Hardening, Accessibility, And Release Checklist - pending
+- Task 17: Final Hardening, Accessibility, And Release Checklist - complete
 
 ## Current Checkpoint
 
-- Task 16 complete. Added Playwright E2E coverage for Telegram gate, auth restore, startapp room deep links, chat happy path, and Workers-style SPA routing.
-- While adding E2E coverage, fixed a browser runtime bug where default `fetch` was stored and called without the `window` binding, causing auth restore to clear valid tokens before any API request reached the mock.
+- Task 17 complete. Added release checklist, tightened release-blocking accessibility/responsive details, fixed realtime subscription queuing/cleanup, and completed final verification.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -131,6 +130,21 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 16: `npm run e2e` - passed, 7 tests.
 - Task 16: `npm run test:run -- src/api/apiClient.test.ts src/auth/miauth.test.ts src/test/workersPreview.test.ts` - passed, 10 tests.
 - Task 16: `npm run verify:workers` - passed.
+- Task 16 commit: `test(chat): add e2e coverage`.
+- Task 17: `npm run typecheck` - passed.
+- Task 17: `npm run test:run` - initially failed because Vitest collected Playwright specs, then passed after excluding `tests/e2e/**`, 25 files and 89 tests.
+- Task 17: `npm run test:run -- src/realtime` - passed, 3 files and 10 tests.
+- Task 17: `npm run build` - passed.
+- Task 17: `npm run e2e` - passed, 7 tests.
+- Task 17: Playwright viewport check at 375, 768, and 1280 px - passed; no horizontal overflow, composer/header visible, no console errors.
+- Task 17: `npm ci` - passed, 0 vulnerabilities; npm reported a transitive `glob@10.5.0` deprecation warning.
+- Task 17 final: `npm run contracts` - passed, 26 endpoints printed.
+- Task 17 final: `npm run test:run` - passed, 25 files and 90 tests.
+- Task 17 final: `npm run typecheck` - passed.
+- Task 17 final: `npm run lint` - passed.
+- Task 17 final: `npm run build` - passed.
+- Task 17 final: `npm run verify:workers` - passed.
+- Task 17 final: `npm run e2e` - passed, 7 tests.
 
 ## Review Log
 
@@ -166,3 +180,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 15 code quality: passed. Verification script uses filesystem-safe paths, deployment is gated by branch and Cloudflare secrets, and workers preview test/build/verify/typecheck/lint pass.
 - Task 16 spec compliance: passed. Added Playwright config and E2E specs for Telegram-only gating, MiAuth/auth restore, `startapp=room_...` deep-link preservation, chat message/search/members/file-preview workflow, and SPA routing for `/rooms/:roomId`, `/auth/callback`, and `/settings`.
 - Task 16 code quality: passed. E2E API mocks keep tokens out of URLs, default browser `fetch` is bound before use in the API client and MiAuth checker, and regression coverage protects against unbound-fetch auth restore failures; e2e/typecheck/lint/build/Workers verification pass.
+- Task 17 spec compliance: passed. Added `chat/docs/release-checklist.md` and README pointer, ran full verification, performed 375/768/1280 px layout checks, and limited fixes to release-blocking accessibility, responsive sizing, Vitest collection, and realtime cleanup issues.
+- Task 17 code quality: passed. Inputs now have accessible labels, management actions have distinct labels, mobile toolbar/composer sizing is stable, Vitest excludes Playwright specs, realtime subscriptions queue until socket open, and room teardown disconnects the socket; final contracts/test/typecheck/lint/build/Workers/e2e checks pass.

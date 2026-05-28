@@ -75,6 +75,7 @@ export const useRealtimeStore = defineStore('realtime', {
     stopRoom() {
       if (dependencies != null && this.roomId != null) {
         dependencies.realtime.unsubscribeRoom(this.roomId);
+        dependencies.realtime.disconnect();
         dependencies.polling.stop();
       }
       unsubscribeEvents?.();

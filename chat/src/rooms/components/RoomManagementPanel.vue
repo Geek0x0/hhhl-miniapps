@@ -8,12 +8,14 @@
       <input
         v-model="name"
         class="room-direct-join__input"
+        :aria-label="i18n.t('rooms.name')"
         :placeholder="roomId"
       >
       <textarea
         v-model="description"
         class="message-composer__input"
-        placeholder="description"
+        :aria-label="i18n.t('rooms.description')"
+        :placeholder="i18n.t('rooms.description')"
       />
       <button
         class="app-button"

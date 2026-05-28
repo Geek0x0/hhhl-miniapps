@@ -22,6 +22,7 @@
       <textarea
         v-model="text"
         class="message-composer__input"
+        :aria-label="i18n.t('chat.messageInput')"
         :placeholder="i18n.t('chat.composerPlaceholder')"
         rows="1"
         @paste="handlePaste"

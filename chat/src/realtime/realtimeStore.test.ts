@@ -72,6 +72,7 @@ describe('realtimeStore', () => {
     expect(deleteMessage).toHaveBeenCalledWith('m1');
     expect(applyReaction).toHaveBeenCalledWith('m1', '👍');
     expect(realtime.unsubscribeRoom).toHaveBeenCalledWith('room-1');
+    expect(realtime.disconnect).toHaveBeenCalled();
     expect(polling.stop).toHaveBeenCalled();
   });
 

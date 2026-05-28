@@ -7,6 +7,7 @@
       <input
         v-model="query"
         class="room-direct-join__input"
+        :aria-label="i18n.t('chat.searchPlaceholder')"
         :placeholder="i18n.t('chat.searchPlaceholder')"
       >
       <button

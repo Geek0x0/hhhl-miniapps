@@ -80,9 +80,21 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   const subscribedRooms = new Set<string>();
   let socket: WebSocketLike | null = null;
   let socketUrl = '';
+  let socketOpen = false;
+  let pendingSends: string[] = [];
 
   function send(value: unknown): void {
-    socket?.send(JSON.stringify(value));
+    const message = JSON.stringify(value);
+    if (socket == null) {
+      return;
+    }
+
+    if (!socketOpen) {
+      pendingSends.push(message);
+      return;
+    }
+
+    socket.send(message);
   }
 
   return {
@@ -95,7 +107,16 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
       socketUrl = createUrl(token);
       const nextSocket = new WebSocketImpl(socketUrl);
       socket = nextSocket;
-      nextSocket.onopen = () => send(getRuntimeContracts().streamConnectMessage);
+      socketOpen = false;
+      pendingSends = [];
+      nextSocket.onopen = () => {
+        socketOpen = true;
+        nextSocket.send(JSON.stringify(getRuntimeContracts().streamConnectMessage));
+        for (const message of pendingSends) {
+          nextSocket.send(message);
+        }
+        pendingSends = [];
+      };
       nextSocket.onmessage = (event) => {
         const parsed = JSON.parse(event.data) as unknown;
         const normalized = normalizeEvent(parsed, subscribedRooms);
@@ -106,7 +127,9 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
         }
       };
       nextSocket.onerror = () => logger.warn(`Realtime socket error for ${redactSensitiveText(socketUrl)}`);
-      nextSocket.onclose = () => undefined;
+      nextSocket.onclose = () => {
+        socketOpen = false;
+      };
     },
     subscribeRoom: (roomId) => {
       subscribedRooms.add(roomId);
@@ -129,6 +152,8 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     disconnect: () => {
       socket?.close();
       socket = null;
+      socketOpen = false;
+      pendingSends = [];
       subscribedRooms.clear();
     },
   };
