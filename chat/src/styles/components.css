@@ -58,3 +58,129 @@
   background: transparent;
   color: var(--tg-text);
 }
+
+.app-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rooms-shell {
+  width: min(100%, 760px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.rooms-header h1,
+.room-section h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.rooms-header {
+  margin-bottom: 18px;
+}
+
+.room-direct-join,
+.room-section {
+  margin: 18px 0;
+}
+
+.room-direct-join__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--tg-hint);
+  font-weight: 700;
+}
+
+.room-direct-join__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.room-direct-join__input {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(23, 32, 24, 0.16);
+  border-radius: 8px;
+  background: var(--tg-panel);
+  color: var(--tg-text);
+}
+
+.room-list,
+.room-invitation-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.room-invitation-list {
+  padding: 0;
+  list-style: none;
+}
+
+.room-list-item,
+.room-invitation,
+.room-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(23, 32, 24, 0.1);
+  border-radius: 8px;
+  background: var(--tg-panel);
+  color: var(--tg-text);
+  text-decoration: none;
+}
+
+.room-list-item__main {
+  display: grid;
+  min-width: 0;
+}
+
+.room-list-item__main small {
+  overflow: hidden;
+  color: var(--tg-hint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-list-item__badges,
+.room-invitation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.room-source-badge {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(134, 179, 0, 0.14);
+  color: var(--tg-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.room-error {
+  border-color: rgba(190, 64, 64, 0.35);
+}
+
+@media (max-width: 520px) {
+  .room-direct-join__row,
+  .room-list-item,
+  .room-invitation,
+  .room-error {
+    grid-template-columns: 1fr;
+  }
+
+  .room-list-item,
+  .room-invitation,
+  .room-error {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

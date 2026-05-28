@@ -5,7 +5,16 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
+      redirect: '/rooms',
+    },
+    {
+      path: '/rooms',
+      name: 'rooms',
+      component: () => import('./rooms/components/RoomListView.vue'),
+    },
+    {
+      path: '/rooms/:roomId',
+      name: 'room-detail',
       component: () => import('./HomeView.vue'),
     },
     {

@@ -15,7 +15,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 5: Implement API Client And Domain Endpoint Wrappers - complete
 - Task 6: Implement I18n And Telegram Theme Integration - complete
 - Task 7: Implement MiAuth Login, Token Restore, And Logout - complete
-- Task 8: Implement Room List, Direct Join, Invitations, And Deep Link Preservation - pending
+- Task 8: Implement Room List, Direct Join, Invitations, And Deep Link Preservation - complete
 - Task 9: Implement Chat Timeline, Composer, Pending Messages, Replies, Quotes, Deletion, And Reactions - pending
 - Task 10: Implement Realtime Streaming And Polling Fallback - pending
 - Task 11: Implement File And Image Upload Sending - pending
@@ -28,8 +28,8 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 7 complete. Added MiAuth URL generation, token exchange, auth store restore/callback/logout flow, and login gate components.
-- Next task: Task 8, room list, direct join, invitations, and deep link preservation.
+- Task 8 complete. Added room source merging, room store load/join/invitation/deep-link handling, room list views, and `/rooms` routes.
+- Next task: Task 9, chat timeline, composer, pending messages, replies, quotes, deletion, and reactions.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -73,6 +73,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 7: `npm run typecheck` - passed.
 - Task 7: `npm run lint` - passed.
 - Task 7: `npm run build` - passed.
+- Task 7 commit: `feat(chat): add miauth login`.
+- Task 8: `npm run test:run -- src/rooms` - failed first because room merge/store modules did not exist, then passed after implementation, 8 tests.
+- Task 8: `npm run test:run -- src/App.test.ts src/rooms` - passed, 10 tests.
+- Task 8: `npm run typecheck` - passed.
+- Task 8: `npm run lint` - passed.
+- Task 8: `npm run build` - passed.
 
 ## Review Log
 
@@ -90,3 +96,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 6 code quality: passed. Locale normalization is explicit, message interpolation is contained, theme mapping uses typed keys, and tests/lint/typecheck/build pass.
 - Task 7 spec compliance: passed. MiAuth URL uses `dc.hhhl.cc`, encodes the required permission list, includes callback/name, never includes user tokens, exchanges via the runtime check endpoint, and covers restore/invalid/logout states.
 - Task 7 code quality: passed. Auth state is isolated in Pinia, token storage stays behind the storage adapter, logout clears auth plus local draft/recent-room keys, and tests/lint/typecheck/build pass.
+- Task 8 spec compliance: passed. Room list is built from joined, owned, invited, manual, and deep-linked sources; source badges are sorted; direct join, invitation accept/ignore, and pending `startapp` room preservation are covered; routes include `/rooms`, `/rooms/:roomId`, and callback handling.
+- Task 8 code quality: passed. Merge logic is deterministic, store state separates loading/error/source data, UI avoids global public discovery, and tests/lint/typecheck/build pass.
