@@ -13,7 +13,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 3: Lock External API Contracts Into Fixtures - complete
 - Task 4: Add Shared Types, Errors, Storage, And Logging - complete
 - Task 5: Implement API Client And Domain Endpoint Wrappers - complete
-- Task 6: Implement I18n And Telegram Theme Integration - pending
+- Task 6: Implement I18n And Telegram Theme Integration - complete
 - Task 7: Implement MiAuth Login, Token Restore, And Logout - pending
 - Task 8: Implement Room List, Direct Join, Invitations, And Deep Link Preservation - pending
 - Task 9: Implement Chat Timeline, Composer, Pending Messages, Replies, Quotes, Deletion, And Reactions - pending
@@ -28,8 +28,8 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 5 complete. Added the typed API client, MSW test server, room/chat/file API wrappers, and upload FormData handling.
-- Next task: Task 6, i18n and Telegram theme integration.
+- Task 6 complete. Added English/Chinese i18n state, locale detection and persistence, Telegram language detection, and Telegram theme CSS variable application.
+- Next task: Task 7, MiAuth login, token restore, and logout.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -61,6 +61,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 5: `npm run typecheck` - passed.
 - Task 5: `npm run lint` - passed.
 - Task 5: `npm run build` - passed.
+- Task 5 commit: `feat(chat): add dc api client`.
+- Task 6: `npm run test:run -- src/i18n/i18n.test.ts` - failed first because `src/i18n/index.ts` did not exist, then passed after implementation, 6 tests.
+- Task 6: `npm run test:run -- src/i18n src/telegram src/App.test.ts` - passed, 16 tests.
+- Task 6: `npm run typecheck` - passed.
+- Task 6: `npm run lint` - passed.
+- Task 6: `npm run build` - passed.
 
 ## Review Log
 
@@ -74,3 +80,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 4 code quality: passed. Storage failures are contained, logger redacts sensitive values, tests cover invalid JSON and storage fallback, lint/typecheck/build pass.
 - Task 5 spec compliance: passed. Added endpoint caller, request timeout handling, token injection, redacted API/network errors, MSW test support, room/chat/file wrappers, and upload FormData contract coverage.
 - Task 5 code quality: passed. Domain wrappers keep endpoint names centralized, upload transport composes with the shared API client, token data is not placed in URLs, and tests/lint/typecheck/build pass.
+- Task 6 spec compliance: passed. Added locale selection tests, English/Chinese dictionaries for planned visible states, runtime locale switching with stored preference, Telegram user language support, and theme variable application from Telegram params with fallbacks.
+- Task 6 code quality: passed. Locale normalization is explicit, message interpolation is contained, theme mapping uses typed keys, and tests/lint/typecheck/build pass.

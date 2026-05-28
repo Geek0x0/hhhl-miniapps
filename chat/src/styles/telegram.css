@@ -1,10 +1,10 @@
 :root {
-  --tg-bg: var(--tg-theme-bg-color, #f6f8f3);
-  --tg-text: var(--tg-theme-text-color, #172018);
-  --tg-hint: var(--tg-theme-hint-color, #6b7564);
-  --tg-button: var(--tg-theme-button-color, #86b300);
-  --tg-button-text: var(--tg-theme-button-text-color, #ffffff);
-  --tg-panel: var(--tg-theme-secondary-bg-color, #ffffff);
+  --tg-bg: #f6f8f3;
+  --tg-text: #172018;
+  --tg-hint: #6b7564;
+  --tg-button: #86b300;
+  --tg-button-text: #ffffff;
+  --tg-panel: #ffffff;
 }
 
 body {

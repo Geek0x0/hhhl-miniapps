@@ -20,6 +20,9 @@ export interface TelegramWebApp {
   initDataUnsafe: {
     start_param?: string;
     tgWebAppStartParam?: string;
+    user?: {
+      language_code?: string;
+    };
     [key: string]: unknown;
   };
   platform: string;
@@ -44,6 +47,7 @@ export interface TelegramLaunchContext {
   platform: string;
   startParam: StartParam;
   themeParams: Record<string, string | undefined>;
+  userLanguageCode?: string;
 }
 
 let backButtonHandler: (() => void) | undefined;
@@ -64,6 +68,7 @@ export function getTelegramLaunchContext(): TelegramLaunchContext {
     platform: webApp?.platform ?? 'unknown',
     startParam: parseStartParam(rawStartParam),
     themeParams: webApp?.themeParams ?? {},
+    userLanguageCode: webApp?.initDataUnsafe.user?.language_code,
   };
 }
 
