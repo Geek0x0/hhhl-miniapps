@@ -1,0 +1,37 @@
+import { describe, expect, it } from 'vitest';
+import { createChatApi } from './chatApi';
+
+describe('chatApi', () => {
+  it('calls chat message endpoints with exact payloads', async () => {
+    const calls: Array<{ endpoint: string; params: unknown }> = [];
+    const api = createChatApi({
+      callEndpoint: async (endpoint, params) => {
+        calls.push({ endpoint, params });
+        return {} as never;
+      },
+    });
+
+    await api.roomTimeline('room-1', { limit: 20, sinceId: 'm1' });
+    await api.createToRoom({ toRoomId: 'room-1', text: 'hello', replyId: 'r1', quoteId: 'q1', fileId: 'f1' });
+    await api.delete('m1');
+    await api.react('m1', '❤️');
+    await api.unreact('m1');
+    await api.search({ roomId: 'room-1', query: 'hello', limit: 10 });
+    await api.show('m1');
+    await api.context('m1');
+
+    expect(calls).toEqual([
+      { endpoint: 'chat/messages/room-timeline', params: { roomId: 'room-1', limit: 20, sinceId: 'm1' } },
+      {
+        endpoint: 'chat/messages/create-to-room',
+        params: { toRoomId: 'room-1', text: 'hello', replyId: 'r1', quoteId: 'q1', fileId: 'f1' },
+      },
+      { endpoint: 'chat/messages/delete', params: { messageId: 'm1' } },
+      { endpoint: 'chat/messages/react', params: { messageId: 'm1', reaction: '❤️' } },
+      { endpoint: 'chat/messages/unreact', params: { messageId: 'm1' } },
+      { endpoint: 'chat/messages/search', params: { roomId: 'room-1', query: 'hello', limit: 10 } },
+      { endpoint: 'chat/messages/show', params: { messageId: 'm1' } },
+      { endpoint: 'chat/messages/context', params: { messageId: 'm1' } },
+    ]);
+  });
+});
