@@ -11,7 +11,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 1: Scaffold `chat/` Vue Application And Tooling - complete
 - Task 2: Add Telegram Environment Adapter And Route Gate - complete
 - Task 3: Lock External API Contracts Into Fixtures - complete
-- Task 4: Add Shared Types, Errors, Storage, And Logging - pending
+- Task 4: Add Shared Types, Errors, Storage, And Logging - complete
 - Task 5: Implement API Client And Domain Endpoint Wrappers - pending
 - Task 6: Implement I18n And Telegram Theme Integration - pending
 - Task 7: Implement MiAuth Login, Token Restore, And Logout - pending
@@ -28,7 +28,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 3 complete. Preparing Task 4: shared types, errors, storage, and logging.
+- Task 4 complete. Preparing Task 5: API client and domain endpoint wrappers.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -50,6 +50,11 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 3: `npm run typecheck` - passed.
 - Task 3: `npm run lint` - passed.
 - Task 3: `npm run build` - passed.
+- Task 3 commit: `test(chat): lock dc api endpoint contracts`.
+- Task 4: `npm run test:run -- src/shared` - passed, 8 tests.
+- Task 4: `npm run typecheck` - passed.
+- Task 4: `npm run lint` - passed.
+- Task 4: `npm run build` - passed.
 
 ## Review Log
 
@@ -59,3 +64,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 2 code quality: passed. TypeScript, lint, build, App tests, and Telegram tests all pass; optional Telegram APIs are safely wrapped.
 - Task 3 spec compliance: passed. Added endpoint fetch script, runtime contract script, endpoint/runtime fixtures, contract loader, README documentation, and tests for required endpoint params and runtime values.
 - Task 3 code quality: passed. Scripts do not require user tokens, fixture scan found no concrete secrets, lint/typecheck/build pass.
+- Task 4 spec compliance: passed. Added domain types, typed errors, token redaction, logger, safe JSON parsing, local storage adapter with memory fallback, config, and time helpers.
+- Task 4 code quality: passed. Storage failures are contained, logger redacts sensitive values, tests cover invalid JSON and storage fallback, lint/typecheck/build pass.
