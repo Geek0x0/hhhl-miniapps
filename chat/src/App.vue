@@ -1,9 +1,10 @@
 <template>
   <TelegramOnly v-if="!isTelegram" />
-  <RouterView v-else />
+  <LoginGate v-else />
 </template>
 
 <script setup lang="ts">
+import LoginGate from './auth/components/LoginGate.vue';
 import TelegramOnly from './auth/components/TelegramOnly.vue';
 import { isTelegramEnvironment, readyTelegram } from './telegram/telegram';
 

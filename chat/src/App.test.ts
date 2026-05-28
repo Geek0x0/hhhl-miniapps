@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/vue';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import { installMockTelegram, uninstallMockTelegram } from './test/mockTelegram';
@@ -9,18 +10,18 @@ describe('App', () => {
     uninstallMockTelegram();
   });
 
-  it('renders the chat mini app shell', async () => {
+  it('renders the login gate inside Telegram', async () => {
     installMockTelegram();
     router.push('/');
     await router.isReady();
 
     render(App, {
       global: {
-        plugins: [router],
+        plugins: [createPinia(), router],
       },
     });
 
-    expect(screen.getByText('HHHL Chat Mini App')).toBeInTheDocument();
+    expect(await screen.findByText('Log in to dc.hhhl.cc')).toBeInTheDocument();
   });
 
   it('renders the Telegram-only prompt outside Telegram', () => {
@@ -28,7 +29,7 @@ describe('App', () => {
 
     render(App, {
       global: {
-        plugins: [router],
+        plugins: [createPinia(), router],
       },
     });
 

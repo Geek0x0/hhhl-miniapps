@@ -14,7 +14,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 4: Add Shared Types, Errors, Storage, And Logging - complete
 - Task 5: Implement API Client And Domain Endpoint Wrappers - complete
 - Task 6: Implement I18n And Telegram Theme Integration - complete
-- Task 7: Implement MiAuth Login, Token Restore, And Logout - pending
+- Task 7: Implement MiAuth Login, Token Restore, And Logout - complete
 - Task 8: Implement Room List, Direct Join, Invitations, And Deep Link Preservation - pending
 - Task 9: Implement Chat Timeline, Composer, Pending Messages, Replies, Quotes, Deletion, And Reactions - pending
 - Task 10: Implement Realtime Streaming And Polling Fallback - pending
@@ -28,8 +28,8 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 6 complete. Added English/Chinese i18n state, locale detection and persistence, Telegram language detection, and Telegram theme CSS variable application.
-- Next task: Task 7, MiAuth login, token restore, and logout.
+- Task 7 complete. Added MiAuth URL generation, token exchange, auth store restore/callback/logout flow, and login gate components.
+- Next task: Task 8, room list, direct join, invitations, and deep link preservation.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -67,6 +67,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 6: `npm run typecheck` - passed.
 - Task 6: `npm run lint` - passed.
 - Task 6: `npm run build` - passed.
+- Task 6 commit: `feat(chat): add i18n and telegram theme`.
+- Task 7: `npm run test:run -- src/auth` - failed first because auth implementation modules did not exist, then passed after implementation, 8 tests.
+- Task 7: `npm run test:run -- src/auth src/App.test.ts` - passed, 10 tests.
+- Task 7: `npm run typecheck` - passed.
+- Task 7: `npm run lint` - passed.
+- Task 7: `npm run build` - passed.
 
 ## Review Log
 
@@ -82,3 +88,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 5 code quality: passed. Domain wrappers keep endpoint names centralized, upload transport composes with the shared API client, token data is not placed in URLs, and tests/lint/typecheck/build pass.
 - Task 6 spec compliance: passed. Added locale selection tests, English/Chinese dictionaries for planned visible states, runtime locale switching with stored preference, Telegram user language support, and theme variable application from Telegram params with fallbacks.
 - Task 6 code quality: passed. Locale normalization is explicit, message interpolation is contained, theme mapping uses typed keys, and tests/lint/typecheck/build pass.
+- Task 7 spec compliance: passed. MiAuth URL uses `dc.hhhl.cc`, encodes the required permission list, includes callback/name, never includes user tokens, exchanges via the runtime check endpoint, and covers restore/invalid/logout states.
+- Task 7 code quality: passed. Auth state is isolated in Pinia, token storage stays behind the storage adapter, logout clears auth plus local draft/recent-room keys, and tests/lint/typecheck/build pass.

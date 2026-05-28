@@ -34,3 +34,27 @@
   color: var(--tg-hint);
   line-height: 1.5;
 }
+
+.app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.app-button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.app-button-secondary {
+  border: 1px solid rgba(23, 32, 24, 0.16);
+  background: transparent;
+  color: var(--tg-text);
+}
