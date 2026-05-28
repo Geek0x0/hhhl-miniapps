@@ -1,0 +1,36 @@
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+}
+
+.app-panel {
+  width: min(100%, 560px);
+  padding: 24px;
+  border: 1px solid rgba(23, 32, 24, 0.12);
+  border-radius: 8px;
+  background: var(--tg-panel);
+}
+
+.app-eyebrow {
+  margin: 0 0 8px;
+  color: var(--tg-hint);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.app-panel h1 {
+  margin: 0 0 12px;
+  font-size: clamp(1.6rem, 1.2rem + 1vw, 2.1rem);
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.app-copy {
+  margin: 0;
+  color: var(--tg-hint);
+  line-height: 1.5;
+}

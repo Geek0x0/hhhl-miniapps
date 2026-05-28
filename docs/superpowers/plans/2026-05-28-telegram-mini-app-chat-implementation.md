@@ -27,6 +27,7 @@ Create this structure during implementation:
 ```text
 chat/
   README.md
+  .gitignore
   package.json
   package-lock.json
   index.html
@@ -229,6 +230,7 @@ Runtime behavior is locked in a separate fixture before the UI depends on it. Th
 
 **Files:**
 - Create: `chat/package.json`
+- Create: `chat/.gitignore`
 - Create: `chat/index.html`
 - Create: `chat/eslint.config.js`
 - Create: `chat/vite.config.ts`
@@ -246,7 +248,7 @@ Runtime behavior is locked in a separate fixture before the UI depends on it. Th
 
 - [ ] **Step 1: Create the package manifest**
 
-Create `chat/package.json` with these scripts and dependencies:
+Create `chat/.gitignore` to exclude `node_modules/`, `dist/`, `coverage/`, `test-results/`, `playwright-report/`, `.wrangler/`, and local `.env` files. Create `chat/package.json` with these scripts and dependencies:
 
 ```json
 {
@@ -271,7 +273,7 @@ Create `chat/package.json` with these scripts and dependencies:
   },
   "dependencies": {
     "@vueuse/core": "latest",
-    "lucide-vue-next": "latest",
+    "@lucide/vue": "latest",
     "pinia": "latest",
     "vue": "latest",
     "vue-router": "latest"
@@ -383,7 +385,7 @@ Expected: all commands pass and Vitest reports one passing test.
 Run from repository root:
 
 ```bash
-git add chat/package.json chat/package-lock.json chat/index.html chat/eslint.config.js chat/vite.config.ts chat/vitest.setup.ts chat/tsconfig.json chat/tsconfig.node.json chat/src
+git add chat/.gitignore chat/package.json chat/package-lock.json chat/index.html chat/eslint.config.js chat/vite.config.ts chat/vitest.setup.ts chat/tsconfig.json chat/tsconfig.node.json chat/src
 git commit -m "chore(chat): scaffold mini app"
 ```
 
@@ -984,7 +986,7 @@ Add actions `loadInitial`, `loadOlder`, `sendText`, `retryMessage`, `deleteMessa
 
 - [ ] **Step 7: Implement chat UI components**
 
-Use a Telegram-like layout with fixed header, scrollable timeline, and bottom composer. Ensure long text wraps and toolbar buttons use `lucide-vue-next` icons with accessible labels.
+Use a Telegram-like layout with fixed header, scrollable timeline, and bottom composer. Ensure long text wraps and toolbar buttons use `@lucide/vue` icons with accessible labels.
 
 - [ ] **Step 8: Verify and commit**
 
