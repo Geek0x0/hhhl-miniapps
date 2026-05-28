@@ -202,6 +202,14 @@
   white-space: nowrap;
 }
 
+.chat-header__status {
+  margin-left: auto;
+  color: var(--tg-hint);
+  font-size: 0.78rem;
+  line-height: 1.2;
+  text-align: right;
+}
+
 .chat-icon-button {
   display: inline-grid;
   width: 34px;

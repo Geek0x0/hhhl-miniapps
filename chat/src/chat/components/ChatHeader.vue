@@ -12,6 +12,12 @@
       <strong>{{ title }}</strong>
       <small>{{ roomId }}</small>
     </div>
+    <span
+      v-if="degraded"
+      class="chat-header__status"
+    >
+      {{ i18n.t('realtime.polling') }}
+    </span>
   </header>
 </template>
 
@@ -22,6 +28,7 @@ import { i18n } from '@/i18n';
 defineProps<{
   roomId: string;
   title: string;
+  degraded?: boolean;
 }>();
 
 defineEmits<{

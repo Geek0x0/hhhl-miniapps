@@ -17,7 +17,7 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 7: Implement MiAuth Login, Token Restore, And Logout - complete
 - Task 8: Implement Room List, Direct Join, Invitations, And Deep Link Preservation - complete
 - Task 9: Implement Chat Timeline, Composer, Pending Messages, Replies, Quotes, Deletion, And Reactions - complete
-- Task 10: Implement Realtime Streaming And Polling Fallback - pending
+- Task 10: Implement Realtime Streaming And Polling Fallback - complete
 - Task 11: Implement File And Image Upload Sending - pending
 - Task 12: Implement Search, Members, Room Creation, Invitations, And Management - pending
 - Task 13: Implement Settings, Logout, Diagnostics, And Local Data Clearing - pending
@@ -28,8 +28,8 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 
 ## Current Checkpoint
 
-- Task 9 complete. Added timeline merge, outgoing queue, chat store, chat room route, timeline UI, composer, replies, quotes, deletion, and reactions.
-- Next task: Task 10, realtime streaming and polling fallback.
+- Task 10 complete. Added streaming WebSocket client, polling fallback, realtime store, chat store event hooks, and degraded status display.
+- Next task: Task 11, file and image upload sending.
 - Root `.gitignore` is untracked and contains `docs/`; it is not part of this work and will not be modified.
 
 ## Verification Log
@@ -85,6 +85,12 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 9: `npm run typecheck` - passed.
 - Task 9: `npm run lint` - passed.
 - Task 9: `npm run build` - passed.
+- Task 9 commit: `feat(chat): add message timeline and composer`.
+- Task 10: `npm run test:run -- src/realtime src/chat/chatStore.test.ts` - failed first because realtime modules did not exist, then passed after implementation, 15 tests.
+- Task 10: `npm run test:run -- src/realtime src/chat src/App.test.ts` - passed, 22 tests.
+- Task 10: `npm run typecheck` - passed.
+- Task 10: `npm run lint` - passed.
+- Task 10: `npm run build` - passed.
 
 ## Review Log
 
@@ -106,3 +112,5 @@ Plan: `docs/superpowers/plans/2026-05-28-telegram-mini-app-chat-implementation.m
 - Task 8 code quality: passed. Merge logic is deterministic, store state separates loading/error/source data, UI avoids global public discovery, and tests/lint/typecheck/build pass.
 - Task 9 spec compliance: passed. Timeline load/older merge, pending-to-server replacement, send failure/retry, optimistic deletion/reaction rollback, reply/quote context, and room switch cleanup are covered; UI uses fixed header, scrollable timeline, bottom composer, and lucide icon buttons.
 - Task 9 code quality: passed. Timeline and outgoing queue logic are pure and tested, store effects are isolated behind a typed chat API, long message text wraps, and tests/lint/typecheck/build pass.
+- Task 10 spec compliance: passed. Realtime client builds URL from runtime contracts, sends contract connect/channel envelopes, normalizes room events, filters unrelated rooms, redacts token-bearing URLs in logs, and polling fallback uses `sinceId` with degraded status and backoff.
+- Task 10 code quality: passed. WebSocket is adapted behind a testable interface, polling timers are isolated, realtime store owns subscribe/unsubscribe cleanup, chat store exposes explicit realtime mutation actions, and tests/lint/typecheck/build pass.

@@ -162,6 +162,25 @@ export const useChatStore = defineStore('chat', {
       this.timeline = this.timeline.filter((entry) => entry.kind !== 'pending' || entry.localId !== localId);
     },
 
+    appendRealtimeMessages(messages: ChatMessage[]) {
+      this.timeline = mergeTimeline(this.timeline, messages);
+    },
+
+    applyRealtimeDelete(messageId: string) {
+      this.timeline = removeTimelineMessage(this.timeline, messageId);
+    },
+
+    applyRealtimeReaction(messageId: string, reaction: string | null) {
+      if (reaction == null) {
+        const next = { ...this.reactionsByMessageId };
+        delete next[messageId];
+        this.reactionsByMessageId = next;
+        return;
+      }
+
+      this.reactionsByMessageId = { ...this.reactionsByMessageId, [messageId]: reaction };
+    },
+
     async deleteMessage(messageId: string, api: ChatApiLike = createDefaultChatApi()) {
       const previous = this.timeline;
       this.timeline = removeTimelineMessage(this.timeline, messageId);
