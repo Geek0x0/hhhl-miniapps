@@ -54,6 +54,34 @@ describe('roomStore', () => {
     ]);
   });
 
+  it('loads all joined, owned, and invitation pages before rendering rooms', async () => {
+    const joinedFirstPage = Array.from({ length: 30 }, (_value, index) => room(`joined-${index + 1}`));
+    const api = createRoomApi({
+      joining: vi.fn(async (params) => params?.untilId === 'joined-30'
+        ? [room('joined-31')]
+        : joinedFirstPage),
+      owned: vi.fn(async (params) => params?.untilId === 'owned-30'
+        ? [room('owned-31')]
+        : Array.from({ length: 30 }, (_value, index) => room(`owned-${index + 1}`))),
+      invitationsInbox: vi.fn(async (params) => params?.untilId === 'invite-30'
+        ? [{ id: 'invite-31', room: room('invited-31') }]
+        : Array.from({ length: 30 }, (_value, index) => ({ id: `invite-${index + 1}`, room: room(`invited-${index + 1}`) }))),
+    });
+    const store = useRoomStore();
+
+    await store.loadRooms(api);
+
+    expect(api.joining).toHaveBeenCalledWith({ limit: 30 });
+    expect(api.joining).toHaveBeenCalledWith({ limit: 30, untilId: 'joined-30' });
+    expect(api.owned).toHaveBeenCalledWith({ limit: 30 });
+    expect(api.owned).toHaveBeenCalledWith({ limit: 30, untilId: 'owned-30' });
+    expect(api.invitationsInbox).toHaveBeenCalledWith({ limit: 30 });
+    expect(api.invitationsInbox).toHaveBeenCalledWith({ limit: 30, untilId: 'invite-30' });
+    expect(store.rooms.some((entry) => entry.room.id === 'joined-31')).toBe(true);
+    expect(store.rooms.some((entry) => entry.room.id === 'owned-31')).toBe(true);
+    expect(store.rooms.some((entry) => entry.room.id === 'invited-31')).toBe(true);
+  });
+
   it('sets error state when room loading fails', async () => {
     const api = createRoomApi({
       joining: vi.fn(async () => {

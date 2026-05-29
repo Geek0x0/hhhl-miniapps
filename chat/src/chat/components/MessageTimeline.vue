@@ -78,6 +78,21 @@ function scrollToBottom(): void {
   }
 }
 
+function scrollToMessage(messageId: string): boolean {
+  const element = timelineElement.value;
+  const target = element?.querySelector(`[data-message-id="${globalThis.CSS.escape(messageId)}"]`);
+  if (!(target instanceof globalThis.HTMLElement)) {
+    return false;
+  }
+
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  target.classList.add('message-bubble--focused');
+  globalThis.setTimeout(() => {
+    target.classList.remove('message-bubble--focused');
+  }, 1400);
+  return true;
+}
+
 function isNearBottom(element: globalThis.HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight <= 96;
 }
@@ -130,4 +145,6 @@ onMounted(async () => {
   await nextTick();
   scrollToBottom();
 });
+
+defineExpose({ scrollToMessage });
 </script>

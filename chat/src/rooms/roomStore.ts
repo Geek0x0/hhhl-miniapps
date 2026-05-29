@@ -87,6 +87,35 @@ function mergeInvitations(current: RoomInvitation[], incoming: RoomInvitation[])
   return [...byId.values()];
 }
 
+function lastRoomId(rooms: RoomSummary[]): string | undefined {
+  return rooms.at(-1)?.id;
+}
+
+function lastInvitationId(invitations: RoomInvitation[]): string | undefined {
+  return invitations.at(-1)?.id;
+}
+
+async function loadAllPages<T>(loadPage: (params: PaginationParams) => Promise<T[]>, cursorFrom: (page: T[]) => string | undefined): Promise<T[]> {
+  const all: T[] = [];
+  let untilId: string | undefined;
+
+  for (;;) {
+    const page = await loadPage(untilId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, untilId });
+    all.push(...page);
+
+    if (page.length < DEFAULT_PAGE_SIZE) {
+      return all;
+    }
+
+    const nextUntilId = cursorFrom(page);
+    if (nextUntilId == null || nextUntilId === untilId) {
+      return all;
+    }
+
+    untilId = nextUntilId;
+  }
+}
+
 export const useRoomStore = defineStore('rooms', {
   state: (): RoomState => ({
     loading: false,
@@ -125,9 +154,9 @@ export const useRoomStore = defineStore('rooms', {
 
       try {
         const [joined, owned, invitations] = await Promise.all([
-          api.joining({ limit: DEFAULT_PAGE_SIZE }),
-          api.owned({ limit: DEFAULT_PAGE_SIZE }),
-          api.invitationsInbox({ limit: DEFAULT_PAGE_SIZE }),
+          loadAllPages((params) => api.joining(params), lastRoomId),
+          loadAllPages((params) => api.owned(params), lastRoomId),
+          loadAllPages((params) => api.invitationsInbox(params), lastInvitationId),
         ]);
 
         this.invitations = invitations;

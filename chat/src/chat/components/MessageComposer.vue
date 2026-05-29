@@ -33,6 +33,7 @@
         :aria-label="i18n.t('chat.messageInput')"
         :placeholder="i18n.t('chat.composerPlaceholder')"
         rows="1"
+        @keydown.enter.exact.prevent="submit"
         @paste="handlePaste"
       />
       <button
@@ -63,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-/* global ClipboardEvent, File, URL, crypto */
+/* global ClipboardEvent, File, URL */
 import { ref } from 'vue';
 import { Send, Smile } from '@lucide/vue';
 import { i18n } from '@/i18n';
@@ -71,6 +72,7 @@ import FilePickerButton from '@/files/components/FilePickerButton.vue';
 import UploadProgressList from '@/files/components/UploadProgressList.vue';
 import { addUpload, removeUpload, validateUploadFile, type UploadItem } from '@/files/uploadQueue';
 import type { ChatMessage } from '@/shared/types';
+import { createUuid } from '@/shared/uuid';
 import ReplyPreview from './ReplyPreview.vue';
 
 defineProps<{
@@ -90,7 +92,7 @@ const showEmojiPicker = ref(false);
 const emojis = ['😀', '😂', '😍', '👍', '🙏', '🎉', '❤️', '🔥', '😮', '😢', '👏', '✅'];
 
 function uploadId(): string {
-  return `upload-${crypto.randomUUID()}`;
+  return `upload-${createUuid()}`;
 }
 
 function previewUrl(file: File): string | undefined {

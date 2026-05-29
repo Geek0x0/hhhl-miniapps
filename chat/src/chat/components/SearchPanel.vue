@@ -28,7 +28,12 @@
       <li
         v-for="message in results"
         :key="message.id"
-        class="search-result-row"
+        class="search-result-row search-result-row--clickable"
+        role="button"
+        tabindex="0"
+        @click="$emit('select', message.id)"
+        @keydown.enter="$emit('select', message.id)"
+        @keydown.space.prevent="$emit('select', message.id)"
       >
         <span
           class="search-result-row__avatar"
@@ -61,6 +66,7 @@ defineProps<{
 
 defineEmits<{
   search: [query: string];
+  select: [messageId: string];
 }>();
 
 const query = ref('');

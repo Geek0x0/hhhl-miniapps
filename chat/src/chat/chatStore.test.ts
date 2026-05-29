@@ -100,6 +100,23 @@ describe('chatStore', () => {
     expect(store.outgoing[0]).toMatchObject({ localId: 'local-1', status: 'sent', serverId: 'm3' });
   });
 
+  it('uses a fallback local id when randomUUID is unavailable', async () => {
+    const originalRandomUUID = crypto.randomUUID;
+    const api = createApi();
+    const store = useChatStore();
+
+    try {
+      Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+      await store.loadInitial('room-1', api);
+      await store.sendText('hello', api, { now: () => '2026-01-01T00:00:03.000Z' });
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: originalRandomUUID });
+    }
+
+    expect(store.outgoing[0]?.localId).toMatch(/^local-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(store.outgoing[0]).toMatchObject({ status: 'sent', serverId: 'm3' });
+  });
+
   it('uploads a file before sending and preserves fileId when sending fails', async () => {
     const api = createApi({
       createToRoom: vi.fn(async () => {
@@ -208,6 +225,19 @@ describe('chatStore', () => {
     expect(store.searchResults.map((item) => item.id)).toEqual(['m4']);
   });
 
+  it('loads message context before jumping to a search result outside the current timeline', async () => {
+    const context = vi.fn(async () => [message('m0', '2025-12-31T23:59:59.000Z'), message('m9', '2026-01-01T00:00:09.000Z')]);
+    const api = { ...createApi(), context } as ChatApiLike & { context: (messageId: string) => Promise<ChatMessage[]> };
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const loaded = await store.ensureMessageVisible('m9', api);
+
+    expect(loaded).toBe(true);
+    expect(context).toHaveBeenCalledWith('m9');
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m0', 'm1', 'm2', 'm9']);
+  });
+
   it('keeps key search results separate from normal message search', async () => {
     const api = createApi({
       search: vi.fn(async (params) => params.query === 'sk-' ? [userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })] : [message('m2')]),
@@ -224,20 +254,24 @@ describe('chatStore', () => {
     expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
   });
 
-  it('filters key search by the configured user id without resolving usernames', async () => {
-    const api = createApi({
-      search: vi.fn(async (params) => params.userId === 'amk1v51gkh1u0001' ? [message('key-1')] : []),
-    });
+  it('verifies direct key search results without sender details', async () => {
+    const api = {
+      ...createApi({
+        search: vi.fn(async (params) => params.userId === 'amk1v51gkh1u0001' ? [message('key-1')] : []),
+      }),
+      show: vi.fn(async () => userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })),
+    } as ChatApiLike & { show: (messageId: string) => Promise<ChatMessage> };
     const store = useChatStore();
 
     await store.loadInitial('room-1', createApi());
     await store.searchKeyMessages(api);
 
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
+    expect(api.show).toHaveBeenCalledWith('key-1');
     expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
   });
 
-  it('does not show key results with an explicit different user when the search API ignores the user filter', async () => {
+  it('does not show key results without a verified target sender', async () => {
     const api = createApi({
       search: vi.fn(async () => [
         userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' }),
@@ -252,13 +286,22 @@ describe('chatStore', () => {
 
     expect(api.search).toHaveBeenCalledOnce();
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
-    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1', 'key-3']);
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
   });
 
-  it('falls back to query-only key search when the configured user id returns no results', async () => {
-    const api = createApi({
-      search: vi.fn(async (params) => params.userId == null ? [message('key-1')] : []),
-    });
+  it('verifies query-only key search fallback before showing results', async () => {
+    const api = {
+      ...createApi({
+      search: vi.fn(async (params) => params.userId == null
+        ? [
+          userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' }),
+          userMessage('key-2', { id: 'user-2', username: 'alice', name: 'Alice' }),
+          message('key-3'),
+        ]
+        : []),
+      }),
+      show: vi.fn(async () => userMessage('key-3', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })),
+    } as ChatApiLike & { show: (messageId: string) => Promise<ChatMessage> };
     const store = useChatStore();
 
     await store.loadInitial('room-1', createApi());
@@ -266,7 +309,23 @@ describe('chatStore', () => {
 
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', limit: 30 });
-    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+    expect(api.show).toHaveBeenCalledWith('key-3');
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1', 'key-3']);
+  });
+
+  it('does not show query-only key results when sender details cannot be verified', async () => {
+    const api = {
+      ...createApi({
+        search: vi.fn(async (params) => params.userId == null ? [message('key-1')] : []),
+      }),
+      show: vi.fn(async () => message('key-1')),
+    } as ChatApiLike & { show: (messageId: string) => Promise<ChatMessage> };
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchKeyMessages(api);
+
+    expect(store.keySearchResults).toEqual([]);
   });
 
   it('clears stale search state when switching rooms', async () => {

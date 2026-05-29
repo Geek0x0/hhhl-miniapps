@@ -6,6 +6,11 @@ export default defineConfig({
   base: '/',
   plugins: [vue()],
   server: {
+    watch: {
+      usePolling: true,
+      interval: 500,
+      ignored: ['**/node_modules/**', '**/dist/**', '**/coverage/**', '**/test-results/**', '**/playwright-report/**', '**/.wrangler/**'],
+    },
     proxy: {
       '/api': {
         target: 'https://dc.hhhl.cc',

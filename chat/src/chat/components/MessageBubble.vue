@@ -1,6 +1,7 @@
 <template>
   <article
     class="message-bubble"
+    :data-message-id="entry.message.id"
     :class="{
       'message-bubble--own': isOwnMessage,
       'message-bubble--incoming': !isOwnMessage,

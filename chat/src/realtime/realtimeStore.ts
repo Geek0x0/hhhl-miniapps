@@ -10,6 +10,7 @@ export interface RealtimeClientLike {
   unsubscribeRoom: (roomId: string) => void;
   disconnect: () => void;
   onEvent: (callback: (event: RealtimeEvent) => void) => () => void;
+  onSocketFailure?: (callback: () => void) => () => void;
 }
 
 export interface PollingFallbackLike {
@@ -34,6 +35,7 @@ export interface RealtimeState {
 
 let dependencies: StartRoomDependencies | null = null;
 let unsubscribeEvents: (() => void) | null = null;
+let unsubscribeSocketFailure: (() => void) | null = null;
 
 export const useRealtimeStore = defineStore('realtime', {
   state: (): RealtimeState => ({
@@ -59,6 +61,9 @@ export const useRealtimeStore = defineStore('realtime', {
           nextDependencies.applyReaction?.(event.messageId, event.reaction);
         }
       });
+      unsubscribeSocketFailure = nextDependencies.realtime.onSocketFailure?.(() => {
+        nextDependencies.polling.recordSocketFailure();
+      }) ?? null;
       nextDependencies.realtime.connect();
       nextDependencies.realtime.subscribeRoom(roomId);
     },
@@ -79,7 +84,9 @@ export const useRealtimeStore = defineStore('realtime', {
         dependencies.polling.stop();
       }
       unsubscribeEvents?.();
+      unsubscribeSocketFailure?.();
       unsubscribeEvents = null;
+      unsubscribeSocketFailure = null;
       dependencies = null;
       this.roomId = null;
       this.status = 'idle';

@@ -33,6 +33,7 @@ export interface RealtimeClient {
   subscribeRoom: (roomId: string) => void;
   unsubscribeRoom: (roomId: string) => void;
   onEvent: (callback: (event: RealtimeEvent) => void) => () => void;
+  onSocketFailure: (callback: () => void) => () => void;
   disconnect: () => void;
 }
 
@@ -78,11 +79,13 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   const WebSocketImpl = (options.WebSocketImpl ?? WebSocket) as WebSocketConstructorLike;
   const logger = options.logger ?? createLogger(console);
   const listeners = new Set<(event: RealtimeEvent) => void>();
+  const socketFailureListeners = new Set<() => void>();
   const subscribedRooms = new Set<string>();
   let socket: WebSocketLike | null = null;
   let socketUrl = '';
   let socketOpen = false;
   let pendingSends: string[] = [];
+  let disconnecting = false;
 
   function send(value: unknown): void {
     const message = JSON.stringify(value);
@@ -98,6 +101,12 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     socket.send(message);
   }
 
+  function notifySocketFailure(): void {
+    for (const listener of socketFailureListeners) {
+      listener();
+    }
+  }
+
   return {
     connect: () => {
       const token = options.tokenProvider();
@@ -109,6 +118,7 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
       const nextSocket = new WebSocketImpl(socketUrl);
       socket = nextSocket;
       socketOpen = false;
+      disconnecting = false;
       pendingSends = [];
       nextSocket.onopen = () => {
         socketOpen = true;
@@ -134,9 +144,15 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
           }
         }
       };
-      nextSocket.onerror = () => logger.warn(`Realtime socket error for ${redactSensitiveText(socketUrl)}`);
+      nextSocket.onerror = () => {
+        logger.warn(`Realtime socket error for ${redactSensitiveText(socketUrl)}`);
+        notifySocketFailure();
+      };
       nextSocket.onclose = () => {
         socketOpen = false;
+        if (!disconnecting) {
+          notifySocketFailure();
+        }
       };
     },
     subscribeRoom: (roomId) => {
@@ -157,7 +173,12 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
       listeners.add(callback);
       return () => listeners.delete(callback);
     },
+    onSocketFailure: (callback) => {
+      socketFailureListeners.add(callback);
+      return () => socketFailureListeners.delete(callback);
+    },
     disconnect: () => {
+      disconnecting = true;
       socket?.close();
       socket = null;
       socketOpen = false;

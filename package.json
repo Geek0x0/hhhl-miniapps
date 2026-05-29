@@ -1,0 +1,14 @@
+{
+  "name": "hhhl-miniapps",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix chat run dev",
+    "build": "npm --prefix chat run build",
+    "typecheck": "npm --prefix chat run typecheck",
+    "lint": "npm --prefix chat run lint",
+    "test:run": "npm --prefix chat run test:run",
+    "e2e": "npm --prefix chat run e2e",
+    "verify:pages": "npm --prefix chat run verify:pages",
+    "deploy": "npm --prefix chat run deploy"
+  }
+}

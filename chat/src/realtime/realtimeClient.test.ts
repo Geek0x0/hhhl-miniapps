@@ -132,18 +132,37 @@ describe('RealtimeClient', () => {
     });
   });
 
-  it('redacts tokens before logging socket errors', () => {
+  it('redacts tokens before logging socket errors and notifies failure listeners', () => {
     FakeWebSocket.instances = [];
     const warn = vi.fn();
+    const onSocketFailure = vi.fn();
     const client = createRealtimeClient({
       tokenProvider: () => 'secret-token',
       WebSocketImpl: FakeWebSocket,
       logger: { warn },
     });
+    client.onSocketFailure(onSocketFailure);
 
     client.connect();
     FakeWebSocket.instances[0].onerror?.();
 
     expect(warn).toHaveBeenCalledWith('Realtime socket error for wss://dc.hhhl.cc/streaming?i=[redacted]');
+    expect(onSocketFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports unexpected socket closes as realtime failures', () => {
+    FakeWebSocket.instances = [];
+    const onSocketFailure = vi.fn();
+    const client = createRealtimeClient({ tokenProvider: () => 'secret-token', WebSocketImpl: FakeWebSocket });
+    client.onSocketFailure(onSocketFailure);
+
+    client.connect();
+    client.disconnect();
+    expect(onSocketFailure).not.toHaveBeenCalled();
+
+    client.connect();
+    FakeWebSocket.instances.at(-1)?.onclose?.();
+
+    expect(onSocketFailure).toHaveBeenCalledTimes(1);
   });
 });

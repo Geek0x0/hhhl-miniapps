@@ -7,8 +7,12 @@ function message(id: string, roomId = 'room-1'): ChatMessage {
   return { id, roomId, createdAt: `2026-01-01T00:00:${id.slice(1).padStart(2, '0')}.000Z`, text: id };
 }
 
-function createRealtime(): RealtimeClientLike & { emit: (event: Parameters<Parameters<RealtimeClientLike['onEvent']>[0]>[0]) => void } {
+function createRealtime(): RealtimeClientLike & {
+  emit: (event: Parameters<Parameters<RealtimeClientLike['onEvent']>[0]>[0]) => void;
+  emitSocketFailure: () => void;
+} {
   let handler: Parameters<RealtimeClientLike['onEvent']>[0] = () => undefined;
+  let failureHandler: () => void = () => undefined;
 
   return {
     connect: vi.fn(),
@@ -19,7 +23,12 @@ function createRealtime(): RealtimeClientLike & { emit: (event: Parameters<Param
       handler = callback;
       return () => undefined;
     }),
+    onSocketFailure: vi.fn((callback) => {
+      failureHandler = callback;
+      return () => undefined;
+    }),
     emit: (event) => handler(event),
+    emitSocketFailure: () => failureHandler(),
   };
 }
 
@@ -87,5 +96,16 @@ describe('realtimeStore', () => {
     expect(store.status).toBe('degraded');
     expect(polling.recordSocketFailure).not.toHaveBeenCalled();
     expect(polling.start).toHaveBeenCalledWith('room-1', 'm1');
+  });
+
+  it('records socket failures from the realtime client', () => {
+    const realtime = createRealtime();
+    const polling = createPolling();
+    const store = useRealtimeStore();
+
+    store.startRoom('room-1', { realtime, polling, lastSeenId: () => 'm1', appendMessages: vi.fn() });
+    realtime.emitSocketFailure();
+
+    expect(polling.recordSocketFailure).toHaveBeenCalledOnce();
   });
 });

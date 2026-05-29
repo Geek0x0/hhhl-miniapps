@@ -28,12 +28,25 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.getByPlaceholder('Message').pressSequentially('sent');
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText('😀sent')).toBeVisible();
+  await page.getByPlaceholder('Message').fill('enter sent');
+  await page.getByPlaceholder('Message').press('Enter');
+  await expect(page.getByText('enter sent')).toBeVisible();
 
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByPlaceholder('Search messages').fill('hello');
   await page.getByRole('button', { name: 'Search', exact: true }).last().click();
   await expect(page.locator('.search-result-row', { hasText: 'Alice' })).toBeVisible();
-  await expect(page.locator('.search-result-row', { hasText: 'hello' })).toBeVisible();
+  await expect(page.locator('.search-result-row', { hasText: 'archived hello' })).toBeVisible();
+  await page.locator('.message-timeline').evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await expect(page.locator('[data-message-id="m9"]')).toHaveCount(0);
+  await page.locator('.search-result-row', { hasText: 'archived hello' }).click();
+  await expect(page.locator('.side-panel')).toHaveCount(0);
+  await expect(page.locator('[data-message-id="m9"]')).toBeInViewport();
+
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByPlaceholder('Search messages')).toBeVisible();
+  await page.locator('.message-timeline').click({ position: { x: 20, y: 20 } });
+  await expect(page.locator('.side-panel')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Members' }).click();
   await expect(page.getByText('@alice')).toBeVisible();
@@ -43,7 +56,7 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.getByRole('button', { name: 'Toggle favorite for Bob' }).click();
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('.side-panel--favorites', { hasText: '@bob' })).toBeVisible();
-  await expect(page.locator('.message-bubble', { hasText: 'Bob' }).locator('.favorite-marker')).toBeVisible();
+  await expect(page.locator('.message-bubble', { hasText: 'Bob' }).locator('.favorite-marker').first()).toBeVisible();
 
   await page.evaluate(() => {
     localStorage.setItem('hhhl-chat:favorite-users', JSON.stringify(['user-32', 'user-99']));
@@ -61,7 +74,7 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByPlaceholder('Search messages').fill('hello');
   await page.getByRole('button', { name: 'Search', exact: true }).last().click();
-  await expect(page.locator('.search-result-row', { hasText: 'hello' })).toBeVisible();
+  await expect(page.locator('.search-result-row', { hasText: 'archived hello' })).toBeVisible();
   await expect(page.locator('.side-panel', { hasText: 'sk-test-secret' })).toHaveCount(0);
 
   const fileChooserPromise = page.waitForEvent('filechooser');
@@ -69,4 +82,19 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles({ name: 'hello.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
   await expect(page.getByText('hello.txt')).toBeVisible();
+});
+
+test('search result panel stays open when jumping to a message fails', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page, { failSearchContext: true });
+  await authorizeSession(page);
+
+  await page.goto('/rooms/amlc1bekzi');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByPlaceholder('Search messages').fill('hello');
+  await page.getByRole('button', { name: 'Search', exact: true }).last().click();
+  await page.locator('.search-result-row', { hasText: 'archived hello' }).click();
+
+  await expect(page.locator('.side-panel', { hasText: 'archived hello' })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveText(/message context unavailable/i);
 });

@@ -4,30 +4,33 @@
     @submit.prevent="submit"
   >
     <h2>{{ i18n.t('rooms.create') }}</h2>
-    <input
-      v-model="name"
-      class="room-direct-join__input"
-      :aria-label="i18n.t('rooms.name')"
-      :placeholder="i18n.t('rooms.create')"
-    >
+    <div class="room-create-dialog__row">
+      <input
+        v-model="name"
+        class="room-direct-join__input"
+        :aria-label="i18n.t('rooms.name')"
+        :placeholder="i18n.t('rooms.create')"
+      >
+      <span aria-hidden="true" />
+      <select
+        v-model="joinMode"
+        class="room-direct-join__input"
+        :aria-label="i18n.t('rooms.joinMode')"
+      >
+        <option value="public">
+          {{ i18n.t('rooms.joinModePublic') }}
+        </option>
+        <option value="invite">
+          {{ i18n.t('rooms.joinModeInvite') }}
+        </option>
+      </select>
+    </div>
     <textarea
       v-model="description"
       class="message-composer__input"
       :aria-label="i18n.t('rooms.description')"
       :placeholder="i18n.t('rooms.description')"
     />
-    <select
-      v-model="joinMode"
-      class="room-direct-join__input"
-      :aria-label="i18n.t('rooms.joinMode')"
-    >
-      <option value="public">
-        {{ i18n.t('rooms.joinModePublic') }}
-      </option>
-      <option value="invite">
-        {{ i18n.t('rooms.joinModeInvite') }}
-      </option>
-    </select>
     <button
       class="app-button"
       type="submit"

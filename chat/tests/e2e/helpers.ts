@@ -37,6 +37,7 @@ export async function installTelegramMock(page: Page, startParam?: string, langu
 
 export interface MockApiOptions {
   failJoinRoomId?: string;
+  failSearchContext?: boolean;
 }
 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
@@ -145,6 +146,19 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
+    if (endpoint === 'chat/messages/context' && body.messageId === 'm9') {
+      if (options.failSearchContext === true) {
+        await route.fulfill({ status: 404, headers, json: { error: { code: 'MESSAGE_NOT_FOUND', message: 'message context unavailable' } } });
+        return;
+      }
+
+      await route.fulfill({ headers, json: [
+        { id: 'm8', roomId: 'amlc1bekzi', createdAt: '2025-12-31T23:59:58.000Z', text: 'context before', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
+        { id: 'm9', roomId: 'amlc1bekzi', createdAt: '2025-12-31T23:59:59.000Z', text: 'archived hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } },
+      ] });
+      return;
+    }
+
     if (endpoint === 'chat/messages/search') {
       if (body.query === 'sk-' && body.userId === 'amk1v51gkh1u0001') {
         await route.fulfill({ headers, json: [] });
@@ -165,7 +179,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
         return;
       }
 
-      await route.fulfill({ headers, json: [{ id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } }] });
+      await route.fulfill({ headers, json: [{ id: 'm9', roomId: 'amlc1bekzi', createdAt: '2025-12-31T23:59:59.000Z', text: 'archived hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } }] });
       return;
     }
 

@@ -1,53 +1,56 @@
 <template>
   <main class="chat-room-shell">
-    <ChatHeader
-      :room-id="roomId"
-      :title="roomTitle"
-      :degraded="realtimeStore.status === 'degraded'"
-      @back="router.push('/rooms')"
-      @search="activePanel = activePanel === 'search' ? null : 'search'"
-      @key-search="handleKeySearch"
-      @favorites="showFavorites"
-      @members="showMembers"
-    />
-    <SearchPanel
-      v-if="activePanel === 'search'"
-      :results="chatStore.searchResults"
-      :loading="chatStore.searchLoading"
-      :error="chatStore.searchError"
-      @search="(query) => chatStore.searchMessages({ query })"
-    />
-    <KeySearchPanel
-      v-if="activePanel === 'keySearch'"
-      :results="chatStore.keySearchResults"
-      :loading="chatStore.keySearchLoading"
-      :error="chatStore.keySearchError"
-    />
-    <MembersPanel
-      v-if="activePanel === 'members'"
-      :members="roomStore.membersByRoomId[roomId] ?? []"
-      :favorite-user-ids="settingsStore.favoriteUserIds"
-      :loading="roomStore.membersLoadingByRoomId[roomId] === true"
-      :has-more="roomStore.membersHasMoreByRoomId[roomId] !== false"
-      @load-more="roomStore.loadMoreMembers(roomId)"
-      @toggle-favorite="settingsStore.toggleFavoriteUser"
-    />
-    <FavoritePanel
-      v-if="activePanel === 'favorites'"
-      :members="allKnownMembers"
-      :favorite-user-ids="settingsStore.favoriteUserIds"
-      :loading="favoriteMembersResolving"
-    />
-    <RoomManagementPanel
-      v-if="activePanel === 'manage'"
-      :room-id="roomId"
-      :error="roomStore.error"
-      @update="(params) => roomStore.updateRoom(roomId, params)"
-      @mute="roomStore.muteRoom(roomId)"
-      @leave="roomStore.leaveRoom(roomId)"
-      @delete="roomStore.deleteRoom(roomId)"
-      @invite="roomStore.createInvitation(roomId)"
-    />
+    <div data-panel-region>
+      <ChatHeader
+        :room-id="roomId"
+        :title="roomTitle"
+        :degraded="realtimeStore.status === 'degraded'"
+        @back="router.push('/rooms')"
+        @search="toggleSearch"
+        @key-search="handleKeySearch"
+        @favorites="showFavorites"
+        @members="showMembers"
+      />
+      <SearchPanel
+        v-if="activePanel === 'search'"
+        :results="chatStore.searchResults"
+        :loading="chatStore.searchLoading"
+        :error="chatStore.searchError"
+        @search="(query) => chatStore.searchMessages({ query })"
+        @select="jumpToMessage"
+      />
+      <KeySearchPanel
+        v-if="activePanel === 'keySearch'"
+        :results="chatStore.keySearchResults"
+        :loading="chatStore.keySearchLoading"
+        :error="chatStore.keySearchError"
+      />
+      <MembersPanel
+        v-if="activePanel === 'members'"
+        :members="roomStore.membersByRoomId[roomId] ?? []"
+        :favorite-user-ids="settingsStore.favoriteUserIds"
+        :loading="roomStore.membersLoadingByRoomId[roomId] === true"
+        :has-more="roomStore.membersHasMoreByRoomId[roomId] !== false"
+        @load-more="roomStore.loadMoreMembers(roomId)"
+        @toggle-favorite="settingsStore.toggleFavoriteUser"
+      />
+      <FavoritePanel
+        v-if="activePanel === 'favorites'"
+        :members="allKnownMembers"
+        :favorite-user-ids="settingsStore.favoriteUserIds"
+        :loading="favoriteMembersResolving"
+      />
+      <RoomManagementPanel
+        v-if="activePanel === 'manage'"
+        :room-id="roomId"
+        :error="roomStore.error"
+        @update="(params) => roomStore.updateRoom(roomId, params)"
+        @mute="roomStore.muteRoom(roomId)"
+        @leave="roomStore.leaveRoom(roomId)"
+        @delete="roomStore.deleteRoom(roomId)"
+        @invite="roomStore.createInvitation(roomId)"
+      />
+    </div>
     <p
       v-if="chatStore.error != null"
       class="chat-error"
@@ -56,6 +59,7 @@
       {{ chatStore.error }}
     </p>
     <MessageTimeline
+      ref="timelineComponent"
       :entries="chatStore.timeline"
       :loading-older="chatStore.olderLoading"
       :has-more-older="chatStore.hasMoreOlder"
@@ -71,6 +75,7 @@
       @toggle-favorite="settingsStore.toggleFavoriteUser"
     />
     <MessageComposer
+      data-panel-keep-open
       :reply-target="chatStore.replyTarget"
       :quote-target="chatStore.quoteTarget"
       @send="chatStore.sendText"
@@ -81,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiClient } from '@/api/apiClient';
 import { useAuthStore } from '@/auth/authStore';
@@ -117,6 +122,7 @@ const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id =
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
 const favoriteMembersResolving = ref(false);
 const favoriteUsersById = ref<Record<string, UserSummary>>({});
+const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
 
 const allKnownMembers = computed(() => {
   const membersFromStore = roomStore.membersByRoomId[roomId.value] ?? [];
@@ -189,12 +195,45 @@ async function showFavorites(): Promise<void> {
   }
 }
 
+function toggleSearch(): void {
+  activePanel.value = activePanel.value === 'search' ? null : 'search';
+}
+
 function handleKeySearch(): void {
   if (activePanel.value === 'keySearch') {
     activePanel.value = null;
   } else {
     activePanel.value = 'keySearch';
     chatStore.searchKeyMessages();
+  }
+}
+
+function handleDocumentPointerDown(event: globalThis.PointerEvent): void {
+  if (activePanel.value == null) {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof globalThis.Element)) {
+    return;
+  }
+
+  if (target.closest('[data-panel-region], [data-panel-keep-open]') != null) {
+    return;
+  }
+
+  activePanel.value = null;
+}
+
+async function jumpToMessage(messageId: string): Promise<void> {
+  const visible = await chatStore.ensureMessageVisible(messageId);
+  if (!visible) {
+    return;
+  }
+
+  await nextTick();
+  if (timelineComponent.value?.scrollToMessage(messageId) === true) {
+    activePanel.value = null;
   }
 }
 
@@ -245,10 +284,14 @@ async function loadRoom(): Promise<void> {
   }
 }
 
-onMounted(loadRoom);
+onMounted(() => {
+  void loadRoom();
+  globalThis.document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+});
 watch(roomId, loadRoom);
 onBeforeUnmount(() => {
   stopNewerPolling();
   realtimeStore.stopRoom();
+  globalThis.document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
 });
 </script>

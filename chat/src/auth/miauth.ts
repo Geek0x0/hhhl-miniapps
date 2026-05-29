@@ -1,6 +1,7 @@
 import { getRuntimeContracts } from '@/api/endpointContracts';
 import { API_BASE_URL, DC_HHHL_ORIGIN, MINI_APP_NAME } from '@/shared/config';
 import { ApiError, AuthError, NetworkError, redactSensitiveText } from '@/shared/errors';
+import { createUuid } from '@/shared/uuid';
 import { HHHL_CHAT_PERMISSIONS } from './permissions';
 
 export interface CreateMiAuthSessionOptions {
@@ -22,16 +23,6 @@ interface MiAuthCheckResponse {
   token?: string;
 }
 
-function createFallbackUuid(cryptoImpl: Crypto = crypto): string {
-  const bytes = new Uint8Array(16);
-  cryptoImpl.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
 function createDefaultFetch(): typeof fetch {
   return ((input, init) => {
     const resolvedInput = typeof input === 'string' && input.startsWith('/') ? new URL(input, window.location.origin).toString() : input;
@@ -40,15 +31,7 @@ function createDefaultFetch(): typeof fetch {
 }
 
 export function createMiAuthSession(options: CreateMiAuthSessionOptions = {}): string {
-  if (options.randomUUID != null) {
-    return options.randomUUID();
-  }
-
-  if (typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-
-  return createFallbackUuid();
+  return createUuid({ randomUUID: options.randomUUID });
 }
 
 export function buildCallbackUrl(currentUrl: string, session: string): string {

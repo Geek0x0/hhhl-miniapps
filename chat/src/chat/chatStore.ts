@@ -3,6 +3,7 @@ import { ApiClient } from '@/api/apiClient';
 import { API_BASE_URL, DEFAULT_PAGE_SIZE } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import type { ChatMessage, DriveFile, PaginationParams } from '@/shared/types';
+import { createUuid } from '@/shared/uuid';
 import { createFileApi } from '@/files/fileApi';
 import { createChatApi, type CreateRoomMessageParams, type SearchMessagesParams } from './chatApi';
 import { createPendingMessage, failPendingMessage, removePendingMessage, retryPendingMessage, sendPendingMessage, type OutgoingMessage } from './outgoingQueue';
@@ -15,6 +16,8 @@ export interface ChatApiLike {
   react: (messageId: string, reaction: string) => Promise<unknown>;
   unreact: (messageId: string) => Promise<unknown>;
   search: (params: SearchMessagesParams) => Promise<ChatMessage[]>;
+  show?: (messageId: string) => Promise<ChatMessage>;
+  context?: (messageId: string) => Promise<ChatMessage[]>;
 }
 
 export interface SendOptions {
@@ -62,6 +65,14 @@ function createDefaultChatApi(): ChatApiLike {
   return createChatApi(client) as ChatApiLike;
 }
 
+function requireContextApi(api: ChatApiLike): (messageId: string) => Promise<ChatMessage[]> {
+  if (api.context == null) {
+    throw new Error('Message context transport is not configured');
+  }
+
+  return api.context;
+}
+
 function createDefaultFileApi(): FileUploadLike {
   const storage = createLocalStorageAdapter();
   const client = new ApiClient({
@@ -73,7 +84,7 @@ function createDefaultFileApi(): FileUploadLike {
 }
 
 function defaultIdFactory(): string {
-  return `local-${crypto.randomUUID()}`;
+  return `local-${createUuid()}`;
 }
 
 function messageFromError(error: unknown): string {
@@ -138,12 +149,35 @@ function createSearchKey(query: string, userId: string | undefined): string {
 }
 
 function isAllowedKeySearchMessage(message: ChatMessage): boolean {
-  const user = message.user;
-  if (user == null) {
-    return true;
+  return message.user?.id === KEY_SEARCH_USER_ID;
+}
+
+async function verifyKeySearchMessages(messages: ChatMessage[], api: ChatApiLike): Promise<ChatMessage[]> {
+  const allowed: ChatMessage[] = [];
+
+  for (const message of messages) {
+    if (isAllowedKeySearchMessage(message)) {
+      allowed.push(message);
+      continue;
+    }
+
+    if (message.user == null) {
+      if (api.show == null) {
+        continue;
+      }
+
+      try {
+        const detailed = await api.show(message.id);
+        if (isAllowedKeySearchMessage(detailed)) {
+          allowed.push(detailed);
+        }
+      } catch {
+        // Unverified key-search results are intentionally hidden.
+      }
+    }
   }
 
-  return user.id === KEY_SEARCH_USER_ID;
+  return allowed;
 }
 
 export const useChatStore = defineStore('chat', {
@@ -391,6 +425,21 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
+    async ensureMessageVisible(messageId: string, api: ChatApiLike = createDefaultChatApi()): Promise<boolean> {
+      if (this.timeline.some((entry) => entry.message.id === messageId)) {
+        return true;
+      }
+
+      try {
+        const messages = await requireContextApi(api)(messageId);
+        this.timeline = mergeTimeline(this.timeline, messages);
+        return this.timeline.some((entry) => entry.message.id === messageId);
+      } catch (error) {
+        this.error = messageFromError(error);
+        return false;
+      }
+    },
+
     async searchKeyMessages(api: ChatApiLike = createDefaultChatApi()) {
       if (this.roomId == null) {
         return;
@@ -406,12 +455,12 @@ export const useChatStore = defineStore('chat', {
           userId: KEY_SEARCH_USER_ID,
           limit: DEFAULT_PAGE_SIZE,
         });
-        const results = filteredResults.length > 0 ? filteredResults : await api.search({
+        const fallbackResults = filteredResults.length > 0 ? [] : await api.search({
           roomId: this.roomId,
           query: KEY_SEARCH_QUERY,
           limit: DEFAULT_PAGE_SIZE,
         });
-        this.keySearchResults = results.filter(isAllowedKeySearchMessage);
+        this.keySearchResults = await verifyKeySearchMessages(filteredResults.length > 0 ? filteredResults : fallbackResults, api);
       } catch (error) {
         this.keySearchError = messageFromError(error);
       } finally {
