@@ -53,6 +53,8 @@ const messages = {
   'chat.favorites': 'Favorites',
   'chat.noFavorites': 'No favorite members yet',
   'chat.toggleFavorite': 'Toggle favorite for {name}',
+  'chat.confirmAddFavorite': 'Set {name} as a favorite?',
+  'chat.confirmRemoveFavorite': 'Remove {name} from favorites?',
   'chat.reactions': 'Reactions',
   'chat.searchPlaceholder': 'Search messages',
   'chat.pending': 'Sending...',

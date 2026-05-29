@@ -60,6 +60,7 @@
       @delete="chatStore.deleteMessage"
       @retry="chatStore.retryMessage"
       @remove="chatStore.removeFailedMessage"
+      @toggle-favorite="settingsStore.toggleFavoriteUser"
     />
     <MessageComposer
       :reply-target="chatStore.replyTarget"

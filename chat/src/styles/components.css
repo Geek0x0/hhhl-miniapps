@@ -519,6 +519,14 @@
   font-weight: 800;
 }
 
+.message-bubble__avatar--clickable {
+  cursor: pointer;
+}
+
+.message-bubble__avatar--clickable:hover {
+  opacity: 0.8;
+}
+
 .message-bubble__meta {
   display: flex;
   align-items: baseline;

@@ -29,6 +29,7 @@
       @delete="$emit('delete', $event)"
       @retry="$emit('retry', $event)"
       @remove="$emit('remove', $event)"
+      @toggle-favorite="$emit('toggleFavorite', $event)"
     />
   </section>
 </template>
@@ -56,6 +57,7 @@ const emit = defineEmits<{
   delete: [messageId: string];
   retry: [localId: string];
   remove: [localId: string];
+  toggleFavorite: [userId: string];
 }>();
 
 const timelineElement = ref<globalThis.HTMLElement | null>(null);

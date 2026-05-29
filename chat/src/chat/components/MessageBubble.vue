@@ -10,13 +10,28 @@
     <img
       v-if="avatarUrl != null"
       class="message-bubble__avatar"
+      :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :src="avatarUrl"
       alt=""
+      :role="!isOwnMessage ? 'button' : undefined"
+      :tabindex="!isOwnMessage ? 0 : undefined"
+      @click="handleAvatarClick"
+      @keydown.enter="handleAvatarClick"
+      @keydown.space.prevent="handleAvatarClick"
     >
     <div
       v-else
       class="message-bubble__avatar message-bubble__avatar--fallback"
-      aria-hidden="true"
+      :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
+      :aria-hidden="isOwnMessage ? 'true' : undefined"
+      :role="!isOwnMessage ? 'button' : undefined"
+      :tabindex="!isOwnMessage ? 0 : undefined"
+      @click="handleAvatarClick"
+      @keydown.enter="handleAvatarClick"
+      @keydown.space.prevent="handleAvatarClick"
+    >
+      :tabindex="!isOwnMessage ? 0 : undefined"
+      @click="handleAvatarClick"
     >
       {{ avatarInitial }}
     </div>
@@ -125,14 +140,37 @@ const props = defineProps<{
   favoriteUserIds: string[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   reply: [message: ChatMessage];
   quote: [message: ChatMessage];
   react: [messageId: string, reaction: string];
   delete: [messageId: string];
   retry: [localId: string];
   remove: [localId: string];
+  toggleFavorite: [userId: string];
 }>();
+
+function handleAvatarClick(): void {
+  if (isOwnMessage.value) {
+    return;
+  }
+
+  const userId = props.entry.message.user?.id;
+  if (userId == null) {
+    return;
+  }
+
+  const name = senderName.value;
+  const isFavorite = props.favoriteUserIds.includes(userId);
+  const message = isFavorite
+    ? i18n.t('chat.confirmRemoveFavorite', { name })
+    : i18n.t('chat.confirmAddFavorite', { name });
+
+  if (globalThis.confirm(message)) {
+    emit('toggleFavorite', userId);
+  }
+}
+
 
 const formattedTime = computed(() => new Date(props.entry.message.createdAt).toLocaleTimeString([], {
   hour: '2-digit',
