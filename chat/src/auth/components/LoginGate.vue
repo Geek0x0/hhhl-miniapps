@@ -53,6 +53,8 @@ function resolveSession(querySession: unknown): string | null {
 }
 
 async function handleAuthRoute(): Promise<void> {
+  await router.isReady();
+
   const session = resolveSession(route.query.session);
   const isAuthCallback = route.name === 'auth-callback' || route.path === '/auth/callback';
 
