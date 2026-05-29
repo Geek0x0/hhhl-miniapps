@@ -39,8 +39,21 @@ const dependencies = createAuthDependencies();
 let restored = false;
 let callbackSessionInFlight: string | null = null;
 
+function resolveSession(querySession: unknown): string | null {
+  if (typeof querySession === 'string' && querySession !== '') {
+    return querySession;
+  }
+
+  if (Array.isArray(querySession)) {
+    const session = querySession.find((value) => typeof value === 'string' && value !== '');
+    return typeof session === 'string' ? session : null;
+  }
+
+  return null;
+}
+
 async function handleAuthRoute(): Promise<void> {
-  const session = typeof route.query.session === 'string' ? route.query.session : null;
+  const session = resolveSession(route.query.session);
   const isAuthCallback = route.name === 'auth-callback' || route.path === '/auth/callback';
 
   if (isAuthCallback && session != null && callbackSessionInFlight !== session) {

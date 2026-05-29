@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/vue';
+import { render, screen, waitFor } from '@testing-library/vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPinia } from 'pinia';
 import App from './App.vue';
@@ -51,5 +51,31 @@ describe('App', () => {
     });
 
     expect(await screen.findByRole('alert')).toHaveTextContent('callback rejected');
+  });
+
+  it('handles callback routes when session query appears multiple times', async () => {
+    vi.spyOn(window, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/miauth/session-1/check')) {
+        return Response.json({ token: 'dc-token' }, { status: 200 });
+      }
+      if (url.endsWith('/api/i')) {
+        return Response.json({ id: 'user-1', username: 'alice', name: 'Alice' }, { status: 200 });
+      }
+      return Response.json({ data: [], nextPageToken: null }, { status: 200 });
+    });
+    installMockTelegram();
+    router.push('/auth/callback?session=session-1&session=session-2');
+    await router.isReady();
+
+    render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    await waitFor(() => {
+      expect(router.currentRoute.value.path).toBe('/rooms');
+    });
   });
 });
