@@ -16,13 +16,20 @@
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
+      @keydown.enter="handleAvatarClick"
+      @keydown.space.prevent="handleAvatarClick"
     >
     <div
       v-else
       class="message-bubble__avatar message-bubble__avatar--fallback"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
-      aria-hidden="true"
+      :aria-hidden="isOwnMessage ? 'true' : undefined"
       :role="!isOwnMessage ? 'button' : undefined"
+      :tabindex="!isOwnMessage ? 0 : undefined"
+      @click="handleAvatarClick"
+      @keydown.enter="handleAvatarClick"
+      @keydown.space.prevent="handleAvatarClick"
+    >
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
     >
