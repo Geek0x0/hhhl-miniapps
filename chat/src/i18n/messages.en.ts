@@ -56,6 +56,8 @@ const messages = {
   'chat.confirmAddFavorite': 'Set {name} as a favorite?',
   'chat.confirmRemoveFavorite': 'Remove {name} from favorites?',
   'chat.keySearch': 'Search keys',
+  'chat.copiedToClipboard': 'Copied to clipboard',
+  'chat.copyFailed': 'Copy failed',
   'chat.reactions': 'Reactions',
   'chat.searchPlaceholder': 'Search messages',
   'chat.pending': 'Sending...',

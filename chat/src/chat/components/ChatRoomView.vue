@@ -17,6 +17,12 @@
       :error="chatStore.searchError"
       @search="(query) => chatStore.searchMessages({ query })"
     />
+    <KeySearchPanel
+      v-if="activePanel === 'keySearch'"
+      :results="chatStore.searchResults"
+      :loading="chatStore.searchLoading"
+      :error="chatStore.searchError"
+    />
     <MembersPanel
       v-if="activePanel === 'members'"
       :members="roomStore.membersByRoomId[roomId] ?? []"
@@ -93,6 +99,7 @@ import MembersPanel from './MembersPanel.vue';
 import MessageComposer from './MessageComposer.vue';
 import MessageTimeline from './MessageTimeline.vue';
 import SearchPanel from './SearchPanel.vue';
+import KeySearchPanel from './KeySearchPanel.vue';
 import { useChatStore } from '../chatStore';
 
 const route = useRoute();
@@ -104,7 +111,7 @@ const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
-const activePanel = ref<'search' | 'favorites' | 'members' | 'manage' | null>(null);
+const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
 
 const allKnownMembers = computed(() => {
   const membersFromStore = roomStore.membersByRoomId[roomId.value] ?? [];
@@ -142,8 +149,12 @@ async function showFavorites(): Promise<void> {
 }
 
 function handleKeySearch(): void {
-  activePanel.value = 'search';
-  chatStore.searchMessages({ query: 'sk-' });
+  if (activePanel.value === 'keySearch') {
+    activePanel.value = null;
+  } else {
+    activePanel.value = 'keySearch';
+    chatStore.searchMessages({ query: 'sk-' });
+  }
 }
 
 function startRealtime(): void {
