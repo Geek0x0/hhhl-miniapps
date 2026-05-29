@@ -6,6 +6,7 @@
       :degraded="realtimeStore.status === 'degraded'"
       @back="router.push('/rooms')"
       @search="activePanel = activePanel === 'search' ? null : 'search'"
+      @key-search="handleKeySearch"
       @favorites="showFavorites"
       @members="showMembers"
     />
@@ -27,7 +28,7 @@
     />
     <FavoritePanel
       v-if="activePanel === 'favorites'"
-      :members="roomStore.membersByRoomId[roomId] ?? []"
+      :members="allKnownMembers"
       :favorite-user-ids="settingsStore.favoriteUserIds"
     />
     <RoomManagementPanel
@@ -104,6 +105,16 @@ const settingsStore = useSettingsStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'favorites' | 'members' | 'manage' | null>(null);
+
+const allKnownMembers = computed(() => {
+  const membersFromStore = roomStore.membersByRoomId[roomId.value] ?? [];
+  const memberIds = new Set(membersFromStore.map((m) => m.id));
+  const timelineUsers = chatStore.timeline
+    .map((entry) => entry.message.user)
+    .filter((user): user is NonNullable<typeof user> => user != null && !memberIds.has(user.id));
+  const uniqueTimelineUsers = timelineUsers.filter((user, index, arr) => arr.findIndex((u) => u.id === user.id) === index);
+  return [...membersFromStore, ...uniqueTimelineUsers];
+});
 let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 
 async function ensureMembersLoaded(): Promise<void> {
@@ -124,6 +135,11 @@ async function showFavorites(): Promise<void> {
   if (activePanel.value === 'favorites') {
     await ensureMembersLoaded();
   }
+}
+
+function handleKeySearch(): void {
+  activePanel.value = 'search';
+  chatStore.searchMessages({ query: 'sk-' });
 }
 
 function startRealtime(): void {
