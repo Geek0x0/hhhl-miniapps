@@ -3,7 +3,7 @@
     <button
       v-for="reaction in reactions"
       :key="reaction"
-      class="chat-icon-button"
+      class="reaction-picker__button"
       type="button"
       :aria-label="reaction"
       @click="$emit('select', reaction)"
@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-const reactions = ['👍', '❤️', '😂', '🎉'];
+const reactions = ['👍', '❤️', '😂', '🎉', '🔥', '😮', '😢', '👏'];
 
 defineEmits<{
   select: [reaction: string];
