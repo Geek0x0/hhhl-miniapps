@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import { useAuthStore, type AuthDependencies } from '@/auth/authStore';
+import { i18n } from '@/i18n';
 import { useSettingsStore, SETTINGS_FAVORITE_USERS_KEY, SETTINGS_LANGUAGE_KEY, SETTINGS_THEME_MODE_KEY } from './settingsStore';
 
 class MemoryStorage implements Storage {
@@ -47,6 +48,7 @@ function authDeps(storage = createLocalStorageAdapter(new MemoryStorage())): Aut
 describe('settingsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    i18n.setLocale('en');
     document.documentElement.removeAttribute('data-theme');
     document.documentElement.removeAttribute('data-theme-mode');
     document.documentElement.removeAttribute('style');
@@ -63,6 +65,17 @@ describe('settingsStore', () => {
 
     expect(store.language).toBe('zh');
     expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
+    expect(i18n.locale.value).toBe('zh');
+  });
+
+  it('uses current i18n locale when no stored language preference exists', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const store = useSettingsStore();
+    i18n.setLocale('zh');
+
+    store.init(storage);
+
+    expect(store.language).toBe('zh');
   });
 
   it('stores theme mode and applies CSS variables', () => {

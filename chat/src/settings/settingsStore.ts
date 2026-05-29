@@ -3,7 +3,8 @@ import { DC_HHHL_ORIGIN } from '@/shared/config';
 import { redactSensitiveText } from '@/shared/errors';
 import type { LocalStorageAdapter } from '@/shared/storage';
 import { createLocalStorageAdapter } from '@/shared/storage';
-import type { Locale } from '@/i18n/locales';
+import { i18n } from '@/i18n';
+import { normalizeLocale, type Locale } from '@/i18n/locales';
 import type { AuthDependencies, useAuthStore } from '@/auth/authStore';
 
 export const SETTINGS_LANGUAGE_KEY = 'hhhl-chat:locale';
@@ -104,7 +105,8 @@ export const useSettingsStore = defineStore('settings', {
   }),
   actions: {
     init(storage: LocalStorageAdapter = createLocalStorageAdapter()) {
-      this.language = storage.getJson<Locale>(SETTINGS_LANGUAGE_KEY, 'en');
+      const storedLanguage = normalizeLocale(storage.getJson<string | null>(SETTINGS_LANGUAGE_KEY, null));
+      this.language = storedLanguage ?? i18n.locale.value;
       this.themeMode = normalizeThemeMode(storage.getJson<ThemeMode>(SETTINGS_THEME_MODE_KEY, 'system'));
       this.favoriteUserIds = normalizeFavoriteUserIds(storage.getJson<string[]>(SETTINGS_FAVORITE_USERS_KEY, []));
       this.debugOpen = false;
@@ -113,6 +115,7 @@ export const useSettingsStore = defineStore('settings', {
 
     setLanguage(locale: Locale, storage: LocalStorageAdapter = createLocalStorageAdapter()) {
       this.language = locale;
+      i18n.setLocale(locale);
       storage.setJson(SETTINGS_LANGUAGE_KEY, locale);
     },
 
