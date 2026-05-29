@@ -35,6 +35,8 @@ const messages = {
   'rooms.deepLinkTarget': '正在打开房间 {roomId}',
   'rooms.notFound': '房间不存在或当前不可见。',
   'rooms.members': '成员',
+  'rooms.searchMembers': '搜索成员',
+  'rooms.noMembersFound': '没有找到成员',
   'rooms.mute': '静音房间',
   'rooms.leave': '离开房间',
   'rooms.manage': '管理房间',

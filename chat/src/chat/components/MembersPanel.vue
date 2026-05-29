@@ -3,13 +3,20 @@
     <header class="side-panel__header">
       <h2>{{ i18n.t('rooms.members') }}</h2>
     </header>
+    <input
+      v-model="query"
+      class="room-direct-join__input"
+      type="search"
+      :aria-label="i18n.t('rooms.searchMembers')"
+      :placeholder="i18n.t('rooms.searchMembers')"
+    >
     <ul
       ref="listElement"
       class="side-panel__list side-panel__list--scrollable"
       @scroll.passive="handleScroll"
     >
       <li
-        v-for="member in members"
+        v-for="member in filteredMembers"
         :key="member.id"
         class="member-row"
       >
@@ -35,6 +42,12 @@
         </button>
       </li>
       <li
+        v-if="filteredMembers.length === 0 && !loading"
+        class="side-panel__loading"
+      >
+        {{ i18n.t('rooms.noMembersFound') }}
+      </li>
+      <li
         v-if="loading"
         class="side-panel__loading"
       >
@@ -45,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Heart } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import type { UserSummary } from '@/shared/types';
@@ -63,6 +76,17 @@ const emit = defineEmits<{
 }>();
 
 const listElement = ref<globalThis.HTMLElement | null>(null);
+const query = ref('');
+
+const filteredMembers = computed(() => {
+  const normalizedQuery = query.value.trim().toLowerCase();
+  if (normalizedQuery === '') {
+    return props.members;
+  }
+
+  return props.members.filter((member) => [member.name, member.username, member.id]
+    .some((value) => value?.toLowerCase().includes(normalizedQuery) === true));
+});
 
 function handleScroll(): void {
   const element = listElement.value;

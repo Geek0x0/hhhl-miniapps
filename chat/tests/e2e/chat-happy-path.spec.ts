@@ -32,6 +32,9 @@ test('chat room supports message send, panels, and file preview', async ({ page 
 
   await page.getByRole('button', { name: 'Members' }).click();
   await expect(page.getByText('@alice')).toBeVisible();
+  await page.getByPlaceholder('Search members').fill('bob');
+  await expect(page.getByText('@bob')).toBeVisible();
+  await expect(page.getByText('@alice')).toHaveCount(0);
   await page.getByRole('button', { name: 'Toggle favorite for Bob' }).click();
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('.side-panel--favorites', { hasText: '@bob' })).toBeVisible();

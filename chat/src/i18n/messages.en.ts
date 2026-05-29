@@ -35,6 +35,8 @@ const messages = {
   'rooms.deepLinkTarget': 'Opening room {roomId}',
   'rooms.notFound': 'Room not found or not visible.',
   'rooms.members': 'Members',
+  'rooms.searchMembers': 'Search members',
+  'rooms.noMembersFound': 'No members found',
   'rooms.mute': 'Mute room',
   'rooms.leave': 'Leave room',
   'rooms.manage': 'Manage room',
