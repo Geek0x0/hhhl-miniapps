@@ -5,6 +5,15 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/',
   plugins: [vue()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://dc.hhhl.cc',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -1,6 +1,6 @@
 <template>
   <form
-    class="side-panel"
+    class="room-panel"
     @submit.prevent="submit"
   >
     <h2>{{ i18n.t('rooms.create') }}</h2>

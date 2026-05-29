@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { createRoomApi } from './roomApi';
+import { createRoomApi, normalizeRoomSummary } from './roomApi';
 
 describe('roomApi', () => {
+  it('normalizes room names from dc response variants', () => {
+    expect(normalizeRoomSummary({ id: 'room-1', title: 'General' })).toEqual(expect.objectContaining({
+      id: 'room-1',
+      name: 'General',
+    }));
+    expect(normalizeRoomSummary({ roomId: 'room-2', room: { displayName: 'Design' } })).toEqual(expect.objectContaining({
+      id: 'room-2',
+      name: 'Design',
+    }));
+  });
+
   it('calls room endpoints with exact payloads', async () => {
     const calls: Array<{ endpoint: string; params: unknown }> = [];
     const api = createRoomApi({

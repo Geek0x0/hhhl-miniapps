@@ -7,29 +7,21 @@
       <h1>{{ i18n.t('rooms.title') }}</h1>
     </header>
 
-    <RoomDirectJoin
-      :loading="roomStore.loading"
-      @join="joinRoom"
-    />
     <RoomErrorState
       :message="roomStore.error"
       @clear="roomStore.clearRoomError()"
     />
-    <RoomCreateDialog @create="roomStore.createRoom" />
 
-    <p
-      v-if="roomStore.loading"
-      class="app-copy"
-    >
-      {{ i18n.t('common.loading') }}
-    </p>
-    <section
-      v-else
-      class="room-section"
-    >
+    <section class="room-panel">
       <h2>{{ i18n.t('rooms.joined') }}</h2>
       <p
-        v-if="roomStore.rooms.length === 0"
+        v-if="roomStore.loading"
+        class="app-copy"
+      >
+        {{ i18n.t('common.loading') }}
+      </p>
+      <p
+        v-else-if="roomStore.rooms.length === 0"
         class="app-copy"
       >
         {{ i18n.t('chat.empty') }}
@@ -45,6 +37,13 @@
         />
       </div>
     </section>
+
+    <RoomDirectJoin
+      :loading="roomStore.loading"
+      @join="joinRoom"
+    />
+
+    <RoomCreateDialog @create="roomStore.createRoom" />
 
     <RoomInvitationList
       :invitations="roomStore.invitations"

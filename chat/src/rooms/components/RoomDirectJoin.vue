@@ -1,18 +1,16 @@
 <template>
   <form
-    class="room-direct-join"
+    class="room-panel"
     @submit.prevent="submit"
   >
-    <label
-      class="room-direct-join__label"
-      for="room-id-input"
-    >
+    <h2>
       {{ i18n.t('rooms.directJoin') }}
-    </label>
+    </h2>
     <div class="room-direct-join__row">
       <input
         id="room-id-input"
         v-model="roomId"
+        :aria-label="i18n.t('rooms.directJoin')"
         autocomplete="off"
         class="room-direct-join__input"
         placeholder="roomId"

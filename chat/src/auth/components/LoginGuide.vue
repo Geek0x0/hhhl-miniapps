@@ -12,6 +12,13 @@
     <p class="app-copy">
       {{ i18n.t('auth.loginBody') }}
     </p>
+    <p
+      v-if="error != null"
+      class="chat-error"
+      role="alert"
+    >
+      {{ error }}
+    </p>
     <div class="app-actions">
       <button
         class="app-button"
@@ -33,6 +40,10 @@
 
 <script setup lang="ts">
 import { i18n } from '@/i18n';
+
+defineProps<{
+  error?: string | null;
+}>();
 
 defineEmits<{
   login: [];

@@ -11,7 +11,10 @@ export interface ApiClientOptions {
 }
 
 function createDefaultFetch(): typeof fetch {
-  return window.fetch.bind(window) as typeof fetch;
+  return ((input, init) => {
+    const resolvedInput = typeof input === 'string' && input.startsWith('/') ? new URL(input, window.location.origin).toString() : input;
+    return window.fetch(resolvedInput, init);
+  }) as typeof fetch;
 }
 
 export class ApiClient {

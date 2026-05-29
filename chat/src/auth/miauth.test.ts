@@ -5,6 +5,19 @@ import { HHHL_CHAT_PERMISSIONS } from './permissions';
 import { buildMiAuthUrl, completeMiAuth, createMiAuthSession } from './miauth';
 
 describe('MiAuth URL generation', () => {
+  it('falls back to getRandomValues when randomUUID is unavailable', () => {
+    const originalRandomUUID = crypto.randomUUID;
+
+    try {
+      Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+      const session = createMiAuthSession();
+
+      expect(session).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    } finally {
+      Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: originalRandomUUID });
+    }
+  });
+
   it('creates a dc.hhhl.cc MiAuth URL with callback and exact permissions', () => {
     const session = createMiAuthSession({ randomUUID: () => 'session-1' });
     const url = buildMiAuthUrl({
@@ -27,7 +40,7 @@ describe('MiAuth URL generation', () => {
 describe('completeMiAuth', () => {
   it('exchanges a session for a token through the runtime check endpoint', async () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      expect(String(url)).toBe('https://dc.hhhl.cc/api/miauth/session-1/check');
+      expect(String(url)).toBe('/api/miauth/session-1/check');
       expect(init?.method).toBe('POST');
       return Response.json({ token: 'dc-token' });
     });

@@ -22,12 +22,33 @@ interface MiAuthCheckResponse {
   token?: string;
 }
 
+function createFallbackUuid(cryptoImpl: Crypto = crypto): string {
+  const bytes = new Uint8Array(16);
+  cryptoImpl.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 function createDefaultFetch(): typeof fetch {
-  return window.fetch.bind(window) as typeof fetch;
+  return ((input, init) => {
+    const resolvedInput = typeof input === 'string' && input.startsWith('/') ? new URL(input, window.location.origin).toString() : input;
+    return window.fetch(resolvedInput, init);
+  }) as typeof fetch;
 }
 
 export function createMiAuthSession(options: CreateMiAuthSessionOptions = {}): string {
-  return (options.randomUUID ?? crypto.randomUUID)();
+  if (options.randomUUID != null) {
+    return options.randomUUID();
+  }
+
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return createFallbackUuid();
 }
 
 export function buildCallbackUrl(currentUrl: string, session: string): string {

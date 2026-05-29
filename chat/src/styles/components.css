@@ -72,7 +72,7 @@
 }
 
 .rooms-header h1,
-.room-section h2 {
+.room-panel h2 {
   margin: 0;
   letter-spacing: 0;
 }
@@ -81,9 +81,14 @@
   margin-bottom: 18px;
 }
 
-.room-direct-join,
-.room-section {
-  margin: 18px 0;
+.room-panel {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid rgba(23, 32, 24, 0.1);
+  border-radius: 8px;
+  background: var(--tg-panel);
 }
 
 .room-direct-join__label {
@@ -105,7 +110,7 @@
   padding: 0 12px;
   border: 1px solid rgba(23, 32, 24, 0.16);
   border-radius: 8px;
-  background: var(--tg-panel);
+  background: var(--tg-bg);
   color: var(--tg-text);
 }
 
@@ -113,7 +118,7 @@
 .room-invitation-list {
   display: grid;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .room-invitation-list {
@@ -131,7 +136,7 @@
   padding: 12px;
   border: 1px solid rgba(23, 32, 24, 0.1);
   border-radius: 8px;
-  background: var(--tg-panel);
+  background: var(--tg-bg);
   color: var(--tg-text);
   text-decoration: none;
 }
