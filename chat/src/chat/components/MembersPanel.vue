@@ -42,7 +42,7 @@
         </button>
       </li>
       <li
-        v-if="filteredMembers.length === 0 && !loading"
+        v-if="filteredMembers.length === 0 && !loading && !hasMore"
         class="side-panel__loading"
       >
         {{ i18n.t('rooms.noMembersFound') }}
@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Heart } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import type { UserSummary } from '@/shared/types';
@@ -77,6 +77,7 @@ const emit = defineEmits<{
 
 const listElement = ref<globalThis.HTMLElement | null>(null);
 const query = ref('');
+let lastAutoLoadKey: string | null = null;
 
 function normalizeSearchText(value: string): string {
   return value.trim().toLowerCase().replace(/^@+/, '').replace(/\s+/g, ' ');
@@ -104,6 +105,21 @@ const filteredMembers = computed(() => {
 
   return props.members.filter((member) => memberSearchValues(member)
     .some((value) => normalizeSearchText(value).includes(normalizedQuery)));
+});
+
+watch([() => query.value, () => props.members.length, () => props.loading, () => props.hasMore], () => {
+  const normalizedQuery = normalizeSearchText(query.value);
+  if (normalizedQuery === '' || props.loading || !props.hasMore || filteredMembers.value.length > 0) {
+    return;
+  }
+
+  const autoLoadKey = `${normalizedQuery}:${props.members.length}`;
+  if (lastAutoLoadKey === autoLoadKey) {
+    return;
+  }
+
+  lastAutoLoadKey = autoLoadKey;
+  emit('loadMore');
 });
 
 function handleScroll(): void {
