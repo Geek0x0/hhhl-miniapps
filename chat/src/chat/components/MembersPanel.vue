@@ -78,14 +78,32 @@ const emit = defineEmits<{
 const listElement = ref<globalThis.HTMLElement | null>(null);
 const query = ref('');
 
+function normalizeSearchText(value: string): string {
+  return value.trim().toLowerCase().replace(/^@+/, '').replace(/\s+/g, ' ');
+}
+
+function memberSearchValues(member: UserSummary): string[] {
+  const name = member.name ?? '';
+  const username = member.username;
+
+  return [
+    name,
+    username,
+    `@${username}`,
+    member.id,
+    `${name} ${username}`,
+    `${name} @${username}`,
+  ];
+}
+
 const filteredMembers = computed(() => {
-  const normalizedQuery = query.value.trim().toLowerCase();
+  const normalizedQuery = normalizeSearchText(query.value);
   if (normalizedQuery === '') {
     return props.members;
   }
 
-  return props.members.filter((member) => [member.name, member.username, member.id]
-    .some((value) => value?.toLowerCase().includes(normalizedQuery) === true));
+  return props.members.filter((member) => memberSearchValues(member)
+    .some((value) => normalizeSearchText(value).includes(normalizedQuery)));
 });
 
 function handleScroll(): void {
