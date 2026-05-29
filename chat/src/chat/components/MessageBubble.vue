@@ -30,9 +30,6 @@
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
     >
-      :tabindex="!isOwnMessage ? 0 : undefined"
-      @click="handleAvatarClick"
-    >
       {{ avatarInitial }}
     </div>
     <div class="message-bubble__body">
@@ -62,18 +59,28 @@
         {{ entry.message.text }}
       </p>
       <a
-        v-if="fileUrl != null && isImageFile"
-        class="message-bubble__image-link"
-        :href="fileUrl"
+        v-if="linkPreview != null"
+        class="message-link-preview"
+        :href="linkPreview.href"
         target="_blank"
         rel="noreferrer"
+      >
+        <span class="message-link-preview__host">{{ linkPreview.host }}</span>
+        <span class="message-link-preview__path">{{ linkPreview.path }}</span>
+      </a>
+      <button
+        v-if="fileUrl != null && isImageFile"
+        class="message-bubble__image-button"
+        type="button"
+        :aria-label="i18n.t('files.imagePreview')"
+        @click="openImagePreview"
       >
         <img
           class="message-bubble__image"
           :src="imageSrc"
-          :alt="entry.message.file?.name ?? ''"
+          :alt="imageAlt"
         >
-      </a>
+      </button>
       <a
         v-else-if="entry.message.file != null && fileUrl != null"
         class="message-file-link"
@@ -123,11 +130,35 @@
         <X :size="16" />
       </button>
     </div>
+    <Teleport to="body">
+      <div
+        v-if="imagePreviewOpen && imageSrc !== ''"
+        class="image-lightbox"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="i18n.t('files.imagePreview')"
+        @click.self="closeImagePreview"
+      >
+        <button
+          class="chat-icon-button image-lightbox__close"
+          type="button"
+          :aria-label="i18n.t('common.close')"
+          @click="closeImagePreview"
+        >
+          <X :size="18" />
+        </button>
+        <img
+          class="image-lightbox__image"
+          :src="fileUrl ?? imageSrc"
+          :alt="imageAlt"
+        >
+      </div>
+    </Teleport>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import type { ChatMessage } from '@/shared/types';
@@ -150,6 +181,48 @@ const emit = defineEmits<{
   toggleFavorite: [userId: string];
 }>();
 
+interface LinkPreview {
+  href: string;
+  host: string;
+  path: string;
+}
+
+const URL_PATTERN = /https?:\/\/[^\s<>"')]+/i;
+const imagePreviewOpen = ref(false);
+
+function linkPreviewFromText(text: string | null | undefined): LinkPreview | null {
+  const rawMatch = text?.match(URL_PATTERN)?.[0];
+  if (rawMatch == null) {
+    return null;
+  }
+
+  const rawUrl = rawMatch.replace(/[),.;!?]+$/, '');
+
+  try {
+    const url = new globalThis.URL(rawUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+
+    const path = `${url.pathname}${url.search}${url.hash}`;
+    return {
+      href: url.href,
+      host: url.hostname,
+      path: path === '/' ? url.href : path,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function openImagePreview(): void {
+  imagePreviewOpen.value = true;
+}
+
+function closeImagePreview(): void {
+  imagePreviewOpen.value = false;
+}
+
 function handleAvatarClick(): void {
   if (isOwnMessage.value) {
     return;
@@ -171,7 +244,6 @@ function handleAvatarClick(): void {
   }
 }
 
-
 const formattedTime = computed(() => new Date(props.entry.message.createdAt).toLocaleTimeString([], {
   hour: '2-digit',
   minute: '2-digit',
@@ -181,8 +253,10 @@ const isOwnMessage = computed(() => props.currentUserId != null && props.entry.m
 const isFavoriteSender = computed(() => props.entry.message.user?.id != null && props.favoriteUserIds.includes(props.entry.message.user.id));
 const avatarUrl = computed(() => props.entry.message.user?.avatarUrl ?? null);
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
+const linkPreview = computed(() => linkPreviewFromText(props.entry.message.text));
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);
 const imageSrc = computed(() => props.entry.message.file?.thumbnailUrl ?? props.entry.message.file?.url ?? '');
+const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
 const isImageFile = computed(() => {
   const file = props.entry.message.file;
   if (file == null) {

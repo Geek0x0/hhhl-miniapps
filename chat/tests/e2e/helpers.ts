@@ -20,7 +20,7 @@ export async function installTelegramMock(page: Page, startParam?: string): Prom
       configurable: true,
       value: {
         WebApp: {
-          initData: '',
+          initData: 'mock_init_data',
           initDataUnsafe: { start_param: param, user: { language_code: 'en' } },
           platform: 'tdesktop',
           themeParams: {},
@@ -37,6 +37,11 @@ export async function installTelegramMock(page: Page, startParam?: string): Prom
 
 export async function mockApi(page: Page): Promise<void> {
   await page.route('**/*', async (route) => {
+    if (route.request().url().startsWith('https://telegram.org/js/telegram-web-app.js')) {
+      await route.fulfill({ contentType: 'application/javascript', body: '' });
+      return;
+    }
+
     if (route.request().url().startsWith('https://dc.hhhl.cc/files/')) {
       await route.fulfill({ contentType: 'image/png', body: transparentPng });
       return;
@@ -83,7 +88,10 @@ export async function mockApi(page: Page): Promise<void> {
 
     if (endpoint === 'chat/rooms/members') {
       if (body.untilId === 'user-31') {
-        await route.fulfill({ headers, json: [{ id: 'user-2', username: 'bob', name: 'Bob' }] });
+        await route.fulfill({ headers, json: [
+          { id: 'user-2', username: 'bob', name: 'Bob' },
+          { id: 'user-32', username: 'dora', name: 'Dora' },
+        ] });
         return;
       }
 
@@ -91,6 +99,21 @@ export async function mockApi(page: Page): Promise<void> {
         { id: 'user-1', username: 'alice', name: 'Alice' },
         ...Array.from({ length: 29 }, (_value, index) => ({ id: `user-${index + 3}`, username: `member${index + 3}`, name: `Member ${index + 3}` })),
       ] });
+      return;
+    }
+
+    if (endpoint === 'users/show') {
+      const requestedIds = Array.isArray(body.userIds) ? body.userIds : [body.userId];
+      const users = requestedIds.flatMap((userId) => {
+        if (userId === 'user-32') {
+          return [{ id: 'user-32', username: 'dora', name: 'Dora' }];
+        }
+        if (userId === 'user-99') {
+          return [{ id: 'user-99', username: 'eve', name: 'Eve', avatarUrl: '/avatar/eve.png' }];
+        }
+        return [];
+      });
+      await route.fulfill({ headers, json: Array.isArray(body.userIds) ? users : users[0] ?? null });
       return;
     }
 
@@ -103,7 +126,7 @@ export async function mockApi(page: Page): Promise<void> {
       await route.fulfill({ headers, json: [
         { id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', fromUser: { id: 'user-1', username: 'alice', name: 'Alice', avatarUrl: '/avatar/alice.png' } },
         { id: 'm2', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:01.000Z', content: 'image attached', fromUser: { id: 'user-2', username: 'bob', name: 'Bob' }, files: [{ id: 'file-1', name: 'photo.png', type: 'image/png', url: '/files/photo.png', thumbnailUrl: '/files/photo-thumb.png' }] },
-        { id: 'm3', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:02.000Z', text: 'reply body', user: { id: 'user-1', username: 'alice', name: 'Alice' }, replyId: 'm1', reply: { id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } } },
+        { id: 'm3', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:02.000Z', text: 'reply body https://example.com/docs', user: { id: 'user-1', username: 'alice', name: 'Alice' }, replyId: 'm1', reply: { id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } } },
       ] });
       return;
     }
@@ -123,11 +146,13 @@ export async function mockApi(page: Page): Promise<void> {
 }
 
 export async function authorizeSession(page: Page): Promise<void> {
-  if (!page.url().startsWith('http://127.0.0.1:4173')) {
-    await page.goto('/');
-  }
-
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     localStorage.setItem('hhhl-chat:auth', JSON.stringify({ token: 'test-token', savedAt: new Date().toISOString() }));
   });
+
+  if (page.url().startsWith('http://127.0.0.1:4173')) {
+    await page.evaluate(() => {
+      localStorage.setItem('hhhl-chat:auth', JSON.stringify({ token: 'test-token', savedAt: new Date().toISOString() }));
+    });
+  }
 }

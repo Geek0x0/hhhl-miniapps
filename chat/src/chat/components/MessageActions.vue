@@ -63,32 +63,32 @@ const emit = defineEmits<{
 }>();
 
 const showPicker = ref(false);
-const actionsEl = ref<HTMLElement | null>(null);
+const actionsEl = ref<globalThis.HTMLElement | null>(null);
 
 function handleReaction(reaction: string): void {
   emit('react', props.message.id, reaction);
   showPicker.value = false;
 }
 
-function handleClickOutside(event: MouseEvent): void {
-  if (showPicker.value && actionsEl.value != null && !actionsEl.value.contains(event.target as Node)) {
+function handleClickOutside(event: globalThis.MouseEvent): void {
+  if (showPicker.value && actionsEl.value != null && !actionsEl.value.contains(event.target as globalThis.Node)) {
     showPicker.value = false;
   }
 }
 
-function handleKeydown(event: KeyboardEvent): void {
+function handleKeydown(event: globalThis.KeyboardEvent): void {
   if (showPicker.value && event.key === 'Escape') {
     showPicker.value = false;
   }
 }
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
-  document.addEventListener('keydown', handleKeydown);
+  globalThis.document.addEventListener('click', handleClickOutside);
+  globalThis.document.addEventListener('keydown', handleKeydown);
 });
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside);
-  document.removeEventListener('keydown', handleKeydown);
+  globalThis.document.removeEventListener('click', handleClickOutside);
+  globalThis.document.removeEventListener('keydown', handleKeydown);
 });
 </script>

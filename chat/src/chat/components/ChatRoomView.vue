@@ -36,6 +36,7 @@
       v-if="activePanel === 'favorites'"
       :members="allKnownMembers"
       :favorite-user-ids="settingsStore.favoriteUserIds"
+      :loading="favoriteMembersResolving"
     />
     <RoomManagementPanel
       v-if="activePanel === 'manage'"
@@ -92,6 +93,8 @@ import { createRealtimeClient } from '@/realtime/realtimeClient';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
 import { useRoomStore } from '@/rooms/roomStore';
 import { useSettingsStore } from '@/settings/settingsStore';
+import type { UserSummary } from '@/shared/types';
+import { createUserApi } from '@/users/userApi';
 import RoomManagementPanel from '@/rooms/components/RoomManagementPanel.vue';
 import ChatHeader from './ChatHeader.vue';
 import FavoritePanel from './FavoritePanel.vue';
@@ -112,6 +115,8 @@ const settingsStore = useSettingsStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
+const favoriteMembersResolving = ref(false);
+const favoriteUsersById = ref<Record<string, UserSummary>>({});
 
 const allKnownMembers = computed(() => {
   const membersFromStore = roomStore.membersByRoomId[roomId.value] ?? [];
@@ -124,13 +129,49 @@ const allKnownMembers = computed(() => {
     }
     return acc;
   }, []);
-  return [...membersFromStore, ...uniqueTimelineUsers];
+  const fetchedFavoriteUsers = Object.values(favoriteUsersById.value).filter((user) => !seenIds.has(user.id));
+  for (const user of fetchedFavoriteUsers) {
+    seenIds.add(user.id);
+  }
+  return [...membersFromStore, ...uniqueTimelineUsers, ...fetchedFavoriteUsers];
 });
 let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
+
+function createUserApiClient() {
+  const storage = createLocalStorageAdapter();
+  const client = new ApiClient({ baseUrl: API_BASE_URL, tokenProvider: () => storage.getToken() });
+  return createUserApi(client);
+}
 
 async function ensureMembersLoaded(): Promise<void> {
   if (roomStore.membersByRoomId[roomId.value] == null) {
     await roomStore.loadMoreMembers(roomId.value);
+  }
+}
+
+function missingFavoriteMemberIds(): string[] {
+  const knownIds = new Set(allKnownMembers.value.map((member) => member.id));
+  return settingsStore.favoriteUserIds.filter((userId) => !knownIds.has(userId));
+}
+
+async function ensureFavoriteMembersLoaded(): Promise<void> {
+  if (settingsStore.favoriteUserIds.length === 0) {
+    return;
+  }
+
+  favoriteMembersResolving.value = true;
+
+  try {
+    const missingUserIds = missingFavoriteMemberIds();
+    if (activePanel.value === 'favorites' && missingUserIds.length > 0) {
+      const users = await createUserApiClient().show({ userIds: missingUserIds, detail: false });
+      favoriteUsersById.value = {
+        ...favoriteUsersById.value,
+        ...Object.fromEntries(users.map((user) => [user.id, user])),
+      };
+    }
+  } finally {
+    favoriteMembersResolving.value = false;
   }
 }
 
@@ -144,7 +185,7 @@ async function showMembers(): Promise<void> {
 async function showFavorites(): Promise<void> {
   activePanel.value = activePanel.value === 'favorites' ? null : 'favorites';
   if (activePanel.value === 'favorites') {
-    await ensureMembersLoaded();
+    await ensureFavoriteMembersLoaded();
   }
 }
 

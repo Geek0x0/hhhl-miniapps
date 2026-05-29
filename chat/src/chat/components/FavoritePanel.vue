@@ -5,7 +5,13 @@
       <small>{{ favoriteMembers.length }}</small>
     </header>
     <p
-      v-if="favoriteMembers.length === 0"
+      v-if="loading && favoriteMembers.length === 0"
+      class="app-copy"
+    >
+      {{ i18n.t('common.loading') }}
+    </p>
+    <p
+      v-else-if="favoriteMembers.length === 0"
       class="app-copy"
     >
       {{ i18n.t('chat.noFavorites') }}
@@ -43,6 +49,12 @@
         />
       </li>
     </ul>
+    <p
+      v-if="loading && favoriteMembers.length > 0"
+      class="side-panel__loading"
+    >
+      {{ i18n.t('common.loading') }}
+    </p>
   </section>
 </template>
 
@@ -55,6 +67,7 @@ import type { UserSummary } from '@/shared/types';
 const props = defineProps<{
   members: UserSummary[];
   favoriteUserIds: string[];
+  loading: boolean;
 }>();
 
 const favoriteMembers = computed(() => props.members.filter((member) => props.favoriteUserIds.includes(member.id)));

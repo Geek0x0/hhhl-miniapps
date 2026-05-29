@@ -14,7 +14,12 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Bob' })).toBeVisible();
   await expect(page.locator('.message-bubble__image')).toBeVisible();
+  await page.locator('.message-bubble__image').click();
+  await expect(page.getByRole('dialog', { name: 'Image preview' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByText('Replying to Alice')).toBeVisible();
+  await expect(page.locator('.message-link-preview', { hasText: 'example.com' })).toBeVisible();
+  await expect(page.locator('.message-link-preview', { hasText: '/docs' })).toBeVisible();
   await expect(page.locator('.message-bubble', { hasText: 'image attached' }).getByRole('button', { name: 'Delete message' })).toHaveCount(0);
   await expect(page.getByText('latest')).toBeVisible();
   await page.getByRole('button', { name: 'Emoji' }).click();
@@ -24,9 +29,9 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText('😀sent')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Search' }).click();
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByPlaceholder('Search messages').fill('hello');
-  await page.getByRole('button', { name: 'Search' }).last().click();
+  await page.getByRole('button', { name: 'Search', exact: true }).last().click();
   await expect(page.locator('.search-result-row', { hasText: 'Alice' })).toBeVisible();
   await expect(page.locator('.search-result-row', { hasText: 'hello' })).toBeVisible();
 
@@ -39,6 +44,14 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('.side-panel--favorites', { hasText: '@bob' })).toBeVisible();
   await expect(page.locator('.message-bubble', { hasText: 'Bob' }).locator('.favorite-marker')).toBeVisible();
+
+  await page.evaluate(() => {
+    localStorage.setItem('hhhl-chat:favorite-users', JSON.stringify(['user-32', 'user-99']));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Favorites' }).click();
+  await expect(page.locator('.side-panel--favorites', { hasText: '@dora' })).toBeVisible();
+  await expect(page.locator('.side-panel--favorites', { hasText: '@eve' })).toBeVisible();
 
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByLabel('Select file').click();

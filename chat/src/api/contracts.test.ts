@@ -16,6 +16,7 @@ const expectedParams: Record<string, string[]> = {
   'chat/rooms/create': ['name', 'description', 'joinMode'],
   'drive/files/create': ['folderId', 'name', 'comment', 'isSensitive', 'force'],
   'miauth/gen-token': ['session', 'name', 'description', 'iconUrl', 'permission', 'grantees', 'rank'],
+  'users/show': ['userId', 'userIds', 'username', 'host', 'detail'],
 };
 
 describe('endpoint contracts', () => {

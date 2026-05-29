@@ -29,6 +29,7 @@ export const requiredEndpoints = [
   'chat/messages/show',
   'chat/messages/unreact',
   'drive/files/create',
+  'users/show',
 ];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

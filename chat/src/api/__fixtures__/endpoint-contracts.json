@@ -407,5 +407,30 @@
         "type": "String"
       }
     ]
+  },
+  "users/show": {
+    "endpoint": "users/show",
+    "params": [
+      {
+        "name": "userId",
+        "type": "String"
+      },
+      {
+        "name": "userIds",
+        "type": "Array"
+      },
+      {
+        "name": "username",
+        "type": "String"
+      },
+      {
+        "name": "host",
+        "type": "String"
+      },
+      {
+        "name": "detail",
+        "type": "Boolean"
+      }
+    ]
   }
 }

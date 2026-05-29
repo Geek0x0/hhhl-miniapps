@@ -61,6 +61,7 @@ export const requiredEndpointNames = [
   'chat/messages/show',
   'chat/messages/unreact',
   'drive/files/create',
+  'users/show',
 ] as const;
 
 const endpointContracts = endpointContractsJson as Record<string, EndpointContract>;
