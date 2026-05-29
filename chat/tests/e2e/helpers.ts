@@ -101,12 +101,12 @@ export async function mockApi(page: Page): Promise<void> {
     }
 
     if (endpoint === 'chat/messages/create-to-room') {
-      await route.fulfill({ headers, json: { id: 'm2', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:01.000Z', text: 'sent' } });
+      await route.fulfill({ headers, json: { id: `created-${String(body.text ?? body.fileId ?? 'message')}`, roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:04.000Z', text: body.text ?? null, user: { id: 'user-1', username: 'alice', name: 'Alice' } } });
       return;
     }
 
     if (endpoint === 'chat/messages/search') {
-      await route.fulfill({ headers, json: [{ id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello' }] });
+      await route.fulfill({ headers, json: [{ id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } }] });
       return;
     }
 

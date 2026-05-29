@@ -46,6 +46,7 @@ const messages = {
   'chat.replyingTo': 'Replying to {name}',
   'chat.quote': 'Quote',
   'chat.deleteMessage': 'Delete message',
+  'chat.emoji': 'Emoji',
   'chat.reactions': 'Reactions',
   'chat.searchPlaceholder': 'Search messages',
   'chat.pending': 'Sending...',

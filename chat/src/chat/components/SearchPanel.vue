@@ -24,15 +24,25 @@
     >
       {{ error }}
     </p>
-    <p class="app-copy">
-      {{ results.length }}
-    </p>
-    <ul class="side-panel__list">
+    <ul class="side-panel__list search-results">
       <li
         v-for="message in results"
         :key="message.id"
+        class="search-result-row"
       >
-        {{ message.text ?? message.id }}
+        <span
+          class="search-result-row__avatar"
+          aria-hidden="true"
+        >
+          {{ senderInitial(message) }}
+        </span>
+        <span class="search-result-row__main">
+          <span class="search-result-row__meta">
+            <strong>{{ senderName(message) }}</strong>
+            <small>{{ formattedTime(message) }}</small>
+          </span>
+          <span class="search-result-row__text">{{ message.text ?? message.file?.name ?? message.id }}</span>
+        </span>
       </li>
     </ul>
   </section>
@@ -54,4 +64,16 @@ defineEmits<{
 }>();
 
 const query = ref('');
+
+function senderName(message: ChatMessage): string {
+  return message.user?.name ?? message.user?.username ?? message.user?.id ?? 'Unknown';
+}
+
+function senderInitial(message: ChatMessage): string {
+  return senderName(message).trim().slice(0, 1).toUpperCase() || '?';
+}
+
+function formattedTime(message: ChatMessage): string {
+  return new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 </script>

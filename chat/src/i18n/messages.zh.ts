@@ -46,6 +46,7 @@ const messages = {
   'chat.replyingTo': '正在回复 {name}',
   'chat.quote': '引用',
   'chat.deleteMessage': '删除消息',
+  'chat.emoji': '表情',
   'chat.reactions': '回应',
   'chat.searchPlaceholder': '搜索消息',
   'chat.pending': '正在发送...',

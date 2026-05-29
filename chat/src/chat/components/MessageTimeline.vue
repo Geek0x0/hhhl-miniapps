@@ -21,6 +21,7 @@
       v-for="entry in entries"
       :key="entry.kind === 'pending' ? entry.localId : entry.message.id"
       :entry="entry"
+      :current-user-id="currentUserId"
       @reply="$emit('reply', $event)"
       @quote="$emit('quote', $event)"
       @react="(messageId, reaction) => $emit('react', messageId, reaction)"
@@ -41,6 +42,8 @@ import MessageBubble from './MessageBubble.vue';
 const props = defineProps<{
   entries: TimelineEntry[];
   loadingOlder: boolean;
+  hasMoreOlder: boolean;
+  currentUserId: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -55,8 +58,10 @@ const emit = defineEmits<{
 
 const timelineElement = ref<globalThis.HTMLElement | null>(null);
 let previousScrollHeight = 0;
+let previousScrollTop = 0;
 let loadingFromScroll = false;
 let previousLastKey: string | null = null;
+const OLDER_LOAD_THRESHOLD_PX = 160;
 
 function entryKey(entry: TimelineEntry): string {
   return entry.kind === 'pending' ? entry.localId : entry.message.id;
@@ -75,13 +80,14 @@ function isNearBottom(element: globalThis.HTMLElement): boolean {
 
 async function handleScroll(): Promise<void> {
   const element = timelineElement.value;
-  if (element == null || props.loadingOlder || loadingFromScroll || props.entries.length === 0) {
+  if (element == null || props.loadingOlder || loadingFromScroll || !props.hasMoreOlder || props.entries.length === 0) {
     return;
   }
 
-  if (element.scrollTop <= 48) {
+  if (element.scrollTop <= OLDER_LOAD_THRESHOLD_PX) {
     loadingFromScroll = true;
     previousScrollHeight = element.scrollHeight;
+    previousScrollTop = element.scrollTop;
     emit('loadOlder');
     await nextTick();
     if (!props.loadingOlder) {
@@ -95,7 +101,9 @@ watch(() => props.loadingOlder, async (loading, wasLoading) => {
     await nextTick();
     const element = timelineElement.value;
     if (element != null) {
-      element.scrollTop += Math.max(0, element.scrollHeight - previousScrollHeight);
+      globalThis.requestAnimationFrame(() => {
+        element.scrollTop = previousScrollTop + Math.max(0, element.scrollHeight - previousScrollHeight);
+      });
     }
     loadingFromScroll = false;
   }

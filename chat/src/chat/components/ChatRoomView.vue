@@ -8,7 +8,6 @@
       @search="activePanel = activePanel === 'search' ? null : 'search'"
       @members="showMembers"
       @manage="activePanel = activePanel === 'manage' ? null : 'manage'"
-      @settings="router.push('/settings')"
     />
     <SearchPanel
       v-if="activePanel === 'search'"
@@ -20,7 +19,9 @@
     <MembersPanel
       v-if="activePanel === 'members'"
       :members="roomStore.membersByRoomId[roomId] ?? []"
-      @load-more="roomStore.loadMembers(roomId)"
+      :loading="roomStore.membersLoadingByRoomId[roomId] === true"
+      :has-more="roomStore.membersHasMoreByRoomId[roomId] !== false"
+      @load-more="roomStore.loadMoreMembers(roomId)"
     />
     <RoomManagementPanel
       v-if="activePanel === 'manage'"
@@ -42,6 +43,8 @@
     <MessageTimeline
       :entries="chatStore.timeline"
       :loading-older="chatStore.olderLoading"
+      :has-more-older="chatStore.hasMoreOlder"
+      :current-user-id="authStore.user?.id ?? null"
       @load-older="chatStore.loadOlder()"
       @reply="chatStore.setReplyTarget"
       @quote="chatStore.setQuoteTarget"
@@ -64,6 +67,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ApiClient } from '@/api/apiClient';
+import { useAuthStore } from '@/auth/authStore';
 import { API_BASE_URL } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import { createChatApi } from '@/chat/chatApi';
@@ -84,6 +88,7 @@ const router = useRouter();
 const chatStore = useChatStore();
 const roomStore = useRoomStore();
 const realtimeStore = useRealtimeStore();
+const authStore = useAuthStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'members' | 'manage' | null>(null);
@@ -92,7 +97,7 @@ let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 async function showMembers(): Promise<void> {
   activePanel.value = activePanel.value === 'members' ? null : 'members';
   if (activePanel.value === 'members' && roomStore.membersByRoomId[roomId.value] == null) {
-    await roomStore.loadMembers(roomId.value);
+    await roomStore.loadMoreMembers(roomId.value);
   }
 }
 
@@ -126,9 +131,10 @@ function stopNewerPolling(): void {
 
 function startNewerPolling(): void {
   stopNewerPolling();
+  void chatStore.loadNewer();
   newerPollTimer = globalThis.setInterval(() => {
     void chatStore.loadNewer();
-  }, 5000);
+  }, 3000);
 }
 
 async function loadRoom(): Promise<void> {

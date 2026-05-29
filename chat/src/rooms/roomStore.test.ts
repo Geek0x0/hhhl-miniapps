@@ -157,6 +157,29 @@ describe('roomStore', () => {
     expect(store.outboxInvitations).toEqual([{ id: 'invite-2', roomId: 'room-1' }]);
   });
 
+  it('auto-loads more members with untilId and stops at the end', async () => {
+    const firstPage = Array.from({ length: 30 }, (_value, index) => ({
+      id: `user-${index + 1}`,
+      username: `user${index + 1}`,
+    }));
+    const api = createRoomApi({
+      members: vi.fn(async (_roomId, params) => params?.untilId === 'user-30'
+        ? []
+        : firstPage),
+    });
+    const store = useRoomStore();
+
+    await store.loadMoreMembers('room-1', api);
+    await store.loadMoreMembers('room-1', api);
+    await store.loadMoreMembers('room-1', api);
+
+    expect(api.members).toHaveBeenCalledWith('room-1', { limit: 30 });
+    expect(api.members).toHaveBeenCalledWith('room-1', { limit: 30, untilId: 'user-30' });
+    expect(api.members).toHaveBeenCalledTimes(2);
+    expect(store.membersHasMoreByRoomId['room-1']).toBe(false);
+    expect(store.membersLoadingByRoomId['room-1']).toBe(false);
+  });
+
   it('exposes permission failure states from management APIs', async () => {
     const api = createRoomApi({
       delete: vi.fn(async () => {

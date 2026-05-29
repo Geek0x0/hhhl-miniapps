@@ -38,14 +38,6 @@
       <button
         class="chat-icon-button"
         type="button"
-        :aria-label="i18n.t('common.settings')"
-        @click="$emit('settings')"
-      >
-        <Settings :size="18" />
-      </button>
-      <button
-        class="chat-icon-button"
-        type="button"
         :aria-label="i18n.t('rooms.manage')"
         @click="$emit('manage')"
       >
@@ -56,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Search, Settings, SlidersHorizontal, Users } from '@lucide/vue';
+import { ArrowLeft, Search, SlidersHorizontal, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 
 defineProps<{
@@ -70,6 +62,5 @@ defineEmits<{
   search: [];
   members: [];
   manage: [];
-  settings: [];
 }>();
 </script>

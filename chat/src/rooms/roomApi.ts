@@ -1,4 +1,5 @@
 import type { EndpointCaller } from '@/api/endpointTypes';
+import { DC_HHHL_ORIGIN } from '@/shared/config';
 import type { PaginationParams, RoomSummary, UserSummary } from '@/shared/types';
 
 export interface RoomCreateParams {
@@ -15,6 +16,34 @@ export interface RoomUpdateParams {
 
 function stringField(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
+function recordField(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringFrom(raw: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = stringField(raw[key]);
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function urlField(value: unknown): string | null {
+  const url = stringField(value);
+  if (url == null) {
+    return null;
+  }
+
+  if (/^(?:https?:|blob:|data:)/.test(url)) {
+    return url;
+  }
+
+  return url.startsWith('/') ? `${DC_HHHL_ORIGIN}${url}` : url;
 }
 
 export function normalizeRoomSummary(value: unknown): RoomSummary {
@@ -36,6 +65,25 @@ export function normalizeRoomSummary(value: unknown): RoomSummary {
 
 function normalizeRooms(values: unknown): RoomSummary[] {
   return Array.isArray(values) ? values.map(normalizeRoomSummary).filter((room) => room.id !== '') : [];
+}
+
+function normalizeUserSummary(value: unknown): UserSummary {
+  const container = recordField(value) ?? {};
+  const raw = recordField(container.user) ?? recordField(container.member) ?? container;
+  const id = stringFrom(raw, ['id', 'userId', 'accountId', 'username', 'acct']) ?? '';
+  const name = stringFrom(raw, ['name', 'displayName', 'display_name', 'nickname']);
+  const username = stringFrom(raw, ['username', 'userName', 'acct', 'handle']) ?? name ?? id;
+
+  return {
+    id: id === '' ? username : id,
+    username,
+    name,
+    avatarUrl: urlField(raw.avatarUrl ?? raw.avatar ?? raw.iconUrl ?? raw.photoUrl),
+  };
+}
+
+function normalizeMembers(values: unknown): UserSummary[] {
+  return Array.isArray(values) ? values.map(normalizeUserSummary).filter((member) => member.id !== '') : [];
 }
 
 function normalizeInvitation(value: unknown) {
@@ -71,6 +119,6 @@ export function createRoomApi(client: EndpointCaller) {
     delete: (roomId: string) => client.callEndpoint('chat/rooms/delete', { roomId }),
     mute: (roomId: string) => client.callEndpoint('chat/rooms/mute', { roomId }),
     members: (roomId: string, params: PaginationParams = {}) =>
-      client.callEndpoint<UserSummary[]>('chat/rooms/members', { roomId, ...params }),
+      client.callEndpoint<unknown>('chat/rooms/members', { roomId, ...params }).then(normalizeMembers),
   };
 }

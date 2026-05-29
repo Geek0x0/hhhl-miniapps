@@ -1,7 +1,11 @@
 <template>
   <article
     class="message-bubble"
-    :class="{ 'message-bubble--pending': entry.kind === 'pending' }"
+    :class="{
+      'message-bubble--own': isOwnMessage,
+      'message-bubble--incoming': !isOwnMessage,
+      'message-bubble--pending': entry.kind === 'pending',
+    }"
   >
     <img
       v-if="avatarUrl != null"
@@ -69,6 +73,7 @@
     <MessageActions
       v-if="entry.kind === 'server'"
       :message="entry.message"
+      :can-delete="isOwnMessage"
       @reply="$emit('reply', $event)"
       @quote="$emit('quote', $event)"
       @react="(messageId, reaction) => $emit('react', messageId, reaction)"
@@ -108,6 +113,7 @@ import MessageActions from './MessageActions.vue';
 
 const props = defineProps<{
   entry: TimelineEntry;
+  currentUserId: string | null;
 }>();
 
 defineEmits<{
@@ -124,6 +130,7 @@ const formattedTime = computed(() => new Date(props.entry.message.createdAt).toL
   minute: '2-digit',
 }));
 const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? props.entry.message.user?.id ?? 'Unknown');
+const isOwnMessage = computed(() => props.currentUserId != null && props.entry.message.user?.id === props.currentUserId);
 const avatarUrl = computed(() => props.entry.message.user?.avatarUrl ?? null);
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);

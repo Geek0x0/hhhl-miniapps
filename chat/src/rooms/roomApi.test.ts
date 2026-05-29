@@ -13,6 +13,16 @@ describe('roomApi', () => {
     }));
   });
 
+  it('normalizes member response variants', async () => {
+    const api = createRoomApi({
+      callEndpoint: async () => [{ user: { id: 'user-1', displayName: 'Alice', avatar: '/avatar.png' } }] as never,
+    });
+
+    await expect(api.members('room-1')).resolves.toEqual([
+      { id: 'user-1', username: 'Alice', name: 'Alice', avatarUrl: 'https://dc.hhhl.cc/avatar.png' },
+    ]);
+  });
+
   it('calls room endpoints with exact payloads', async () => {
     const calls: Array<{ endpoint: string; params: unknown }> = [];
     const api = createRoomApi({

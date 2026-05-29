@@ -1,10 +1,20 @@
 <template>
   <main class="rooms-shell">
     <header class="rooms-header">
-      <p class="app-eyebrow">
-        dc.hhhl.cc
-      </p>
-      <h1>{{ i18n.t('rooms.title') }}</h1>
+      <div>
+        <p class="app-eyebrow">
+          dc.hhhl.cc
+        </p>
+        <h1>{{ i18n.t('rooms.title') }}</h1>
+      </div>
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('common.settings')"
+        @click="router.push('/settings')"
+      >
+        <Settings :size="18" />
+      </button>
     </header>
 
     <RoomErrorState
@@ -56,6 +66,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { Settings } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { getTelegramLaunchContext } from '@/telegram/telegram';
 import RoomDirectJoin from './RoomDirectJoin.vue';

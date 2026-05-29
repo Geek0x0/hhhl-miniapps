@@ -40,6 +40,8 @@ export interface RoomState {
   pendingStartRoomId: string | null;
   activeRoomId: string | null;
   membersByRoomId: Record<string, UserSummary[]>;
+  membersLoadingByRoomId: Record<string, boolean>;
+  membersHasMoreByRoomId: Record<string, boolean>;
   outboxInvitations: RoomInvitation[];
 }
 
@@ -96,6 +98,8 @@ export const useRoomStore = defineStore('rooms', {
     pendingStartRoomId: null,
     activeRoomId: null,
     membersByRoomId: {},
+    membersLoadingByRoomId: {},
+    membersHasMoreByRoomId: {},
     outboxInvitations: [],
   }),
   actions: {
@@ -256,6 +260,29 @@ export const useRoomStore = defineStore('rooms', {
         };
       } catch (error) {
         this.error = messageFromError(error);
+      }
+    },
+
+    async loadMoreMembers(roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
+      if (this.membersLoadingByRoomId[roomId] === true || this.membersHasMoreByRoomId[roomId] === false) {
+        return;
+      }
+
+      this.membersLoadingByRoomId = { ...this.membersLoadingByRoomId, [roomId]: true };
+
+      try {
+        const current = this.membersByRoomId[roomId] ?? [];
+        const untilId = current.at(-1)?.id;
+        const members = await api.members(roomId, untilId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, untilId });
+        this.membersByRoomId = {
+          ...this.membersByRoomId,
+          [roomId]: mergeMembers(current, members),
+        };
+        this.membersHasMoreByRoomId = { ...this.membersHasMoreByRoomId, [roomId]: members.length >= DEFAULT_PAGE_SIZE };
+      } catch (error) {
+        this.error = messageFromError(error);
+      } finally {
+        this.membersLoadingByRoomId = { ...this.membersLoadingByRoomId, [roomId]: false };
       }
     },
 

@@ -14,14 +14,20 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Bob' })).toBeVisible();
   await expect(page.locator('.message-bubble__image')).toBeVisible();
   await expect(page.getByText('Replying to Alice')).toBeVisible();
-  await page.getByPlaceholder('Message').fill('sent');
+  await expect(page.locator('.message-bubble', { hasText: 'image attached' }).getByRole('button', { name: 'Delete message' })).toHaveCount(0);
+  await expect(page.getByText('latest')).toBeVisible();
+  await page.getByRole('button', { name: 'Emoji' }).click();
+  await page.getByRole('button', { name: '😀' }).click();
+  await expect(page.getByPlaceholder('Message')).toHaveValue('😀');
+  await page.getByPlaceholder('Message').pressSequentially('sent');
   await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByText('sent')).toBeVisible();
+  await expect(page.getByText('😀sent')).toBeVisible();
 
   await page.getByRole('button', { name: 'Search' }).click();
   await page.getByPlaceholder('Search messages').fill('hello');
   await page.getByRole('button', { name: 'Search' }).last().click();
-  await expect(page.getByText('hello').first()).toBeVisible();
+  await expect(page.locator('.search-result-row', { hasText: 'Alice' })).toBeVisible();
+  await expect(page.locator('.search-result-row', { hasText: 'hello' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Members' }).click();
   await expect(page.getByText('@alice')).toBeVisible();

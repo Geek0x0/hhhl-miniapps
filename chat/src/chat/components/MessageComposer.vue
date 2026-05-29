@@ -19,6 +19,14 @@
     />
     <div class="message-composer__row">
       <FilePickerButton @select="addFiles" />
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('chat.emoji')"
+        @click="showEmojiPicker = !showEmojiPicker"
+      >
+        <Smile :size="18" />
+      </button>
       <textarea
         v-model="text"
         class="message-composer__input"
@@ -36,13 +44,28 @@
         <Send :size="18" />
       </button>
     </div>
+    <div
+      v-if="showEmojiPicker"
+      class="emoji-picker"
+    >
+      <button
+        v-for="emoji in emojis"
+        :key="emoji"
+        class="emoji-picker__button"
+        type="button"
+        :aria-label="emoji"
+        @click="insertEmoji(emoji)"
+      >
+        {{ emoji }}
+      </button>
+    </div>
   </form>
 </template>
 
 <script setup lang="ts">
 /* global ClipboardEvent, File, URL, crypto */
 import { ref } from 'vue';
-import { Send } from '@lucide/vue';
+import { Send, Smile } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import FilePickerButton from '@/files/components/FilePickerButton.vue';
 import UploadProgressList from '@/files/components/UploadProgressList.vue';
@@ -63,6 +86,8 @@ const emit = defineEmits<{
 
 const text = ref('');
 const uploads = ref<UploadItem[]>([]);
+const showEmojiPicker = ref(false);
+const emojis = ['😀', '😂', '😍', '👍', '🙏', '🎉', '❤️', '🔥', '😮', '😢', '👏', '✅'];
 
 function uploadId(): string {
   return `upload-${crypto.randomUUID()}`;
@@ -95,6 +120,10 @@ function handlePaste(event: ClipboardEvent): void {
   if (files.length > 0) {
     addFiles(files);
   }
+}
+
+function insertEmoji(emoji: string): void {
+  text.value += emoji;
 }
 
 function submit(): void {

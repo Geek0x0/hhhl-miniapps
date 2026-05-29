@@ -25,6 +25,7 @@
       <SmilePlus :size="16" />
     </button>
     <button
+      v-if="canDelete"
       class="chat-icon-button"
       type="button"
       :aria-label="i18n.t('chat.deleteMessage')"
@@ -42,6 +43,7 @@ import type { ChatMessage } from '@/shared/types';
 
 defineProps<{
   message: ChatMessage;
+  canDelete: boolean;
 }>();
 
 defineEmits<{
