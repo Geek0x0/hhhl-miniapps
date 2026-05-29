@@ -8,6 +8,8 @@ test('chat room supports message send, panels, and file preview', async ({ page 
 
   await page.goto('/rooms/amlc1bekzi');
 
+  await expect(page.locator('.chat-header').getByText('New Home')).toBeVisible();
+  await expect(page.getByText('Alice')).toBeVisible();
   await expect(page.getByText('hello')).toBeVisible();
   await page.getByPlaceholder('Message').fill('sent');
   await page.getByRole('button', { name: 'Send' }).click();

@@ -168,6 +168,18 @@ export const useRoomStore = defineStore('rooms', {
       return room;
     },
 
+    async ensureRoomVisible(roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
+      const existing = this.rooms.find((entry) => entry.room.id === roomId)?.room;
+      if (existing != null) {
+        return existing;
+      }
+
+      const room = await api.show(roomId);
+      this.deepLinkedRoom = room;
+      this.rebuildRooms();
+      return room;
+    },
+
     async acceptInvitation(invitationId: string, roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
       const room = await api.join(roomId);
       this.manualRooms = mergeRoomSources([{ source: 'manual', rooms: [...this.manualRooms, room] }]).map((entry) => entry.room);

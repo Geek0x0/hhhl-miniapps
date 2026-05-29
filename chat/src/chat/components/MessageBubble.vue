@@ -3,14 +3,30 @@
     class="message-bubble"
     :class="{ 'message-bubble--pending': entry.kind === 'pending' }"
   >
+    <img
+      v-if="avatarUrl != null"
+      class="message-bubble__avatar"
+      :src="avatarUrl"
+      alt=""
+    >
+    <div
+      v-else
+      class="message-bubble__avatar message-bubble__avatar--fallback"
+      aria-hidden="true"
+    >
+      {{ avatarInitial }}
+    </div>
     <div class="message-bubble__body">
+      <div class="message-bubble__meta">
+        <strong>{{ senderName }}</strong>
+        <small>{{ formattedTime }}</small>
+      </div>
       <p class="message-bubble__text">
         {{ entry.message.text ?? entry.message.file?.name ?? '' }}
       </p>
       <small v-if="entry.kind === 'pending'">
         {{ entry.status === 'failed' ? i18n.t('chat.failed') : i18n.t('chat.pending') }}
       </small>
-      <small v-else>{{ formattedTime }}</small>
     </div>
     <MessageActions
       v-if="entry.kind === 'server'"
@@ -69,4 +85,7 @@ const formattedTime = computed(() => new Date(props.entry.message.createdAt).toL
   hour: '2-digit',
   minute: '2-digit',
 }));
+const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? 'Unknown');
+const avatarUrl = computed(() => props.entry.message.user?.avatarUrl ?? null);
+const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
 </script>

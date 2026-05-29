@@ -175,9 +175,10 @@
 }
 
 .chat-room-shell {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 760px);
+  height: 100vh;
   min-height: 100vh;
   margin: 0 auto;
   background: var(--tg-bg);
@@ -311,6 +312,7 @@
 
 .message-timeline {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 8px;
   min-height: 0;
@@ -324,10 +326,11 @@
 
 .message-bubble {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   gap: 8px;
   align-self: flex-start;
-  max-width: min(86%, 620px);
+  width: min(100%, 620px);
+  max-width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--tg-panel);
@@ -340,6 +343,41 @@
 
 .message-bubble__body {
   min-width: 0;
+}
+
+.message-bubble__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.message-bubble__avatar--fallback {
+  display: grid;
+  place-items: center;
+  background: rgba(134, 179, 0, 0.16);
+  color: var(--tg-text);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.message-bubble__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 4px;
+}
+
+.message-bubble__meta strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-bubble__meta small {
+  flex: none;
 }
 
 .message-bubble__text {
@@ -366,27 +404,28 @@
   bottom: 0;
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 10px 12px max(10px, env(safe-area-inset-bottom));
   border-top: 1px solid rgba(23, 32, 24, 0.1);
   background: var(--tg-panel);
 }
 
 .message-composer__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
   gap: 8px;
-  align-items: end;
+  align-items: center;
 }
 
 .message-composer__input {
-  min-height: 40px;
-  max-height: 120px;
-  padding: 10px 12px;
-  resize: vertical;
+  min-height: 38px;
+  max-height: 96px;
+  padding: 9px 12px;
+  resize: none;
   border: 1px solid rgba(23, 32, 24, 0.16);
   border-radius: 8px;
   background: var(--tg-bg);
   color: var(--tg-text);
+  line-height: 1.35;
 }
 
 .reply-preview {
@@ -476,8 +515,11 @@
   }
 
   .message-bubble {
-    grid-template-columns: 1fr;
-    max-width: 100%;
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .message-bubble .message-actions {
+    grid-column: 2;
   }
 
   .message-composer__row {

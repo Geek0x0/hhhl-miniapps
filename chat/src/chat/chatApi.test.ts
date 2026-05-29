@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { createChatApi } from './chatApi';
+import { createChatApi, normalizeChatMessage } from './chatApi';
 
 describe('chatApi', () => {
+  it('normalizes sender fields from dc response variants', () => {
+    expect(normalizeChatMessage({
+      messageId: 'm1',
+      toRoomId: 'room-1',
+      created_at: '2026-01-01T00:00:00.000Z',
+      body: 'hello',
+      sender: { userId: 'user-1', displayName: 'Alice', avatar: 'https://example.test/a.png' },
+    })).toEqual(expect.objectContaining({
+      id: 'm1',
+      roomId: 'room-1',
+      text: 'hello',
+      user: expect.objectContaining({ id: 'user-1', username: 'Alice', name: 'Alice', avatarUrl: 'https://example.test/a.png' }),
+    }));
+  });
+
   it('calls chat message endpoints with exact payloads', async () => {
     const calls: Array<{ endpoint: string; params: unknown }> = [];
     const api = createChatApi({

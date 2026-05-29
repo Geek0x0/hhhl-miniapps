@@ -67,7 +67,7 @@ export async function mockApi(page: Page): Promise<void> {
     }
 
     if (endpoint === 'chat/messages/room-timeline') {
-      await route.fulfill({ headers, json: [{ id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello' }] });
+      await route.fulfill({ headers, json: [{ id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } }] });
       return;
     }
 

@@ -79,6 +79,16 @@ describe('roomStore', () => {
     expect(store.rooms).toEqual([{ room: room('manual-1', 'Room manual-1'), sources: ['manual'] }]);
   });
 
+  it('loads a visible room summary for direct room route headers', async () => {
+    const api = createRoomApi();
+    const store = useRoomStore();
+
+    await expect(store.ensureRoomVisible('room-1', api)).resolves.toEqual(room('room-1', 'Room room-1'));
+
+    expect(api.show).toHaveBeenCalledWith('room-1');
+    expect(store.rooms).toEqual([{ room: room('room-1', 'Room room-1'), sources: ['deep-link'] }]);
+  });
+
   it('keeps the current rooms and exposes errors when direct join fails', async () => {
     const api = createRoomApi({
       join: vi.fn(async () => {

@@ -84,7 +84,7 @@ const chatStore = useChatStore();
 const roomStore = useRoomStore();
 const realtimeStore = useRealtimeStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
-const roomTitle = computed(() => roomId.value);
+const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'members' | 'manage' | null>(null);
 
 async function showMembers(): Promise<void> {
@@ -117,6 +117,7 @@ function startRealtime(): void {
 
 async function loadRoom(): Promise<void> {
   if (roomId.value !== '') {
+    await roomStore.ensureRoomVisible(roomId.value);
     await chatStore.loadInitial(roomId.value);
     startRealtime();
   }
