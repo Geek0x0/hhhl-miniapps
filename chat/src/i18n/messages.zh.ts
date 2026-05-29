@@ -56,6 +56,8 @@ const messages = {
   'chat.confirmAddFavorite': '是否将 {name} 设置为特别关注？',
   'chat.confirmRemoveFavorite': '是否将 {name} 从特别关注中移除？',
   'chat.keySearch': '搜索密钥',
+  'chat.copiedToClipboard': '已复制到剪贴板',
+  'chat.copyFailed': '复制失败',
   'chat.reactions': '回应',
   'chat.searchPlaceholder': '搜索消息',
   'chat.pending': '正在发送...',
