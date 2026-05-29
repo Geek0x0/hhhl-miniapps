@@ -4,24 +4,23 @@ Updated: 2026-05-28
 
 ## Current Checkpoint
 
-- Chat interaction refinement is complete.
-- The chat room now uses a more Telegram-like layout with incoming/outgoing bubbles, compact header actions, a rounded composer, and a subtle chat background.
-- Newer message polling now runs immediately and every 3 seconds; users who are already near the bottom stay pinned to the latest messages.
-- Older messages and members both load by scroll position instead of visible load-more buttons.
-- Delete actions are only rendered on the current user's own messages.
-- The composer supports an emoji picker, and message search results now show sender, message preview, and sent time.
-- Room settings moved to the `/rooms` header, and joined-room badges hide the `deep-link` source.
-- Member API responses now normalize additional dc.hhhl.cc user wrapper variants for names and avatars.
+- Chat UI and preference refinement is complete.
+- The chat page now uses a cleaner Telegram-like message stream with round avatars, blue outgoing bubbles, refined header/composer styling, and dark-mode aware borders/backgrounds.
+- Room-level management/settings actions are hidden from the room header for now; settings remain reachable from `/rooms`.
+- The settings page now has a back button and supports System, Light, and Dark theme modes.
+- Theme preference is stored locally and applied at app startup.
+- Members can be marked as favorite from the member list; the chat header has a heart button that opens a favorite-members panel.
+- Favorite senders are marked with a red heart beside their name in the message list.
 - Root `.gitignore` is untracked and contains `docs/`; it was not modified.
 
 ## Verification Log
 
 - `npm run typecheck` - passed.
 - `npm run lint` - passed.
-- `npm run test:run -- src/chat src/rooms src/i18n src/realtime/realtimeClient.test.ts` - passed, 9 files and 44 tests.
-- `npm run build && npx playwright test tests/e2e/chat-happy-path.spec.ts tests/e2e/workers-routing.spec.ts` - passed.
+- `npm run test:run -- src/settings src/chat src/rooms src/i18n src/realtime/realtimeClient.test.ts` - passed, 10 files and 50 tests.
+- `npm run build && npx playwright test tests/e2e/chat-happy-path.spec.ts tests/e2e/auth-flow.spec.ts tests/e2e/workers-routing.spec.ts` - passed.
 
 ## Notes
 
-- Previous rich timeline fixes were committed as `a5d7345 fix(chat): render rich timeline messages`.
+- Previous rich timeline fixes were committed as `a5d7345 fix(chat): render rich timeline messages`; chat interaction refinements were committed as `79c3410 fix(chat): refine room chat interactions`.
 - Existing unrelated workspace state remains untouched; the untracked root `.gitignore` is still not part of this work.

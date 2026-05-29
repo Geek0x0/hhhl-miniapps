@@ -22,7 +22,15 @@
     </div>
     <div class="message-bubble__body">
       <div class="message-bubble__meta">
-        <strong>{{ senderName }}</strong>
+        <strong>
+          {{ senderName }}
+          <Heart
+            v-if="isFavoriteSender"
+            class="favorite-marker"
+            :size="13"
+            aria-hidden="true"
+          />
+        </strong>
         <small>{{ formattedTime }}</small>
       </div>
       <div
@@ -105,7 +113,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RefreshCw, X } from '@lucide/vue';
+import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import type { ChatMessage } from '@/shared/types';
 import type { TimelineEntry } from '../timelineMerge';
@@ -114,6 +122,7 @@ import MessageActions from './MessageActions.vue';
 const props = defineProps<{
   entry: TimelineEntry;
   currentUserId: string | null;
+  favoriteUserIds: string[];
 }>();
 
 defineEmits<{
@@ -131,6 +140,7 @@ const formattedTime = computed(() => new Date(props.entry.message.createdAt).toL
 }));
 const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? props.entry.message.user?.id ?? 'Unknown');
 const isOwnMessage = computed(() => props.currentUserId != null && props.entry.message.user?.id === props.currentUserId);
+const isFavoriteSender = computed(() => props.entry.message.user?.id != null && props.favoriteUserIds.includes(props.entry.message.user.id));
 const avatarUrl = computed(() => props.entry.message.user?.avatarUrl ?? null);
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);

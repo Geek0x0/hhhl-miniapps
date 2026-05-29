@@ -80,10 +80,10 @@ export function createI18nState(options: I18nStateOptions = {}) {
 }
 
 const fallbackTheme = {
-  bg_color: '#f6f8f3',
-  text_color: '#172018',
-  hint_color: '#6b7564',
-  button_color: '#86b300',
+  bg_color: '#e8edf3',
+  text_color: '#14202b',
+  hint_color: '#6d7a86',
+  button_color: '#2aabee',
   button_text_color: '#ffffff',
   secondary_bg_color: '#ffffff',
 } satisfies Record<string, string>;

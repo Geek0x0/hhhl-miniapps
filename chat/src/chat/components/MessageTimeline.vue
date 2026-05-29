@@ -22,6 +22,7 @@
       :key="entry.kind === 'pending' ? entry.localId : entry.message.id"
       :entry="entry"
       :current-user-id="currentUserId"
+      :favorite-user-ids="favoriteUserIds"
       @reply="$emit('reply', $event)"
       @quote="$emit('quote', $event)"
       @react="(messageId, reaction) => $emit('react', messageId, reaction)"
@@ -44,6 +45,7 @@ const props = defineProps<{
   loadingOlder: boolean;
   hasMoreOlder: boolean;
   currentUserId: string | null;
+  favoriteUserIds: string[];
 }>();
 
 const emit = defineEmits<{

@@ -82,7 +82,10 @@ export async function mockApi(page: Page): Promise<void> {
     }
 
     if (endpoint === 'chat/rooms/members') {
-      await route.fulfill({ headers, json: [{ id: 'user-1', username: 'alice', name: 'Alice' }] });
+      await route.fulfill({ headers, json: [
+        { id: 'user-1', username: 'alice', name: 'Alice' },
+        { id: 'user-2', username: 'bob', name: 'Bob' },
+      ] });
       return;
     }
 

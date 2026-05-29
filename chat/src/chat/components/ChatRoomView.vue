@@ -6,8 +6,8 @@
       :degraded="realtimeStore.status === 'degraded'"
       @back="router.push('/rooms')"
       @search="activePanel = activePanel === 'search' ? null : 'search'"
+      @favorites="showFavorites"
       @members="showMembers"
-      @manage="activePanel = activePanel === 'manage' ? null : 'manage'"
     />
     <SearchPanel
       v-if="activePanel === 'search'"
@@ -19,9 +19,16 @@
     <MembersPanel
       v-if="activePanel === 'members'"
       :members="roomStore.membersByRoomId[roomId] ?? []"
+      :favorite-user-ids="settingsStore.favoriteUserIds"
       :loading="roomStore.membersLoadingByRoomId[roomId] === true"
       :has-more="roomStore.membersHasMoreByRoomId[roomId] !== false"
       @load-more="roomStore.loadMoreMembers(roomId)"
+      @toggle-favorite="settingsStore.toggleFavoriteUser"
+    />
+    <FavoritePanel
+      v-if="activePanel === 'favorites'"
+      :members="roomStore.membersByRoomId[roomId] ?? []"
+      :favorite-user-ids="settingsStore.favoriteUserIds"
     />
     <RoomManagementPanel
       v-if="activePanel === 'manage'"
@@ -45,6 +52,7 @@
       :loading-older="chatStore.olderLoading"
       :has-more-older="chatStore.hasMoreOlder"
       :current-user-id="authStore.user?.id ?? null"
+      :favorite-user-ids="settingsStore.favoriteUserIds"
       @load-older="chatStore.loadOlder()"
       @reply="chatStore.setReplyTarget"
       @quote="chatStore.setQuoteTarget"
@@ -75,8 +83,10 @@ import { createPollingFallback } from '@/realtime/pollingFallback';
 import { createRealtimeClient } from '@/realtime/realtimeClient';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
 import { useRoomStore } from '@/rooms/roomStore';
+import { useSettingsStore } from '@/settings/settingsStore';
 import RoomManagementPanel from '@/rooms/components/RoomManagementPanel.vue';
 import ChatHeader from './ChatHeader.vue';
+import FavoritePanel from './FavoritePanel.vue';
 import MembersPanel from './MembersPanel.vue';
 import MessageComposer from './MessageComposer.vue';
 import MessageTimeline from './MessageTimeline.vue';
@@ -89,15 +99,29 @@ const chatStore = useChatStore();
 const roomStore = useRoomStore();
 const realtimeStore = useRealtimeStore();
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
-const activePanel = ref<'search' | 'members' | 'manage' | null>(null);
+const activePanel = ref<'search' | 'favorites' | 'members' | 'manage' | null>(null);
 let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
+
+async function ensureMembersLoaded(): Promise<void> {
+  if (roomStore.membersByRoomId[roomId.value] == null) {
+    await roomStore.loadMoreMembers(roomId.value);
+  }
+}
 
 async function showMembers(): Promise<void> {
   activePanel.value = activePanel.value === 'members' ? null : 'members';
-  if (activePanel.value === 'members' && roomStore.membersByRoomId[roomId.value] == null) {
-    await roomStore.loadMoreMembers(roomId.value);
+  if (activePanel.value === 'members') {
+    await ensureMembersLoaded();
+  }
+}
+
+async function showFavorites(): Promise<void> {
+  activePanel.value = activePanel.value === 'favorites' ? null : 'favorites';
+  if (activePanel.value === 'favorites') {
+    await ensureMembersLoaded();
   }
 }
 

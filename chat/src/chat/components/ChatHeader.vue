@@ -30,25 +30,25 @@
       <button
         class="chat-icon-button"
         type="button"
-        :aria-label="i18n.t('rooms.members')"
-        @click="$emit('members')"
+        :aria-label="i18n.t('chat.favorites')"
+        @click="$emit('favorites')"
       >
-        <Users :size="18" />
+        <Heart :size="18" />
       </button>
       <button
         class="chat-icon-button"
         type="button"
-        :aria-label="i18n.t('rooms.manage')"
-        @click="$emit('manage')"
+        :aria-label="i18n.t('rooms.members')"
+        @click="$emit('members')"
       >
-        <SlidersHorizontal :size="18" />
+        <Users :size="18" />
       </button>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Search, SlidersHorizontal, Users } from '@lucide/vue';
+import { ArrowLeft, Heart, Search, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 
 defineProps<{
@@ -60,7 +60,7 @@ defineProps<{
 defineEmits<{
   back: [];
   search: [];
+  favorites: [];
   members: [];
-  manage: [];
 }>();
 </script>

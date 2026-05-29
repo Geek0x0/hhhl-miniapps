@@ -9,6 +9,7 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.goto('/rooms/amlc1bekzi');
 
   await expect(page.locator('.chat-header').getByText('New Home')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Manage room' })).toHaveCount(0);
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Alice' }).first()).toBeVisible();
   await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Bob' })).toBeVisible();
@@ -31,6 +32,10 @@ test('chat room supports message send, panels, and file preview', async ({ page 
 
   await page.getByRole('button', { name: 'Members' }).click();
   await expect(page.getByText('@alice')).toBeVisible();
+  await page.getByRole('button', { name: 'Toggle favorite for Bob' }).click();
+  await page.getByRole('button', { name: 'Favorites' }).click();
+  await expect(page.locator('.side-panel--favorites', { hasText: '@bob' })).toBeVisible();
+  await expect(page.locator('.message-bubble', { hasText: 'Bob' }).locator('.favorite-marker')).toBeVisible();
 
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByLabel('Select file').click();

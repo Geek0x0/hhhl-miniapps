@@ -1,10 +1,20 @@
 <template>
   <main class="rooms-shell">
     <header class="rooms-header">
-      <p class="app-eyebrow">
-        dc.hhhl.cc
-      </p>
-      <h1>{{ i18n.t('settings.title') }}</h1>
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('common.back')"
+        @click="router.push('/rooms')"
+      >
+        <ArrowLeft :size="20" />
+      </button>
+      <div class="rooms-header__title">
+        <p class="app-eyebrow">
+          dc.hhhl.cc
+        </p>
+        <h1>{{ i18n.t('settings.title') }}</h1>
+      </div>
     </header>
 
     <section class="side-panel">
@@ -27,6 +37,31 @@
           中文
         </option>
       </select>
+      <div class="settings-field">
+        <span class="room-direct-join__label">{{ i18n.t('settings.theme') }}</span>
+        <div
+          class="segmented-control"
+          role="radiogroup"
+          :aria-label="i18n.t('settings.theme')"
+        >
+          <button
+            v-for="option in themeOptions"
+            :key="option.value"
+            class="segmented-control__option"
+            :class="{ 'segmented-control__option--active': settings.themeMode === option.value }"
+            type="button"
+            role="radio"
+            :aria-checked="settings.themeMode === option.value"
+            @click="settings.setThemeMode(option.value)"
+          >
+            <component
+              :is="option.icon"
+              :size="16"
+            />
+            <span>{{ i18n.t(option.label) }}</span>
+          </button>
+        </div>
+      </div>
       <p class="app-copy">
         {{ DC_HHHL_ORIGIN }} · {{ realtimeStore.status }}
       </p>
@@ -71,17 +106,23 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { ArrowLeft, Monitor, Moon, Sun } from '@lucide/vue';
 import { createAuthDependencies, useAuthStore } from '@/auth/authStore';
-import { i18n } from '@/i18n';
+import { i18n, type MessageKey } from '@/i18n';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
-import { useSettingsStore } from '../settingsStore';
+import { useSettingsStore, type ThemeMode } from '../settingsStore';
 import DiagnosticsPanel from './DiagnosticsPanel.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
 const settings = useSettingsStore();
 const realtimeStore = useRealtimeStore();
+const themeOptions: Array<{ value: ThemeMode; label: MessageKey; icon: typeof Monitor }> = [
+  { value: 'system', label: 'settings.themeSystem', icon: Monitor },
+  { value: 'light', label: 'settings.themeLight', icon: Sun },
+  { value: 'dark', label: 'settings.themeDark', icon: Moon },
+];
 
 onMounted(() => settings.init());
 

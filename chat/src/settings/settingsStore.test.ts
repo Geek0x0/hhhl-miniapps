@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import { useAuthStore, type AuthDependencies } from '@/auth/authStore';
-import { useSettingsStore, SETTINGS_LANGUAGE_KEY } from './settingsStore';
+import { useSettingsStore, SETTINGS_FAVORITE_USERS_KEY, SETTINGS_LANGUAGE_KEY, SETTINGS_THEME_MODE_KEY } from './settingsStore';
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -47,6 +47,9 @@ function authDeps(storage = createLocalStorageAdapter(new MemoryStorage())): Aut
 describe('settingsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.removeAttribute('data-theme-mode');
+    document.documentElement.removeAttribute('style');
   });
 
   it('stores language preference and keeps debug panel closed by default', () => {
@@ -60,6 +63,31 @@ describe('settingsStore', () => {
 
     expect(store.language).toBe('zh');
     expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
+  });
+
+  it('stores theme mode and applies CSS variables', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const store = useSettingsStore();
+
+    store.setThemeMode('dark', storage);
+
+    expect(store.themeMode).toBe('dark');
+    expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.style.getPropertyValue('--tg-panel')).toBe('#17212b');
+  });
+
+  it('stores and clears favorite users', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const store = useSettingsStore();
+
+    store.toggleFavoriteUser('user-2', storage);
+    expect(store.isFavoriteUser('user-2')).toBe(true);
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual(['user-2']);
+
+    store.toggleFavoriteUser('user-2', storage);
+    expect(store.isFavoriteUser('user-2')).toBe(false);
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual([]);
   });
 
   it('redacts token-like strings from diagnostics', () => {
@@ -84,10 +112,14 @@ describe('settingsStore', () => {
 
     storage.setJson('hhhl-chat:drafts', { 'room-1': 'draft' });
     storage.setJson('hhhl-chat:recent-room', 'room-1');
+    storage.setJson(SETTINGS_FAVORITE_USERS_KEY, ['user-2']);
+    store.favoriteUserIds = ['user-2'];
     store.clearLocalData(storage);
 
     expect(storage.getJson('hhhl-chat:drafts', null)).toBeNull();
     expect(storage.getJson('hhhl-chat:recent-room', null)).toBeNull();
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, null)).toBeNull();
+    expect(store.favoriteUserIds).toEqual([]);
     expect(store.lastAction).toBe('settings.clearLocalDataDone');
   });
 

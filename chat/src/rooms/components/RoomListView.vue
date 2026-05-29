@@ -1,7 +1,7 @@
 <template>
   <main class="rooms-shell">
     <header class="rooms-header">
-      <div>
+      <div class="rooms-header__title">
         <p class="app-eyebrow">
           dc.hhhl.cc
         </p>

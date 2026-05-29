@@ -124,10 +124,10 @@ describe('applyTelegramTheme', () => {
 
     const style = document.documentElement.style;
 
-    expect(style.getPropertyValue('--tg-bg')).toBe('#f6f8f3');
-    expect(style.getPropertyValue('--tg-text')).toBe('#172018');
-    expect(style.getPropertyValue('--tg-hint')).toBe('#6b7564');
-    expect(style.getPropertyValue('--tg-button')).toBe('#86b300');
+    expect(style.getPropertyValue('--tg-bg')).toBe('#e8edf3');
+    expect(style.getPropertyValue('--tg-text')).toBe('#14202b');
+    expect(style.getPropertyValue('--tg-hint')).toBe('#6d7a86');
+    expect(style.getPropertyValue('--tg-button')).toBe('#2aabee');
     expect(style.getPropertyValue('--tg-button-text')).toBe('#ffffff');
     expect(style.getPropertyValue('--tg-panel')).toBe('#ffffff');
   });

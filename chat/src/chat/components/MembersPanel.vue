@@ -19,8 +19,20 @@
           alt=""
           class="member-row__avatar"
         >
-        <span>{{ member.name ?? member.username }}</span>
-        <small>@{{ member.username }}</small>
+        <span class="member-row__main">
+          <strong>{{ member.name ?? member.username }}</strong>
+          <small>@{{ member.username }}</small>
+        </span>
+        <button
+          class="favorite-toggle"
+          :class="{ 'favorite-toggle--active': favoriteUserIds.includes(member.id) }"
+          type="button"
+          :aria-label="i18n.t('chat.toggleFavorite', { name: member.name ?? member.username })"
+          :aria-pressed="favoriteUserIds.includes(member.id)"
+          @click="$emit('toggleFavorite', member.id)"
+        >
+          <Heart :size="16" />
+        </button>
       </li>
       <li
         v-if="loading"
@@ -34,17 +46,20 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { Heart } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import type { UserSummary } from '@/shared/types';
 
 const props = defineProps<{
   members: UserSummary[];
+  favoriteUserIds: string[];
   loading: boolean;
   hasMore: boolean;
 }>();
 
 const emit = defineEmits<{
   loadMore: [];
+  toggleFavorite: [userId: string];
 }>();
 
 const listElement = ref<globalThis.HTMLElement | null>(null);
