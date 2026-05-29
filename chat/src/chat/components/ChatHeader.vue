@@ -30,6 +30,14 @@
       <button
         class="chat-icon-button"
         type="button"
+        :aria-label="i18n.t('chat.keySearch')"
+        @click="$emit('keySearch')"
+      >
+        <KeyRound :size="18" />
+      </button>
+      <button
+        class="chat-icon-button"
+        type="button"
         :aria-label="i18n.t('chat.favorites')"
         @click="$emit('favorites')"
       >
@@ -48,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Heart, Search, Users } from '@lucide/vue';
+import { ArrowLeft, Heart, KeyRound, Search, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 
 defineProps<{
@@ -60,6 +68,7 @@ defineProps<{
 defineEmits<{
   back: [];
   search: [];
+  keySearch: [];
   favorites: [];
   members: [];
 }>();
