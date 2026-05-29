@@ -109,7 +109,7 @@ const filteredMembers = computed(() => {
 
 watch([() => query.value, () => props.members.length, () => props.loading, () => props.hasMore], () => {
   const normalizedQuery = normalizeSearchText(query.value);
-  if (normalizedQuery === '' || props.loading || !props.hasMore || filteredMembers.value.length > 0) {
+  if (normalizedQuery === '' || props.loading || !props.hasMore) {
     return;
   }
 
