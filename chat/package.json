@@ -14,9 +14,9 @@
     "lint": "eslint . --max-warnings 0",
     "contracts": "node scripts/fetch-contracts.mjs",
     "link": "node scripts/generate-startapp-link.mjs",
-    "verify:workers": "node scripts/verify-workers-build.mjs",
+    "verify:pages": "node scripts/verify-pages-build.mjs",
     "e2e": "playwright test",
-    "deploy": "wrangler deploy"
+    "deploy": "npm run build && npm run verify:pages && wrangler pages deploy dist --project-name hhhl-chat-miniapp"
   },
   "dependencies": {
     "@vueuse/core": "latest",

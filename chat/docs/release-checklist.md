@@ -6,9 +6,9 @@ Run this checklist before changing the Telegram bot menu URL or announcing a pro
 
 - [ ] BotFather menu button points to the current Mini App URL.
 - [ ] Group entry links use `https://t.me/<bot>?startapp=room_<roomId>` and open the expected room.
-- [ ] Cloudflare Workers deployment URL loads `/`, `/rooms`, `/rooms/<roomId>`, `/auth/callback`, and `/settings` without a 404.
+- [ ] Cloudflare Pages deployment URL loads `/`, `/rooms`, `/rooms/<roomId>`, `/auth/callback`, and `/settings` without a 404.
 - [ ] Custom domain, if used, is the URL configured in BotFather and MiAuth callback settings.
-- [ ] `npm run build` and `npm run verify:workers` pass against the deployment artifact.
+- [ ] `npm run build` and `npm run verify:pages` pass against the deployment artifact.
 
 ## Authentication And Data
 
@@ -46,7 +46,7 @@ npm run contracts
 npm run test:run
 npm run typecheck
 npm run build
-npm run verify:workers
+npm run verify:pages
 npm run e2e
 ```
 

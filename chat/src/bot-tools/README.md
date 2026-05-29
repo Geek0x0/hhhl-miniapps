@@ -15,8 +15,8 @@ npm run link -- --bot mybot --room amlc1bekzi
 BotFather setup:
 
 1. Open BotFather and select the bot.
-2. Set the Mini App menu button URL to the deployed app URL, such as `https://<worker-name>.<account>.workers.dev`.
+2. Set the Mini App menu button URL to the deployed app URL, such as `https://hhhl-chat-miniapp.pages.dev`.
 3. Use group buttons or normal messages with `https://t.me/<botUsername>?startapp=room_<roomId>` for room-specific entry.
-4. When moving from `*.workers.dev` to a custom domain, update the BotFather menu button URL and any pinned room links.
+4. When moving from `*.pages.dev` to a custom domain, update the BotFather menu button URL and any pinned room links.
 
 Never include `dc.hhhl.cc` user tokens, Telegram init data, or `i=` query values in bot links.

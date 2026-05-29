@@ -32,21 +32,29 @@ The command prints:
 https://t.me/mybot?startapp=room_amlc1bekzi
 ```
 
-Configure the bot menu button in BotFather with the deployed Mini App URL. For group entry, send a room link using `startapp=room_<roomId>`. Update the BotFather URL when moving from a `*.workers.dev` deployment to a custom domain.
+Configure the bot menu button in BotFather with the deployed Mini App URL. For group entry, send a room link using `startapp=room_<roomId>`. Update the BotFather URL when moving from a `*.pages.dev` deployment to a custom domain.
 
-## Cloudflare Workers Deployment
+## Cloudflare Pages Deployment
 
-Manual deployment:
+Git deployment settings:
+
+```text
+Root directory: chat
+Build command: npm run build
+Build output directory: dist
+Node.js version: 24.15.0
+```
+
+Manual deployment with Wrangler:
+
 
 ```bash
 cd chat
 npm ci
-npm run build
-npm run verify:workers
 npm run deploy
 ```
 
-The Workers configuration serves static assets from `dist/` and uses SPA fallback routing for Mini App routes such as `/rooms/amlc1bekzi`, `/auth/callback`, and `/settings`.
+The Pages configuration uploads static assets from `dist/`. The `_redirects` file keeps SPA fallback routing working for Mini App routes such as `/rooms/amlc1bekzi`, `/auth/callback`, and `/settings`.
 
 ## Release Readiness
 
