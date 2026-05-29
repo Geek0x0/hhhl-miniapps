@@ -5,7 +5,7 @@ type MockTelegramOptions = Partial<TelegramWebApp>;
 
 export function installMockTelegram(options: MockTelegramOptions = {}): TelegramWebApp {
   const webApp: TelegramWebApp = {
-    initData: options.initData ?? '',
+    initData: options.initData ?? 'mock_init_data',
     initDataUnsafe: options.initDataUnsafe ?? {},
     platform: options.platform ?? 'tdesktop',
     themeParams: options.themeParams ?? {},

@@ -57,7 +57,8 @@ export function getTelegramWebApp(): TelegramWebApp | undefined {
 }
 
 export function isTelegramEnvironment(): boolean {
-  return getTelegramWebApp() != null;
+  const webApp = getTelegramWebApp();
+  return webApp != null && webApp.initData !== '';
 }
 
 export function getTelegramLaunchContext(): TelegramLaunchContext {
