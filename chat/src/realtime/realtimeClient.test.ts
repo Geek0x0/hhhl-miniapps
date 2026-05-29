@@ -98,7 +98,11 @@ describe('RealtimeClient', () => {
     socket.onmessage?.({ data: JSON.stringify({ type: 'ch', body: { id: 'test-main', type: 'message', body: { message: message('room-2', 'm2') } } }) });
 
     expect(onEvent).toHaveBeenCalledTimes(1);
-    expect(onEvent).toHaveBeenCalledWith({ type: 'message', roomId: 'room-1', message: message('room-1') });
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'message',
+      roomId: 'room-1',
+      message: expect.objectContaining(message('room-1')),
+    });
   });
 
   it('redacts tokens before logging socket errors', () => {

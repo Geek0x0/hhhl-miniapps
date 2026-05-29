@@ -21,8 +21,46 @@
         <strong>{{ senderName }}</strong>
         <small>{{ formattedTime }}</small>
       </div>
-      <p class="message-bubble__text">
-        {{ entry.message.text ?? entry.message.file?.name ?? '' }}
+      <div
+        v-if="reference != null"
+        class="message-reference"
+      >
+        <strong>{{ reference.label }}</strong>
+        <span>{{ reference.preview }}</span>
+      </div>
+      <p
+        v-if="entry.message.text != null"
+        class="message-bubble__text"
+      >
+        {{ entry.message.text }}
+      </p>
+      <a
+        v-if="fileUrl != null && isImageFile"
+        class="message-bubble__image-link"
+        :href="fileUrl"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <img
+          class="message-bubble__image"
+          :src="imageSrc"
+          :alt="entry.message.file?.name ?? ''"
+        >
+      </a>
+      <a
+        v-else-if="entry.message.file != null && fileUrl != null"
+        class="message-file-link"
+        :href="fileUrl"
+        target="_blank"
+        rel="noreferrer"
+      >
+        {{ entry.message.file.name }}
+      </a>
+      <p
+        v-else-if="entry.message.text == null && entry.message.file != null"
+        class="message-bubble__text"
+      >
+        {{ entry.message.file.name }}
       </p>
       <small v-if="entry.kind === 'pending'">
         {{ entry.status === 'failed' ? i18n.t('chat.failed') : i18n.t('chat.pending') }}
@@ -85,7 +123,33 @@ const formattedTime = computed(() => new Date(props.entry.message.createdAt).toL
   hour: '2-digit',
   minute: '2-digit',
 }));
-const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? 'Unknown');
+const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? props.entry.message.user?.id ?? 'Unknown');
 const avatarUrl = computed(() => props.entry.message.user?.avatarUrl ?? null);
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
+const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);
+const imageSrc = computed(() => props.entry.message.file?.thumbnailUrl ?? props.entry.message.file?.url ?? '');
+const isImageFile = computed(() => {
+  const file = props.entry.message.file;
+  if (file == null) {
+    return false;
+  }
+
+  return file.type?.startsWith('image/') === true || /\.(?:apng|avif|bmp|gif|jpe?g|png|webp)$/i.test(file.name);
+});
+const reference = computed(() => {
+  const message = props.entry.message;
+  const isReply = message.reply != null || message.replyId != null;
+  const target = isReply ? message.reply ?? null : message.quote ?? null;
+  const id = target?.id ?? (isReply ? message.replyId : message.quoteId) ?? null;
+  if (target == null && id == null) {
+    return null;
+  }
+
+  const author = target?.user?.name ?? target?.user?.username ?? target?.user?.id ?? null;
+  const body = target?.text ?? target?.file?.name ?? id ?? '';
+  return {
+    label: isReply ? i18n.t('chat.replyingTo', { name: author ?? id ?? '' }) : i18n.t('chat.quote'),
+    preview: author == null ? body : `${author}: ${body}`,
+  };
+});
 </script>

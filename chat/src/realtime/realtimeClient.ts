@@ -2,6 +2,7 @@ import { getRuntimeContracts } from '@/api/endpointContracts';
 import { createLogger, type Logger } from '@/shared/logger';
 import { redactSensitiveText } from '@/shared/errors';
 import type { ChatMessage } from '@/shared/types';
+import { normalizeChatMessage } from '@/chat/chatApi';
 
 export interface WebSocketLike {
   onopen: ((event?: unknown) => void) | null;
@@ -59,7 +60,7 @@ function normalizeEvent(raw: unknown, subscribedRooms: Set<string>): RealtimeEve
   }
 
   if (eventType === 'message' && message != null) {
-    return { type: 'message', roomId, message };
+    return { type: 'message', roomId, message: normalizeChatMessage(message) };
   }
 
   if (eventType === 'delete' && typeof body.messageId === 'string') {

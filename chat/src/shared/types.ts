@@ -30,7 +30,9 @@ export interface ChatMessage {
   user?: UserSummary | null;
   file?: DriveFile | null;
   replyId?: string | null;
+  reply?: ChatMessage | null;
   quoteId?: string | null;
+  quote?: ChatMessage | null;
 }
 
 export interface PaginationParams {

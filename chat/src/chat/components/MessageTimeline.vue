@@ -1,15 +1,16 @@
 <template>
   <section
+    ref="timelineElement"
     class="message-timeline"
     aria-live="polite"
+    @scroll.passive="handleScroll"
   >
-    <button
-      class="app-button app-button-secondary message-timeline__older"
-      type="button"
-      @click="$emit('loadOlder')"
+    <p
+      v-if="loadingOlder"
+      class="message-timeline__loading"
     >
       {{ i18n.t('common.loading') }}
-    </button>
+    </p>
     <p
       v-if="entries.length === 0"
       class="app-copy"
@@ -31,16 +32,18 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick, onMounted, ref, watch } from 'vue';
 import { i18n } from '@/i18n';
 import type { ChatMessage } from '@/shared/types';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageBubble from './MessageBubble.vue';
 
-defineProps<{
+const props = defineProps<{
   entries: TimelineEntry[];
+  loadingOlder: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   loadOlder: [];
   reply: [message: ChatMessage];
   quote: [message: ChatMessage];
@@ -49,4 +52,70 @@ defineEmits<{
   retry: [localId: string];
   remove: [localId: string];
 }>();
+
+const timelineElement = ref<globalThis.HTMLElement | null>(null);
+let previousScrollHeight = 0;
+let loadingFromScroll = false;
+let previousLastKey: string | null = null;
+
+function entryKey(entry: TimelineEntry): string {
+  return entry.kind === 'pending' ? entry.localId : entry.message.id;
+}
+
+function scrollToBottom(): void {
+  const element = timelineElement.value;
+  if (element != null) {
+    element.scrollTop = element.scrollHeight;
+  }
+}
+
+function isNearBottom(element: globalThis.HTMLElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 96;
+}
+
+async function handleScroll(): Promise<void> {
+  const element = timelineElement.value;
+  if (element == null || props.loadingOlder || loadingFromScroll || props.entries.length === 0) {
+    return;
+  }
+
+  if (element.scrollTop <= 48) {
+    loadingFromScroll = true;
+    previousScrollHeight = element.scrollHeight;
+    emit('loadOlder');
+    await nextTick();
+    if (!props.loadingOlder) {
+      loadingFromScroll = false;
+    }
+  }
+}
+
+watch(() => props.loadingOlder, async (loading, wasLoading) => {
+  if (!loading && wasLoading && loadingFromScroll) {
+    await nextTick();
+    const element = timelineElement.value;
+    if (element != null) {
+      element.scrollTop += Math.max(0, element.scrollHeight - previousScrollHeight);
+    }
+    loadingFromScroll = false;
+  }
+});
+
+watch(() => props.entries.map(entryKey).join('|'), async () => {
+  const element = timelineElement.value;
+  const nextLastKey = props.entries.at(-1) == null ? null : entryKey(props.entries.at(-1) as TimelineEntry);
+  const shouldStickToBottom = previousLastKey == null || (nextLastKey !== previousLastKey && element != null && isNearBottom(element));
+  previousLastKey = nextLastKey;
+
+  if (!loadingFromScroll && shouldStickToBottom) {
+    await nextTick();
+    scrollToBottom();
+  }
+});
+
+onMounted(async () => {
+  previousLastKey = props.entries.at(-1) == null ? null : entryKey(props.entries.at(-1) as TimelineEntry);
+  await nextTick();
+  scrollToBottom();
+});
 </script>

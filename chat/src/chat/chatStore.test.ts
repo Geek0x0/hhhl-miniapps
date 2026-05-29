@@ -38,6 +38,52 @@ describe('chatStore', () => {
     expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m0', 'm1', 'm2']);
   });
 
+  it('loads newer messages with sinceId and guards concurrent refreshes', async () => {
+    let releaseNewer: () => void = () => {
+      throw new Error('newer request did not start');
+    };
+    let newerStarted = false;
+    const api = createApi({
+      roomTimeline: vi.fn(async (_roomId, params) => {
+        if (params?.sinceId === 'm2') {
+          newerStarted = true;
+          await new Promise<void>((resolve) => { releaseNewer = resolve; });
+          return [message('m3')];
+        }
+
+        return [message('m1'), message('m2')];
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', api);
+    const firstLoad = store.loadNewer(api);
+    const secondLoad = store.loadNewer(api);
+
+    expect(newerStarted).toBe(true);
+    releaseNewer();
+    await Promise.all([firstLoad, secondLoad]);
+
+    expect(api.roomTimeline).toHaveBeenCalledWith('room-1', { limit: 30, sinceId: 'm2' });
+    expect(api.roomTimeline).toHaveBeenCalledTimes(2);
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m1', 'm2', 'm3']);
+  });
+
+  it('tracks older loading state and stops when the server has no older page', async () => {
+    const api = createApi({
+      roomTimeline: vi.fn(async (_roomId, params) => params?.untilId === 'm1' ? [] : [message('m1'), message('m2')]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', api);
+    await store.loadOlder(api);
+    await store.loadOlder(api);
+
+    expect(api.roomTimeline).toHaveBeenCalledTimes(2);
+    expect(store.hasMoreOlder).toBe(false);
+    expect(store.olderLoading).toBe(false);
+  });
+
   it('sends text and replaces the pending local message on success', async () => {
     const api = createApi();
     const store = useChatStore();

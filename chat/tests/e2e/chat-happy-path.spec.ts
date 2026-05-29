@@ -9,8 +9,11 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.goto('/rooms/amlc1bekzi');
 
   await expect(page.locator('.chat-header').getByText('New Home')).toBeVisible();
-  await expect(page.getByText('Alice')).toBeVisible();
-  await expect(page.getByText('hello')).toBeVisible();
+  await expect(page.locator('.message-bubble__meta strong', { hasText: 'Alice' }).first()).toBeVisible();
+  await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
+  await expect(page.locator('.message-bubble__meta strong', { hasText: 'Bob' })).toBeVisible();
+  await expect(page.locator('.message-bubble__image')).toBeVisible();
+  await expect(page.getByText('Replying to Alice')).toBeVisible();
   await page.getByPlaceholder('Message').fill('sent');
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText('sent')).toBeVisible();

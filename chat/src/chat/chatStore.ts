@@ -30,6 +30,9 @@ export interface FileUploadLike {
 export interface ChatState {
   roomId: string | null;
   loading: boolean;
+  olderLoading: boolean;
+  newerLoading: boolean;
+  hasMoreOlder: boolean;
   error: string | null;
   timeline: TimelineEntry[];
   outgoing: OutgoingMessage[];
@@ -73,6 +76,17 @@ function firstServerMessageId(timeline: TimelineEntry[]): string | undefined {
   return timeline.find((entry) => entry.kind === 'server')?.message.id;
 }
 
+function lastServerMessageId(timeline: TimelineEntry[]): string | undefined {
+  for (let index = timeline.length - 1; index >= 0; index -= 1) {
+    const entry = timeline[index];
+    if (entry?.kind === 'server') {
+      return entry.message.id;
+    }
+  }
+
+  return undefined;
+}
+
 function uploadWith(uploadApi: FileUploadLike, file: File): Promise<DriveFile> {
   if (uploadApi.uploadFile != null) {
     return uploadApi.uploadFile(file);
@@ -85,10 +99,39 @@ function uploadWith(uploadApi: FileUploadLike, file: File): Promise<DriveFile> {
   throw new Error('Upload transport is not configured');
 }
 
+function withComposerContext(message: ChatMessage, replyTarget: ChatMessage | null, quoteTarget: ChatMessage | null): ChatMessage {
+  return {
+    ...message,
+    reply: message.reply ?? replyTarget,
+    quote: message.quote ?? quoteTarget,
+  };
+}
+
+function withUploadedFile(message: ChatMessage, uploaded: DriveFile): ChatMessage {
+  if (message.file == null) {
+    return { ...message, file: uploaded };
+  }
+
+  return {
+    ...message,
+    file: {
+      ...uploaded,
+      ...message.file,
+      url: message.file.url ?? uploaded.url,
+      thumbnailUrl: message.file.thumbnailUrl ?? uploaded.thumbnailUrl,
+      type: message.file.type ?? uploaded.type,
+      size: message.file.size ?? uploaded.size,
+    },
+  };
+}
+
 export const useChatStore = defineStore('chat', {
   state: (): ChatState => ({
     roomId: null,
     loading: false,
+    olderLoading: false,
+    newerLoading: false,
+    hasMoreOlder: true,
     error: null,
     timeline: [],
     outgoing: [],
@@ -113,6 +156,7 @@ export const useChatStore = defineStore('chat', {
       if (roomChanged) {
         this.timeline = [];
         this.outgoing = [];
+        this.hasMoreOlder = true;
         this.clearComposerContext();
       }
 
@@ -121,6 +165,7 @@ export const useChatStore = defineStore('chat', {
       try {
         const messages = await api.roomTimeline(roomId, { limit: DEFAULT_PAGE_SIZE });
         this.timeline = mergeTimeline([], messages);
+        this.hasMoreOlder = messages.length > 0;
       } catch (error) {
         this.error = messageFromError(error);
       } finally {
@@ -129,14 +174,43 @@ export const useChatStore = defineStore('chat', {
     },
 
     async loadOlder(api: ChatApiLike = createDefaultChatApi()) {
-      if (this.roomId == null) {
+      if (this.roomId == null || this.olderLoading || !this.hasMoreOlder) {
         return;
       }
 
-      const untilId = firstServerMessageId(this.timeline);
-      const params = untilId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, untilId };
-      const messages = await api.roomTimeline(this.roomId, params);
-      this.timeline = mergeTimeline(this.timeline, messages);
+      this.olderLoading = true;
+      this.error = null;
+
+      try {
+        const untilId = firstServerMessageId(this.timeline);
+        const params = untilId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, untilId };
+        const messages = await api.roomTimeline(this.roomId, params);
+        this.timeline = mergeTimeline(this.timeline, messages);
+        this.hasMoreOlder = messages.length >= DEFAULT_PAGE_SIZE;
+      } catch (error) {
+        this.error = messageFromError(error);
+      } finally {
+        this.olderLoading = false;
+      }
+    },
+
+    async loadNewer(api: ChatApiLike = createDefaultChatApi()) {
+      if (this.roomId == null || this.newerLoading) {
+        return;
+      }
+
+      this.newerLoading = true;
+
+      try {
+        const sinceId = lastServerMessageId(this.timeline);
+        const params = sinceId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, sinceId };
+        const messages = await api.roomTimeline(this.roomId, params);
+        this.timeline = mergeTimeline(this.timeline, messages);
+      } catch (error) {
+        this.error = messageFromError(error);
+      } finally {
+        this.newerLoading = false;
+      }
     },
 
     async sendText(text: string, api: ChatApiLike = createDefaultChatApi(), options: SendOptions = {}) {
@@ -154,12 +228,13 @@ export const useChatStore = defineStore('chat', {
         createdAt: (options.now ?? (() => new Date().toISOString()))(),
       });
 
+      pending.localMessage = withComposerContext(pending.localMessage, this.replyTarget, this.quoteTarget);
       this.outgoing = [...this.outgoing, pending];
       this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
       this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
 
       try {
-        const serverMessage = await api.createToRoom(pending.payload);
+        const serverMessage = withComposerContext(await api.createToRoom(pending.payload), this.replyTarget, this.quoteTarget);
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
         this.timeline = replacePendingMessage(this.timeline, localId, serverMessage);
         this.clearComposerContext();
@@ -188,12 +263,13 @@ export const useChatStore = defineStore('chat', {
       });
 
       pending.localMessage.file = uploaded;
+      pending.localMessage = withComposerContext(pending.localMessage, this.replyTarget, this.quoteTarget);
       this.outgoing = [...this.outgoing, pending];
       this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
       this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
 
       try {
-        const serverMessage = await api.createToRoom(pending.payload);
+        const serverMessage = withComposerContext(withUploadedFile(await api.createToRoom(pending.payload), uploaded), this.replyTarget, this.quoteTarget);
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
         this.timeline = replacePendingMessage(this.timeline, localId, serverMessage);
         this.clearComposerContext();

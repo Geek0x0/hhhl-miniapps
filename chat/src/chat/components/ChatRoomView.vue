@@ -41,6 +41,7 @@
     </p>
     <MessageTimeline
       :entries="chatStore.timeline"
+      :loading-older="chatStore.olderLoading"
       @load-older="chatStore.loadOlder()"
       @reply="chatStore.setReplyTarget"
       @quote="chatStore.setQuoteTarget"
@@ -86,6 +87,7 @@ const realtimeStore = useRealtimeStore();
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'members' | 'manage' | null>(null);
+let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 
 async function showMembers(): Promise<void> {
   activePanel.value = activePanel.value === 'members' ? null : 'members';
@@ -115,15 +117,35 @@ function startRealtime(): void {
   });
 }
 
+function stopNewerPolling(): void {
+  if (newerPollTimer != null) {
+    globalThis.clearInterval(newerPollTimer);
+    newerPollTimer = null;
+  }
+}
+
+function startNewerPolling(): void {
+  stopNewerPolling();
+  newerPollTimer = globalThis.setInterval(() => {
+    void chatStore.loadNewer();
+  }, 5000);
+}
+
 async function loadRoom(): Promise<void> {
   if (roomId.value !== '') {
+    realtimeStore.stopRoom();
+    stopNewerPolling();
     await roomStore.ensureRoomVisible(roomId.value);
     await chatStore.loadInitial(roomId.value);
     startRealtime();
+    startNewerPolling();
   }
 }
 
 onMounted(loadRoom);
 watch(roomId, loadRoom);
-onBeforeUnmount(() => realtimeStore.stopRoom());
+onBeforeUnmount(() => {
+  stopNewerPolling();
+  realtimeStore.stopRoom();
+});
 </script>
