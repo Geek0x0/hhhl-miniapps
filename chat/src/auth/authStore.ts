@@ -29,6 +29,7 @@ export interface AuthState {
 
 const DRAFTS_KEY = 'hhhl-chat:drafts';
 const RECENT_ROOM_KEY = 'hhhl-chat:recent-room';
+const PENDING_SESSION_KEY = 'hhhl-chat:pending-session';
 
 function createDefaultDependencies(): AuthDependencies {
   const storage = createLocalStorageAdapter();
@@ -69,6 +70,17 @@ export const useAuthStore = defineStore('auth', {
       const token = dependencies.storage.getToken();
 
       if (token == null) {
+        const pendingSession = dependencies.storage.getJson<string | null>(PENDING_SESSION_KEY, null);
+
+        if (pendingSession != null) {
+          try {
+            await this.completeCallback(pendingSession, dependencies);
+            return;
+          } catch {
+            // Session completion failed; fall through to anonymous state.
+          }
+        }
+
         this.status = 'anonymous';
         this.token = null;
         this.user = null;
@@ -98,6 +110,7 @@ export const useAuthStore = defineStore('auth', {
 
       this.status = 'authorizing';
       this.pendingSession = session;
+      dependencies.storage.setJson(PENDING_SESSION_KEY, session);
       dependencies.openAuthUrl(authUrl);
     },
 
@@ -112,8 +125,10 @@ export const useAuthStore = defineStore('auth', {
         this.user = await validateStoredToken(dependencies.api);
         this.status = 'authorized';
         this.pendingSession = null;
+        dependencies.storage.remove(PENDING_SESSION_KEY);
       } catch (error) {
         dependencies.storage.clearAuth();
+        dependencies.storage.remove(PENDING_SESSION_KEY);
         this.token = null;
         this.user = null;
         this.status = 'token-invalid';
@@ -126,6 +141,7 @@ export const useAuthStore = defineStore('auth', {
       dependencies.storage.clearAuth();
       dependencies.storage.remove(DRAFTS_KEY);
       dependencies.storage.remove(RECENT_ROOM_KEY);
+      dependencies.storage.remove(PENDING_SESSION_KEY);
       this.status = 'logout-complete';
       this.token = null;
       this.user = null;

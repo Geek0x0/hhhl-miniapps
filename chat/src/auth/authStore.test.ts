@@ -127,5 +127,52 @@ describe('authStore', () => {
     expect(deps.storage.getToken()).toBeNull();
     expect(deps.storage.getJson('hhhl-chat:drafts', null)).toBeNull();
     expect(deps.storage.getJson('hhhl-chat:recent-room', null)).toBeNull();
+    expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
+  });
+
+  it('persists pending session to storage on startLogin', () => {
+    const deps = createDeps();
+    const store = useAuthStore();
+
+    store.startLogin(deps);
+
+    expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBe('session-1');
+  });
+
+  it('recovers auth from persisted pending session on restore', async () => {
+    const deps = createDeps();
+    deps.storage.setJson('hhhl-chat:pending-session', 'session-1');
+    const store = useAuthStore();
+
+    await store.restore(deps);
+
+    expect(deps.completeMiAuth).toHaveBeenCalledWith('session-1');
+    expect(store.status).toBe('authorized');
+    expect(store.token).toBe('dc-token');
+    expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
+  });
+
+  it('falls back to anonymous if pending session completion fails', async () => {
+    const deps = createDeps({
+      completeMiAuth: vi.fn(async () => { throw new Error('session expired'); }),
+    });
+    deps.storage.setJson('hhhl-chat:pending-session', 'session-1');
+    const store = useAuthStore();
+
+    await store.restore(deps);
+
+    expect(store.status).toBe('anonymous');
+    expect(store.token).toBeNull();
+    expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
+  });
+
+  it('clears pending session from storage on successful completeCallback', async () => {
+    const deps = createDeps();
+    deps.storage.setJson('hhhl-chat:pending-session', 'session-1');
+    const store = useAuthStore();
+
+    await store.completeCallback('session-1', deps);
+
+    expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
   });
 });
