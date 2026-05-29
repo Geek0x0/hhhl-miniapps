@@ -181,17 +181,40 @@ describe('chatStore', () => {
     expect(store.quoteTarget).toBeNull();
   });
 
-  it('searches messages with room, query, user, and pagination params', async () => {
-    const api = createApi();
+  it('replaces search results for new queries and appends explicit continuations', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => params.query === 'bye' ? [message('m4')] : [message(params.untilId === 'm2' ? 'm3' : 'm2')]),
+    });
     const store = useChatStore();
 
     await store.loadInitial('room-1', createApi());
-    await store.searchMessages({ query: 'hello', userId: 'user-1' }, api);
+    await store.searchMessages({ query: 'hello' }, api);
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m2']);
     await store.searchMessages({ query: 'hello', untilId: 'm2' }, api);
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m2', 'm3']);
+    await store.searchMessages({ query: 'hello', userId: 'user-2', untilId: 'm3' }, api);
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m2']);
+    await store.searchMessages({ query: 'bye' }, api);
 
-    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', userId: 'user-1', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', limit: 30 });
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', untilId: 'm2', limit: 30 });
-    expect(store.searchResults.map((item) => item.id)).toEqual(['m2', 'm2']);
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', userId: 'user-2', untilId: 'm3', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'bye', limit: 30 });
+    expect(store.searchQuery).toBe('bye');
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m4']);
+  });
+
+  it('clears stale search state when switching rooms', async () => {
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello' }, createApi());
+    expect(store.searchResults).toHaveLength(1);
+
+    await store.loadInitial('room-2', createApi());
+
+    expect(store.searchQuery).toBeNull();
+    expect(store.searchResults).toEqual([]);
   });
 
   it('exposes search permission failure states', async () => {

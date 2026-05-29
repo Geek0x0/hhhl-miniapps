@@ -119,7 +119,14 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
         pendingSends = [];
       };
       nextSocket.onmessage = (event) => {
-        const parsed = JSON.parse(event.data) as unknown;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(event.data) as unknown;
+        } catch (error) {
+          logger.warn(`Ignored malformed realtime message: ${redactSensitiveText(error instanceof Error ? error.message : String(error))}`);
+          return;
+        }
+
         const normalized = normalizeEvent(parsed, subscribedRooms);
         if (normalized != null) {
           for (const listener of listeners) {

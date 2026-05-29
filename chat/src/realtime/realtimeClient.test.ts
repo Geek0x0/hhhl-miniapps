@@ -105,6 +105,33 @@ describe('RealtimeClient', () => {
     });
   });
 
+  it('ignores malformed websocket messages without breaking the client', () => {
+    FakeWebSocket.instances = [];
+    const onEvent = vi.fn();
+    const warn = vi.fn();
+    const client = createRealtimeClient({
+      tokenProvider: () => 'secret-token',
+      WebSocketImpl: FakeWebSocket,
+      logger: { warn },
+    });
+
+    client.onEvent(onEvent);
+    client.connect();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    client.subscribeRoom('room-1');
+
+    expect(() => socket.onmessage?.({ data: '{not-json' })).not.toThrow();
+    socket.onmessage?.({ data: JSON.stringify({ type: 'ch', body: { id: 'test-main', type: 'message', body: { message: message('room-1') } } }) });
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Ignored malformed realtime message'));
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'message',
+      roomId: 'room-1',
+      message: expect.objectContaining(message('room-1')),
+    });
+  });
+
   it('redacts tokens before logging socket errors', () => {
     FakeWebSocket.instances = [];
     const warn = vi.fn();

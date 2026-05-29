@@ -9,5 +9,5 @@ test('startapp room target is preserved and opens after token restore', async ({
   await page.goto('/');
 
   await expect(page).toHaveURL(/\/rooms\/amlc1bekzi$/);
-  await expect(page.getByText('hello')).toBeVisible();
+  await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
 });

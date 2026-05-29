@@ -42,6 +42,8 @@ export interface ChatState {
   searchLoading: boolean;
   searchError: string | null;
   searchResults: ChatMessage[];
+  searchQuery: string | null;
+  searchKey: string | null;
 }
 
 function createDefaultChatApi(): ChatApiLike {
@@ -125,6 +127,10 @@ function withUploadedFile(message: ChatMessage, uploaded: DriveFile): ChatMessag
   };
 }
 
+function createSearchKey(query: string, userId: string | undefined): string {
+  return JSON.stringify({ query, userId: userId ?? null });
+}
+
 export const useChatStore = defineStore('chat', {
   state: (): ChatState => ({
     roomId: null,
@@ -141,8 +147,18 @@ export const useChatStore = defineStore('chat', {
     searchLoading: false,
     searchError: null,
     searchResults: [],
+    searchQuery: null,
+    searchKey: null,
   }),
   actions: {
+    clearSearch() {
+      this.searchLoading = false;
+      this.searchError = null;
+      this.searchResults = [];
+      this.searchQuery = null;
+      this.searchKey = null;
+    },
+
     clearComposerContext() {
       this.replyTarget = null;
       this.quoteTarget = null;
@@ -158,6 +174,7 @@ export const useChatStore = defineStore('chat', {
         this.outgoing = [];
         this.hasMoreOlder = true;
         this.clearComposerContext();
+        this.clearSearch();
       }
 
       this.roomId = roomId;
@@ -327,7 +344,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     async searchMessages(params: Omit<SearchMessagesParams, 'roomId' | 'limit'> & { limit?: number }, api: ChatApiLike = createDefaultChatApi()) {
-      if (this.roomId == null || params.query.trim() === '') {
+      const query = params.query.trim();
+      if (this.roomId == null || query === '') {
         return;
       }
 
@@ -335,8 +353,12 @@ export const useChatStore = defineStore('chat', {
       this.searchError = null;
 
       try {
-        const results = await api.search({ ...params, query: params.query.trim(), roomId: this.roomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
-        this.searchResults = [...this.searchResults, ...results];
+        const searchKey = createSearchKey(query, params.userId);
+        const isContinuation = this.searchKey === searchKey && params.untilId != null;
+        const results = await api.search({ ...params, query, roomId: this.roomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
+        this.searchQuery = query;
+        this.searchKey = searchKey;
+        this.searchResults = isContinuation ? [...this.searchResults, ...results] : results;
       } catch (error) {
         this.searchError = messageFromError(error);
       } finally {
