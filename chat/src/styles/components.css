@@ -69,7 +69,7 @@
   min-height: 100vh;
   margin: 0 auto;
   padding: 20px;
-  padding-top: calc(20px + var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  padding-top: calc(20px + var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)));
 }
 
 .rooms-header h1,
@@ -194,7 +194,7 @@
   min-height: 100vh;
   min-height: calc(var(--tg-viewport-stable-height, 100vh));
   margin: 0 auto;
-  padding-top: var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-top: calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)));
   background:
     linear-gradient(color-mix(in srgb, var(--tg-bg) 92%, transparent), color-mix(in srgb, var(--tg-bg) 92%, transparent)),
     radial-gradient(circle at 18px 18px, color-mix(in srgb, var(--tg-button) 12%, transparent) 0 1px, transparent 1.5px),
