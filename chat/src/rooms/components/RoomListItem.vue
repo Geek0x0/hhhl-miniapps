@@ -16,7 +16,7 @@
         :key="source"
         class="room-source-badge"
       >
-        {{ source }}
+        {{ i18n.t(sourceLabelKeys[source]) }}
       </span>
     </span>
   </RouterLink>
@@ -24,11 +24,21 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { MergedRoom } from '../roomMerge';
+import { i18n } from '@/i18n';
+import type { MergedRoom, RoomSource } from '../roomMerge';
+
+type VisibleRoomSource = Exclude<RoomSource, 'deep-link'>;
+
+const sourceLabelKeys = {
+  invited: 'rooms.source.invited',
+  joined: 'rooms.source.joined',
+  manual: 'rooms.source.manual',
+  owned: 'rooms.source.owned',
+} as const satisfies Record<VisibleRoomSource, Parameters<typeof i18n.t>[0]>;
 
 const props = defineProps<{
   entry: MergedRoom;
 }>();
 
-const visibleSources = computed(() => props.entry.sources.filter((source) => source !== 'deep-link'));
+const visibleSources = computed(() => props.entry.sources.filter((source): source is VisibleRoomSource => source !== 'deep-link'));
 </script>

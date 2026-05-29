@@ -34,12 +34,16 @@
         </span>
       </li>
     </ul>
-    <p
-      v-if="copiedMessage"
-      class="key-search-panel__toast"
-    >
-      {{ copiedMessage }}
-    </p>
+    <Teleport to="body">
+      <div
+        v-if="copiedMessage"
+        class="key-copy-toast"
+        role="status"
+        :aria-label="copiedMessage"
+      >
+        {{ copiedMessage }}
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -77,12 +81,13 @@ function formattedTime(message: ChatMessage): string {
 
 async function copyText(message: ChatMessage): Promise<void> {
   const text = message.text ?? message.file?.name ?? message.id;
-  try {
-    await globalThis.navigator.clipboard.writeText(text);
+
+  if (copyTextWithSelection(text) || await writeClipboardText(text)) {
     showToast(i18n.t('chat.copiedToClipboard'));
-  } catch {
-    showToast(i18n.t('chat.copyFailed'));
+    return;
   }
+
+  showToast(i18n.t('chat.copyFailed'));
 }
 
 function showToast(msg: string): void {
@@ -94,6 +99,47 @@ function showToast(msg: string): void {
     copiedMessage.value = '';
   }, 2000);
 }
+
+function copyTextWithSelection(text: string): boolean {
+  const doc = globalThis.document;
+  const textarea = doc.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  textarea.style.opacity = '0';
+  doc.body.append(textarea);
+
+  textarea.select();
+  textarea.setSelectionRange(0, text.length);
+
+  try {
+    return doc.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function writeClipboardText(text: string): Promise<boolean> {
+  const writeText = globalThis.navigator.clipboard?.writeText?.bind(globalThis.navigator.clipboard);
+  if (writeText == null) {
+    return false;
+  }
+
+  try {
+    return await globalThis.Promise.race([
+      writeText(text).then(() => true, () => false),
+      new globalThis.Promise<boolean>((resolve) => {
+        globalThis.setTimeout(() => resolve(false), 800);
+      }),
+    ]);
+  } catch {
+    return false;
+  }
+}
 </script>
 
 <style scoped>
@@ -103,12 +149,5 @@ function showToast(msg: string): void {
 
 .search-result-row--clickable:active {
   opacity: 0.7;
-}
-
-.key-search-panel__toast {
-  text-align: center;
-  font-size: 0.82rem;
-  color: var(--tg-hint);
-  margin: 4px 0 0;
 }
 </style>

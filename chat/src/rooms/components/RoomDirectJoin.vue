@@ -13,7 +13,7 @@
         :aria-label="i18n.t('rooms.directJoin')"
         autocomplete="off"
         class="room-direct-join__input"
-        placeholder="roomId"
+        :placeholder="i18n.t('rooms.directJoinPlaceholder')"
       >
       <button
         class="app-button"

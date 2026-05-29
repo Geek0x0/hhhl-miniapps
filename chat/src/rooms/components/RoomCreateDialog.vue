@@ -22,10 +22,10 @@
       :aria-label="i18n.t('rooms.joinMode')"
     >
       <option value="public">
-        public
+        {{ i18n.t('rooms.joinModePublic') }}
       </option>
       <option value="invite">
-        invite
+        {{ i18n.t('rooms.joinModeInvite') }}
       </option>
     </select>
     <button

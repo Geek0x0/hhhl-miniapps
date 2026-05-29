@@ -19,9 +19,9 @@
     />
     <KeySearchPanel
       v-if="activePanel === 'keySearch'"
-      :results="chatStore.searchResults"
-      :loading="chatStore.searchLoading"
-      :error="chatStore.searchError"
+      :results="chatStore.keySearchResults"
+      :loading="chatStore.keySearchLoading"
+      :error="chatStore.keySearchError"
     />
     <MembersPanel
       v-if="activePanel === 'members'"
@@ -194,7 +194,7 @@ function handleKeySearch(): void {
     activePanel.value = null;
   } else {
     activePanel.value = 'keySearch';
-    chatStore.searchMessages({ query: 'sk-' });
+    chatStore.searchKeyMessages();
   }
 }
 

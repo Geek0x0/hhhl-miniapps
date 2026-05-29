@@ -44,7 +44,13 @@ export interface ChatState {
   searchResults: ChatMessage[];
   searchQuery: string | null;
   searchKey: string | null;
+  keySearchLoading: boolean;
+  keySearchError: string | null;
+  keySearchResults: ChatMessage[];
 }
+
+const KEY_SEARCH_QUERY = 'sk-';
+const KEY_SEARCH_USER_ID = 'amk1v51gkh1u0001';
 
 function createDefaultChatApi(): ChatApiLike {
   const storage = createLocalStorageAdapter();
@@ -131,6 +137,15 @@ function createSearchKey(query: string, userId: string | undefined): string {
   return JSON.stringify({ query, userId: userId ?? null });
 }
 
+function isAllowedKeySearchMessage(message: ChatMessage): boolean {
+  const user = message.user;
+  if (user == null) {
+    return true;
+  }
+
+  return user.id === KEY_SEARCH_USER_ID;
+}
+
 export const useChatStore = defineStore('chat', {
   state: (): ChatState => ({
     roomId: null,
@@ -149,6 +164,9 @@ export const useChatStore = defineStore('chat', {
     searchResults: [],
     searchQuery: null,
     searchKey: null,
+    keySearchLoading: false,
+    keySearchError: null,
+    keySearchResults: [],
   }),
   actions: {
     clearSearch() {
@@ -157,6 +175,12 @@ export const useChatStore = defineStore('chat', {
       this.searchResults = [];
       this.searchQuery = null;
       this.searchKey = null;
+    },
+
+    clearKeySearch() {
+      this.keySearchLoading = false;
+      this.keySearchError = null;
+      this.keySearchResults = [];
     },
 
     clearComposerContext() {
@@ -175,6 +199,7 @@ export const useChatStore = defineStore('chat', {
         this.hasMoreOlder = true;
         this.clearComposerContext();
         this.clearSearch();
+        this.clearKeySearch();
       }
 
       this.roomId = roomId;
@@ -363,6 +388,34 @@ export const useChatStore = defineStore('chat', {
         this.searchError = messageFromError(error);
       } finally {
         this.searchLoading = false;
+      }
+    },
+
+    async searchKeyMessages(api: ChatApiLike = createDefaultChatApi()) {
+      if (this.roomId == null) {
+        return;
+      }
+
+      this.keySearchLoading = true;
+      this.keySearchError = null;
+
+      try {
+        const filteredResults = await api.search({
+          roomId: this.roomId,
+          query: KEY_SEARCH_QUERY,
+          userId: KEY_SEARCH_USER_ID,
+          limit: DEFAULT_PAGE_SIZE,
+        });
+        const results = filteredResults.length > 0 ? filteredResults : await api.search({
+          roomId: this.roomId,
+          query: KEY_SEARCH_QUERY,
+          limit: DEFAULT_PAGE_SIZE,
+        });
+        this.keySearchResults = results.filter(isAllowedKeySearchMessage);
+      } catch (error) {
+        this.keySearchError = messageFromError(error);
+      } finally {
+        this.keySearchLoading = false;
       }
     },
 

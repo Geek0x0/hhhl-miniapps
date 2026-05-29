@@ -14,14 +14,14 @@ function requestBody(routeRequest: { postDataJSON: () => unknown }): Record<stri
   }
 }
 
-export async function installTelegramMock(page: Page, startParam?: string): Promise<void> {
-  await page.addInitScript((param) => {
+export async function installTelegramMock(page: Page, startParam?: string, languageCode = 'en'): Promise<void> {
+  await page.addInitScript(({ param, language }) => {
     Object.defineProperty(window, 'Telegram', {
       configurable: true,
       value: {
         WebApp: {
           initData: 'mock_init_data',
-          initDataUnsafe: { start_param: param, user: { language_code: 'en' } },
+          initDataUnsafe: { start_param: param, user: { language_code: language } },
           platform: 'tdesktop',
           themeParams: {},
           ready: () => undefined,
@@ -32,10 +32,14 @@ export async function installTelegramMock(page: Page, startParam?: string): Prom
         },
       },
     });
-  }, startParam);
+  }, { param: startParam, language: languageCode });
 }
 
-export async function mockApi(page: Page): Promise<void> {
+export interface MockApiOptions {
+  failJoinRoomId?: string;
+}
+
+export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
   await page.route('**/*', async (route) => {
     if (route.request().url().startsWith('https://telegram.org/js/telegram-web-app.js')) {
       await route.fulfill({ contentType: 'application/javascript', body: '' });
@@ -78,6 +82,11 @@ export async function mockApi(page: Page): Promise<void> {
 
     if (endpoint === 'chat/rooms/owned' || endpoint === 'chat/rooms/invitations/inbox') {
       await route.fulfill({ headers, json: [] });
+      return;
+    }
+
+    if (endpoint === 'chat/rooms/join' && body.roomId === options.failJoinRoomId) {
+      await route.fulfill({ status: 404, headers, json: { error: { code: 'NO_SUCH_ROOM', message: 'room not found' } } });
       return;
     }
 
@@ -137,6 +146,25 @@ export async function mockApi(page: Page): Promise<void> {
     }
 
     if (endpoint === 'chat/messages/search') {
+      if (body.query === 'sk-' && body.userId === 'amk1v51gkh1u0001') {
+        await route.fulfill({ headers, json: [] });
+        return;
+      }
+
+      if (body.query === 'sk-' && body.userId == null) {
+        await route.fulfill({ headers, json: [
+          { id: 'key-1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:05.000Z', text: 'sk-test-secret', user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' } },
+          { id: 'key-2', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:06.000Z', text: 'sk-other-secret', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
+          { id: 'key-3', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:07.000Z', text: 'sk-without-user' },
+        ] });
+        return;
+      }
+
+      if (body.query === 'sk-') {
+        await route.fulfill({ status: 400, headers, json: { error: { code: 'BAD_KEY_SEARCH', message: 'key search requires ls user' } } });
+        return;
+      }
+
       await route.fulfill({ headers, json: [{ id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } }] });
       return;
     }

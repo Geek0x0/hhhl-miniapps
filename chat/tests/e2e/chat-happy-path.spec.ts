@@ -53,6 +53,17 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.side-panel--favorites', { hasText: '@dora' })).toBeVisible();
   await expect(page.locator('.side-panel--favorites', { hasText: '@eve' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Search keys' }).click();
+  await expect(page.locator('.side-panel', { hasText: 'sk-test-secret' })).toBeVisible();
+  await expect(page.locator('.side-panel', { hasText: 'sk-other-secret' })).toHaveCount(0);
+  await page.locator('.search-result-row', { hasText: 'sk-test-secret' }).click();
+  await expect(page.getByRole('status', { name: 'Copied to clipboard' })).toBeVisible();
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByPlaceholder('Search messages').fill('hello');
+  await page.getByRole('button', { name: 'Search', exact: true }).last().click();
+  await expect(page.locator('.search-result-row', { hasText: 'hello' })).toBeVisible();
+  await expect(page.locator('.side-panel', { hasText: 'sk-test-secret' })).toHaveCount(0);
+
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByLabel('Select file').click();
   const fileChooser = await fileChooserPromise;

@@ -7,6 +7,10 @@ function message(id: string, createdAt = `2026-01-01T00:00:${id.slice(1).padStar
   return { id, roomId: 'room-1', createdAt, text: id };
 }
 
+function userMessage(id: string, user: NonNullable<ChatMessage['user']>): ChatMessage {
+  return { ...message(id), user };
+}
+
 function createApi(overrides: Partial<ChatApiLike> = {}): ChatApiLike {
   return {
     roomTimeline: vi.fn(async () => [message('m1'), message('m2')]),
@@ -204,17 +208,81 @@ describe('chatStore', () => {
     expect(store.searchResults.map((item) => item.id)).toEqual(['m4']);
   });
 
+  it('keeps key search results separate from normal message search', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => params.query === 'sk-' ? [userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })] : [message('m2')]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello' }, api);
+    await store.searchKeyMessages(api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m2']);
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+  });
+
+  it('filters key search by the configured user id without resolving usernames', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => params.userId === 'amk1v51gkh1u0001' ? [message('key-1')] : []),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchKeyMessages(api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+  });
+
+  it('does not show key results with an explicit different user when the search API ignores the user filter', async () => {
+    const api = createApi({
+      search: vi.fn(async () => [
+        userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' }),
+        userMessage('key-2', { id: 'user-2', username: 'alice', name: 'Alice' }),
+        message('key-3'),
+      ]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchKeyMessages(api);
+
+    expect(api.search).toHaveBeenCalledOnce();
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1', 'key-3']);
+  });
+
+  it('falls back to query-only key search when the configured user id returns no results', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => params.userId == null ? [message('key-1')] : []),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchKeyMessages(api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', limit: 30 });
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+  });
+
   it('clears stale search state when switching rooms', async () => {
     const store = useChatStore();
 
     await store.loadInitial('room-1', createApi());
     await store.searchMessages({ query: 'hello' }, createApi());
+    await store.searchKeyMessages(createApi({ search: vi.fn(async () => [userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })]) }));
     expect(store.searchResults).toHaveLength(1);
+    expect(store.keySearchResults).toHaveLength(1);
 
     await store.loadInitial('room-2', createApi());
 
     expect(store.searchQuery).toBeNull();
     expect(store.searchResults).toEqual([]);
+    expect(store.keySearchResults).toEqual([]);
   });
 
   it('exposes search permission failure states', async () => {
