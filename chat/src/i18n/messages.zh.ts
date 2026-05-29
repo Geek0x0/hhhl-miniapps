@@ -23,7 +23,7 @@ const messages = {
   'home.subtitle': 'Telegram 小程序聊天客户端脚手架。',
   'auth.loginTitle': '登录 dc.hhhl.cc',
   'auth.loginBody': '使用 MiAuth 授权本小程序访问聊天、房间、邀请和上传功能。',
-  'auth.loginAction': '使用 MiAuth 授权',
+  'auth.loginAction': '使用 hhhl.cc 授权',
   'auth.logout': '退出登录',
   'auth.tokenInvalid': '你的 dc.hhhl.cc 会话已过期，请重新授权。',
   'rooms.title': '聊天室',

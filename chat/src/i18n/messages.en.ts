@@ -23,7 +23,7 @@ const messages = {
   'home.subtitle': 'Telegram Mini App chat client scaffold.',
   'auth.loginTitle': 'Log in to dc.hhhl.cc',
   'auth.loginBody': 'Use MiAuth to authorize this Mini App for chat, rooms, invitations, and uploads.',
-  'auth.loginAction': 'Authorize with MiAuth',
+  'auth.loginAction': 'Authorize with hhhl.cc',
   'auth.logout': 'Log out',
   'auth.tokenInvalid': 'Your dc.hhhl.cc session expired. Please authorize again.',
   'rooms.title': 'Rooms',
