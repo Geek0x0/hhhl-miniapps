@@ -108,11 +108,15 @@ const activePanel = ref<'search' | 'favorites' | 'members' | 'manage' | null>(nu
 
 const allKnownMembers = computed(() => {
   const membersFromStore = roomStore.membersByRoomId[roomId.value] ?? [];
-  const memberIds = new Set(membersFromStore.map((m) => m.id));
-  const timelineUsers = chatStore.timeline
-    .map((entry) => entry.message.user)
-    .filter((user): user is NonNullable<typeof user> => user != null && !memberIds.has(user.id));
-  const uniqueTimelineUsers = timelineUsers.filter((user, index, arr) => arr.findIndex((u) => u.id === user.id) === index);
+  const seenIds = new Set(membersFromStore.map((m) => m.id));
+  const uniqueTimelineUsers = chatStore.timeline.reduce<typeof membersFromStore>((acc, entry) => {
+    const user = entry.message.user;
+    if (user != null && !seenIds.has(user.id)) {
+      seenIds.add(user.id);
+      acc.push(user);
+    }
+    return acc;
+  }, []);
   return [...membersFromStore, ...uniqueTimelineUsers];
 });
 let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
