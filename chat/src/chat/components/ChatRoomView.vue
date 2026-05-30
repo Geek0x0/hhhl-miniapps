@@ -27,7 +27,7 @@
       />
       <MembersPanel
         v-if="activePanel === 'members'"
-        :members="roomStore.membersByRoomId[roomId] ?? []"
+        :members="allKnownMembers"
         :favorite-user-ids="settingsStore.favoriteUserIds"
         :loading="roomStore.membersLoadingByRoomId[roomId] === true"
         :has-more="roomStore.membersHasMoreByRoomId[roomId] !== false"
@@ -150,6 +150,10 @@ const allKnownMembers = computed(() => {
     usersById.set(user.id, mergeUserSummary(usersById.get(user.id), user));
   };
 
+  if (authStore.user != null) {
+    addUser(authStore.user);
+  }
+
   for (const member of roomStore.membersByRoomId[roomId.value] ?? []) {
     addUser(member);
   }
@@ -179,10 +183,8 @@ function createUserApiClient() {
   return createUserApi(client);
 }
 
-async function ensureMembersLoaded(): Promise<void> {
-  if (roomStore.membersByRoomId[roomId.value] == null) {
-    await roomStore.loadMoreMembers(roomId.value);
-  }
+async function ensureAllMembersLoaded(): Promise<void> {
+  await roomStore.loadAllMembers(roomId.value);
 }
 
 function missingFavoriteMemberIds(): string[] {
@@ -265,7 +267,7 @@ function ensureMentionUsersLoaded(): void {
 async function showMembers(): Promise<void> {
   activePanel.value = activePanel.value === 'members' ? null : 'members';
   if (activePanel.value === 'members') {
-    await ensureMembersLoaded();
+    await ensureAllMembersLoaded();
   }
 }
 
@@ -360,7 +362,7 @@ async function loadRoom(): Promise<void> {
     stopNewerPolling();
     await roomStore.ensureRoomVisible(roomId.value);
     await chatStore.loadInitial(roomId.value);
-    void ensureMembersLoaded();
+    void ensureAllMembersLoaded();
     startRealtime();
     startNewerPolling();
   }

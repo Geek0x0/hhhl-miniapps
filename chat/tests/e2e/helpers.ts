@@ -104,14 +104,14 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     if (endpoint === 'chat/rooms/members') {
       if (body.untilId === 'user-31') {
         await route.fulfill({ headers, json: [
-          { id: 'user-2', username: 'bob', name: 'Bob' },
           { id: 'user-32', username: 'dora', name: 'Dora' },
+          { id: 'user-33', username: 'web-public', name: 'Web Public' },
         ] });
         return;
       }
 
       await route.fulfill({ headers, json: [
-        { id: 'user-1', username: 'alice', name: 'Alice' },
+        { id: 'user-2', username: 'bob', name: 'Bob' },
         ...Array.from({ length: 29 }, (_value, index) => ({ id: `user-${index + 3}`, username: `member${index + 3}`, name: `Member ${index + 3}` })),
       ] });
       return;

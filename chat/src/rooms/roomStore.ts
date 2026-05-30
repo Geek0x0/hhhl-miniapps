@@ -315,6 +315,19 @@ export const useRoomStore = defineStore('rooms', {
       }
     },
 
+    async loadAllMembers(roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
+      while (this.membersHasMoreByRoomId[roomId] !== false) {
+        const previousCount = this.membersByRoomId[roomId]?.length ?? 0;
+        await this.loadMoreMembers(roomId, api);
+        const nextCount = this.membersByRoomId[roomId]?.length ?? 0;
+
+        if (nextCount === previousCount) {
+          this.membersHasMoreByRoomId = { ...this.membersHasMoreByRoomId, [roomId]: false };
+          break;
+        }
+      }
+    },
+
     async loadInvitationOutbox(roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
       try {
         this.outboxInvitations = await api.invitationsOutbox(roomId, { limit: DEFAULT_PAGE_SIZE });

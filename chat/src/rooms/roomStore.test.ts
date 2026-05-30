@@ -208,6 +208,27 @@ describe('roomStore', () => {
     expect(store.membersLoadingByRoomId['room-1']).toBe(false);
   });
 
+  it('loads all member pages for complete member lists and search', async () => {
+    const firstPage = Array.from({ length: 30 }, (_value, index) => ({
+      id: `user-${index + 1}`,
+      username: `user${index + 1}`,
+    }));
+    const api = createRoomApi({
+      members: vi.fn(async (_roomId, params) => params?.untilId === 'user-30'
+        ? [{ id: 'user-31', username: 'dora', name: 'Dora' }]
+        : firstPage),
+    });
+    const store = useRoomStore();
+
+    await store.loadAllMembers('room-1', api);
+
+    expect(api.members).toHaveBeenCalledWith('room-1', { limit: 30 });
+    expect(api.members).toHaveBeenCalledWith('room-1', { limit: 30, untilId: 'user-30' });
+    expect(store.membersByRoomId['room-1']).toHaveLength(31);
+    expect(store.membersByRoomId['room-1']?.at(-1)).toEqual({ id: 'user-31', username: 'dora', name: 'Dora' });
+    expect(store.membersHasMoreByRoomId['room-1']).toBe(false);
+  });
+
   it('exposes permission failure states from management APIs', async () => {
     const api = createRoomApi({
       delete: vi.fn(async () => {

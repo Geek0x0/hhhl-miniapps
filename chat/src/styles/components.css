@@ -300,6 +300,7 @@
 
 .side-panel__list--scrollable {
   max-height: min(38vh, 320px);
+  padding-bottom: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

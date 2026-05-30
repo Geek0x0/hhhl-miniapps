@@ -93,6 +93,10 @@ function normalizeSearchText(value: string): string {
   return value.trim().toLowerCase().replace(/^@+/, '').replace(/\s+/g, ' ');
 }
 
+function compactSearchText(value: string): string {
+  return normalizeSearchText(value).replace(/[^a-z0-9]/g, '');
+}
+
 function memberSearchValues(member: UserSummary): string[] {
   const name = member.name ?? '';
   const username = member.username;
@@ -125,8 +129,14 @@ const filteredMembers = computed(() => {
     return props.members;
   }
 
+  const compactQuery = compactSearchText(query.value);
+
   return props.members.filter((member) => memberSearchValues(member)
-    .some((value) => normalizeSearchText(value).includes(normalizedQuery)));
+    .some((value) => {
+      const normalizedValue = normalizeSearchText(value);
+      return normalizedValue.includes(normalizedQuery)
+        || (compactQuery !== '' && compactSearchText(value).includes(compactQuery));
+    }));
 });
 
 watch([() => query.value, () => props.members.length, () => props.loading, () => props.hasMore], () => {

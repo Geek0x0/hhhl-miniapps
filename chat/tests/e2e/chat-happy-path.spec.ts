@@ -103,6 +103,11 @@ test('chat room supports message send, panels, and file preview', async ({ page 
 
   await page.getByRole('button', { name: 'Members' }).click();
   await expect(page.locator('.side-panel--members').getByText('@alice')).toBeVisible();
+  await expect(page.locator('.side-panel--members').getByText('@dora')).toBeVisible();
+  await page.getByPlaceholder('Search members').fill('alice');
+  await expect(page.locator('.side-panel--members').getByText('@alice')).toBeVisible();
+  await page.getByPlaceholder('Search members').fill('webpublic');
+  await expect(page.locator('.side-panel--members').getByText('@web-public')).toBeVisible();
   await page.getByPlaceholder('Search members').fill(' @BOB ');
   await expect(page.locator('.side-panel--members').getByText('@bob')).toBeVisible();
   await expect(page.locator('.side-panel--members').getByText('@alice')).toHaveCount(0);
