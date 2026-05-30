@@ -537,6 +537,7 @@
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   gap: 9px;
+  align-items: start;
   align-self: flex-start;
   width: fit-content;
   min-width: min(172px, 100%);
@@ -1126,7 +1127,7 @@
 
   .message-bubble {
     grid-template-columns: 34px minmax(0, 1fr);
-    max-width: 92%;
+    max-width: min(92%, 620px);
   }
 
   .message-bubble--own {
