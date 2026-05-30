@@ -18,6 +18,9 @@
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
+      @pointerdown="handleAvatarPointerDown"
+      @pointerup="handleAvatarPointerUp"
+      @pointerleave="handleAvatarPointerUp"
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
       @error="useAvatarFallback($event, avatarFallbackUrl)"
@@ -30,6 +33,9 @@
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
+      @pointerdown="handleAvatarPointerDown"
+      @pointerup="handleAvatarPointerUp"
+      @pointerleave="handleAvatarPointerUp"
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
     >
@@ -181,22 +187,27 @@
         role="dialog"
         aria-modal="true"
         :aria-label="i18n.t('files.imagePreview')"
-        @click.self="closeImagePreview"
+        @click="closeImagePreview"
       >
         <button
           class="chat-icon-button image-lightbox__close"
           type="button"
           :aria-label="i18n.t('common.close')"
-          @click="closeImagePreview"
+          @click.stop="closeImagePreview"
         >
           <X :size="18" />
         </button>
-        <img
-          class="image-lightbox__image"
-          :src="fileUrl ?? imageSrc"
-          referrerpolicy="no-referrer"
-          :alt="imageAlt"
+        <div
+          class="image-lightbox__container"
+          @click.stop
         >
+          <img
+            class="image-lightbox__image"
+            :src="fileUrl ?? imageSrc"
+            referrerpolicy="no-referrer"
+            :alt="imageAlt"
+          >
+        </div>
       </div>
     </Teleport>
   </article>
@@ -227,6 +238,7 @@ const emit = defineEmits<{
   retry: [localId: string];
   remove: [localId: string];
   toggleFavorite: [userId: string];
+  mentionUser: [username: string];
 }>();
 
 interface LinkPreview {
@@ -271,11 +283,43 @@ function closeImagePreview(): void {
   imagePreviewOpen.value = false;
 }
 
+let longPressTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+let isLongPress = false;
+
 function handleAvatarClick(): void {
+  if (isOwnMessage.value || isLongPress) {
+    isLongPress = false;
+    return;
+  }
+
+  const username = props.entry.message.user?.username;
+  if (username == null) {
+    return;
+  }
+
+  emit('mentionUser', username);
+}
+
+function handleAvatarPointerDown(): void {
   if (isOwnMessage.value) {
     return;
   }
 
+  isLongPress = false;
+  longPressTimer = globalThis.setTimeout(() => {
+    isLongPress = true;
+    handleAvatarLongPress();
+  }, 500);
+}
+
+function handleAvatarPointerUp(): void {
+  if (longPressTimer != null) {
+    globalThis.clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+function handleAvatarLongPress(): void {
   const userId = props.entry.message.user?.id;
   if (userId == null) {
     return;

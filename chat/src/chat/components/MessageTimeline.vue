@@ -31,7 +31,16 @@
       @retry="$emit('retry', $event)"
       @remove="$emit('remove', $event)"
       @toggle-favorite="$emit('toggleFavorite', $event)"
+      @mention-user="$emit('mentionUser', $event)"
     />
+    <button
+      v-if="hasNewMessages"
+      class="message-timeline__new-messages"
+      type="button"
+      @click="scrollToBottomAndDismiss"
+    >
+      {{ i18n.t('chat.newMessages') }}
+    </button>
   </section>
 </template>
 
@@ -60,9 +69,11 @@ const emit = defineEmits<{
   retry: [localId: string];
   remove: [localId: string];
   toggleFavorite: [userId: string];
+  mentionUser: [username: string];
 }>();
 
 const timelineElement = ref<globalThis.HTMLElement | null>(null);
+const hasNewMessages = ref(false);
 let previousScrollHeight = 0;
 let previousScrollTop = 0;
 let loadingFromScroll = false;
@@ -78,6 +89,11 @@ function scrollToBottom(): void {
   if (element != null) {
     element.scrollTop = element.scrollHeight;
   }
+}
+
+function scrollToBottomAndDismiss(): void {
+  scrollToBottom();
+  hasNewMessages.value = false;
 }
 
 function scrollToMessage(messageId: string): boolean {
@@ -101,7 +117,16 @@ function isNearBottom(element: globalThis.HTMLElement): boolean {
 
 async function handleScroll(): Promise<void> {
   const element = timelineElement.value;
-  if (element == null || props.loadingOlder || loadingFromScroll || !props.hasMoreOlder || props.entries.length === 0) {
+  if (element == null) {
+    return;
+  }
+
+  // Dismiss new messages indicator when scrolled to bottom
+  if (isNearBottom(element)) {
+    hasNewMessages.value = false;
+  }
+
+  if (props.loadingOlder || loadingFromScroll || !props.hasMoreOlder || props.entries.length === 0) {
     return;
   }
 
@@ -134,11 +159,14 @@ watch(() => props.entries.map(entryKey).join('|'), async () => {
   const element = timelineElement.value;
   const nextLastKey = props.entries.at(-1) == null ? null : entryKey(props.entries.at(-1) as TimelineEntry);
   const shouldStickToBottom = previousLastKey == null || (nextLastKey !== previousLastKey && element != null && isNearBottom(element));
+  const hasNewEntry = previousLastKey != null && nextLastKey !== previousLastKey;
   previousLastKey = nextLastKey;
 
   if (!loadingFromScroll && shouldStickToBottom) {
     await nextTick();
     scrollToBottom();
+  } else if (hasNewEntry && element != null && !isNearBottom(element)) {
+    hasNewMessages.value = true;
   }
 });
 

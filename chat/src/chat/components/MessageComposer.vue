@@ -208,4 +208,12 @@ function submit(): void {
   }
   uploads.value = [];
 }
+
+function appendMention(username: string): void {
+  const current = text.value;
+  const prefix = current.length > 0 && !current.endsWith(' ') ? ' ' : '';
+  text.value = `${current}${prefix}@${username} `;
+}
+
+defineExpose({ appendMention });
 </script>

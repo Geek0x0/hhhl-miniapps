@@ -316,6 +316,11 @@ export const useRoomStore = defineStore('rooms', {
     },
 
     async loadAllMembers(roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
+      // Initialize hasMore to true if not yet set to ensure first page loads
+      if (this.membersHasMoreByRoomId[roomId] == null) {
+        this.membersHasMoreByRoomId = { ...this.membersHasMoreByRoomId, [roomId]: true };
+      }
+
       while (this.membersHasMoreByRoomId[roomId] !== false) {
         const previousCount = this.membersByRoomId[roomId]?.length ?? 0;
         await this.loadMoreMembers(roomId, api);

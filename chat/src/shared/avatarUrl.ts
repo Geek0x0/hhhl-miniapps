@@ -74,13 +74,27 @@ export function useAvatarFallback(event: Event, fallbackUrl: string | null | und
     return;
   }
 
+  // If the image has a referrerpolicy but no crossorigin, try adding crossorigin first
+  if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
+    element.setAttribute('crossorigin', 'anonymous');
+    element.removeAttribute('referrerpolicy');
+    // Force reload by re-assigning current src
+    const currentSrc = element.currentSrc || element.src;
+    element.src = '';
+    element.src = currentSrc;
+    return;
+  }
+
   const fallback = avatarFallbackUrl(element.currentSrc || element.src, fallbackUrl);
   if (fallback == null) {
+    // Hide broken image
+    element.style.display = 'none';
     return;
   }
 
   const current = element.currentSrc || element.src;
   if (current === fallback) {
+    element.style.display = 'none';
     return;
   }
 
