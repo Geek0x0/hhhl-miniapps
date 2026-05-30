@@ -72,6 +72,7 @@ const messages = {
   'chat.pending': '正在发送...',
   'chat.failed': '发送失败',
   'chat.empty': '还没有消息',
+  'chat.newMessages': '↓ 有新消息',
   'files.select': '选择文件',
   'files.imagePreview': '图片预览',
   'files.uploading': '正在上传 {name}',

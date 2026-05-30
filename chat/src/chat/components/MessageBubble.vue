@@ -18,6 +18,9 @@
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
+      @pointerdown="handleAvatarPointerDown"
+      @pointerup="handleAvatarPointerUp"
+      @pointerleave="handleAvatarPointerUp"
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
       @error="useAvatarFallback($event, avatarFallbackUrl)"
@@ -30,6 +33,9 @@
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
+      @pointerdown="handleAvatarPointerDown"
+      @pointerup="handleAvatarPointerUp"
+      @pointerleave="handleAvatarPointerUp"
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
     >
@@ -181,29 +187,34 @@
         role="dialog"
         aria-modal="true"
         :aria-label="i18n.t('files.imagePreview')"
-        @click.self="closeImagePreview"
+        @click="closeImagePreview"
       >
         <button
           class="chat-icon-button image-lightbox__close"
           type="button"
           :aria-label="i18n.t('common.close')"
-          @click="closeImagePreview"
+          @click.stop="closeImagePreview"
         >
           <X :size="18" />
         </button>
-        <img
-          class="image-lightbox__image"
-          :src="fileUrl ?? imageSrc"
-          referrerpolicy="no-referrer"
-          :alt="imageAlt"
+        <div
+          class="image-lightbox__container"
+          @click.stop
         >
+          <img
+            class="image-lightbox__image"
+            :src="fileUrl ?? imageSrc"
+            referrerpolicy="no-referrer"
+            :alt="imageAlt"
+          >
+        </div>
       </div>
     </Teleport>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
@@ -227,6 +238,7 @@ const emit = defineEmits<{
   retry: [localId: string];
   remove: [localId: string];
   toggleFavorite: [userId: string];
+  mentionUser: [username: string];
 }>();
 
 interface LinkPreview {
@@ -236,7 +248,10 @@ interface LinkPreview {
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"')]+/i;
+const LONG_PRESS_DURATION_MS = 500;
 const imagePreviewOpen = ref(false);
+const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
+const isLongPress = ref(false);
 
 function linkPreviewFromText(text: string | null | undefined): LinkPreview | null {
   const rawMatch = text?.match(URL_PATTERN)?.[0];
@@ -272,10 +287,39 @@ function closeImagePreview(): void {
 }
 
 function handleAvatarClick(): void {
+  if (isOwnMessage.value || isLongPress.value) {
+    isLongPress.value = false;
+    return;
+  }
+
+  const username = props.entry.message.user?.username;
+  if (username == null) {
+    return;
+  }
+
+  emit('mentionUser', username);
+}
+
+function handleAvatarPointerDown(): void {
   if (isOwnMessage.value) {
     return;
   }
 
+  isLongPress.value = false;
+  longPressTimer.value = globalThis.setTimeout(() => {
+    isLongPress.value = true;
+    handleAvatarLongPress();
+  }, LONG_PRESS_DURATION_MS);
+}
+
+function handleAvatarPointerUp(): void {
+  if (longPressTimer.value != null) {
+    globalThis.clearTimeout(longPressTimer.value);
+    longPressTimer.value = null;
+  }
+}
+
+function handleAvatarLongPress(): void {
   const userId = props.entry.message.user?.id;
   if (userId == null) {
     return;
@@ -291,6 +335,12 @@ function handleAvatarClick(): void {
     emit('toggleFavorite', userId);
   }
 }
+
+onBeforeUnmount(() => {
+  if (longPressTimer.value != null) {
+    globalThis.clearTimeout(longPressTimer.value);
+  }
+});
 
 const formattedTime = computed(() => new Date(props.entry.message.createdAt).toLocaleTimeString([], {
   hour: '2-digit',

@@ -72,6 +72,7 @@ const messages = {
   'chat.pending': 'Sending...',
   'chat.failed': 'Failed to send',
   'chat.empty': 'No messages yet',
+  'chat.newMessages': '↓ New messages',
   'files.select': 'Select file',
   'files.imagePreview': 'Image preview',
   'files.uploading': 'Uploading {name}',

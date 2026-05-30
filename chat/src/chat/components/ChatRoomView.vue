@@ -74,8 +74,10 @@
       @retry="chatStore.retryMessage"
       @remove="chatStore.removeFailedMessage"
       @toggle-favorite="settingsStore.toggleFavoriteUser"
+      @mention-user="handleMentionUser"
     />
     <MessageComposer
+      ref="composerComponent"
       data-panel-keep-open
       :reply-target="chatStore.replyTarget"
       :quote-target="chatStore.quoteTarget"
@@ -127,6 +129,7 @@ const favoriteUsersById = ref<Record<string, UserSummary>>({});
 const mentionUsersByUsername = ref<Record<string, UserSummary>>({});
 const resolvingMentionUsernames = ref(new Set<string>());
 const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
+const composerComponent = ref<{ appendMention: (username: string) => void } | null>(null);
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
@@ -261,6 +264,12 @@ function ensureMentionUsersLoaded(): void {
 
   for (const username of missingUsernames) {
     void resolveMentionUsername(username);
+  }
+}
+
+function handleMentionUser(username: string): void {
+  if (composerComponent.value != null) {
+    composerComponent.value.appendMention(username);
   }
 }
 
