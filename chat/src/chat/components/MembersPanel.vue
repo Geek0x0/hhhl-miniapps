@@ -22,10 +22,19 @@
       >
         <img
           v-if="member.avatarUrl != null"
-          :src="member.avatarUrl"
+          :src="displayAvatarUrl(member) ?? ''"
+          referrerpolicy="no-referrer"
           alt=""
           class="member-row__avatar"
+          @error="useAvatarFallback($event, fallbackAvatarUrl(member))"
         >
+        <span
+          v-else
+          class="member-row__avatar member-row__avatar--fallback"
+          aria-hidden="true"
+        >
+          {{ memberInitial(member) }}
+        </span>
         <span class="member-row__main">
           <strong>{{ member.name ?? member.username }}</strong>
           <small>@{{ member.username }}</small>
@@ -61,6 +70,7 @@
 import { computed, ref, watch } from 'vue';
 import { Heart } from '@lucide/vue';
 import { i18n } from '@/i18n';
+import { avatarDisplayUrl, avatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
 import type { UserSummary } from '@/shared/types';
 
 const props = defineProps<{
@@ -95,6 +105,18 @@ function memberSearchValues(member: UserSummary): string[] {
     `${name} ${username}`,
     `${name} @${username}`,
   ];
+}
+
+function displayAvatarUrl(member: UserSummary): string | null {
+  return avatarDisplayUrl(member.avatarUrl, member.avatarFallbackUrl);
+}
+
+function fallbackAvatarUrl(member: UserSummary): string | null {
+  return avatarFallbackUrl(member.avatarUrl, member.avatarFallbackUrl);
+}
+
+function memberInitial(member: UserSummary): string {
+  return (member.name ?? member.username).trim().slice(0, 1).toUpperCase() || '?';
 }
 
 const filteredMembers = computed(() => {

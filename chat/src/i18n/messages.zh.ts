@@ -57,6 +57,8 @@ const messages = {
   'chat.quote': '引用',
   'chat.deleteMessage': '删除消息',
   'chat.emoji': '表情',
+  'chat.mentionSuggestions': '提及候选',
+  'chat.mentionMember': '提及 {name} @{username}',
   'chat.favorites': '特别关注',
   'chat.noFavorites': '还没有特别关注成员',
   'chat.toggleFavorite': '切换 {name} 的特别关注',

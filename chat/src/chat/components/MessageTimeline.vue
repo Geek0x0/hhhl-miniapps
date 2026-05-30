@@ -23,6 +23,7 @@
       :entry="entry"
       :current-user-id="currentUserId"
       :favorite-user-ids="favoriteUserIds"
+      :mention-members="mentionMembers"
       @reply="$emit('reply', $event)"
       @quote="$emit('quote', $event)"
       @react="(messageId, reaction) => $emit('react', messageId, reaction)"
@@ -37,7 +38,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue';
 import { i18n } from '@/i18n';
-import type { ChatMessage } from '@/shared/types';
+import type { ChatMessage, UserSummary } from '@/shared/types';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageBubble from './MessageBubble.vue';
 
@@ -47,6 +48,7 @@ const props = defineProps<{
   hasMoreOlder: boolean;
   currentUserId: string | null;
   favoriteUserIds: string[];
+  mentionMembers: UserSummary[];
 }>();
 
 const emit = defineEmits<{

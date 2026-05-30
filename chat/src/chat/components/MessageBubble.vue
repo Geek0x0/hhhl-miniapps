@@ -13,12 +13,14 @@
       class="message-bubble__avatar"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :src="avatarUrl"
+      referrerpolicy="no-referrer"
       alt=""
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
       @click="handleAvatarClick"
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
+      @error="useAvatarFallback($event, avatarFallbackUrl)"
     >
     <div
       v-else
@@ -57,7 +59,33 @@
         v-if="entry.message.text != null"
         class="message-bubble__text"
       >
-        {{ entry.message.text }}
+        <template
+          v-for="(part, index) in textParts"
+          :key="`${part.kind}-${index}-${part.text}`"
+        >
+          <span v-if="part.kind === 'text'">{{ part.text }}</span>
+          <span
+            v-else
+            class="message-mention"
+          >
+            <img
+              v-if="part.user.avatarUrl != null"
+              class="message-mention__avatar"
+              :src="displayAvatarUrl(part.user) ?? ''"
+              referrerpolicy="no-referrer"
+              alt=""
+              @error="useAvatarFallback($event, fallbackAvatarUrl(part.user))"
+            >
+            <span
+              v-else
+              class="message-mention__avatar message-mention__avatar--fallback"
+              aria-hidden="true"
+            >
+              <span class="message-mention__initial">{{ mentionInitial(part.user) }}</span>
+            </span>
+            <span>{{ part.text }}</span>
+          </span>
+        </template>
       </p>
       <a
         v-if="linkPreview != null"
@@ -79,6 +107,7 @@
         <img
           class="message-bubble__image"
           :src="imageSrc"
+          referrerpolicy="no-referrer"
           :alt="imageAlt"
         >
       </button>
@@ -100,6 +129,20 @@
       <small v-if="entry.kind === 'pending'">
         {{ entry.status === 'failed' ? i18n.t('chat.failed') : i18n.t('chat.pending') }}
       </small>
+      <div
+        v-if="displayReactions.length > 0"
+        class="message-reactions"
+        :aria-label="i18n.t('chat.reactions')"
+      >
+        <span
+          v-for="reaction in displayReactions"
+          :key="reaction.reaction"
+          class="message-reactions__item"
+          :class="{ 'message-reactions__item--own': reaction.reacted }"
+        >
+          <span>{{ reaction.reaction }} {{ reaction.count }}</span>
+        </span>
+      </div>
     </div>
     <MessageActions
       v-if="entry.kind === 'server'"
@@ -151,6 +194,7 @@
         <img
           class="image-lightbox__image"
           :src="fileUrl ?? imageSrc"
+          referrerpolicy="no-referrer"
           :alt="imageAlt"
         >
       </div>
@@ -162,7 +206,9 @@
 import { computed, ref } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
-import type { ChatMessage } from '@/shared/types';
+import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
+import type { ChatMessage, UserSummary } from '@/shared/types';
+import { parseMentionText } from '../mentions';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageActions from './MessageActions.vue';
 
@@ -170,6 +216,7 @@ const props = defineProps<{
   entry: TimelineEntry;
   currentUserId: string | null;
   favoriteUserIds: string[];
+  mentionMembers: UserSummary[];
 }>();
 
 const emit = defineEmits<{
@@ -249,12 +296,24 @@ const formattedTime = computed(() => new Date(props.entry.message.createdAt).toL
   hour: '2-digit',
   minute: '2-digit',
 }));
+
+function displayAvatarUrl(user: UserSummary | null | undefined): string | null {
+  return resolveAvatarDisplayUrl(user?.avatarUrl, user?.avatarFallbackUrl);
+}
+
+function fallbackAvatarUrl(user: UserSummary | null | undefined): string | null {
+  return resolveAvatarFallbackUrl(user?.avatarUrl, user?.avatarFallbackUrl);
+}
+
 const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? props.entry.message.user?.id ?? 'Unknown');
 const isOwnMessage = computed(() => props.currentUserId != null && props.entry.message.user?.id === props.currentUserId);
 const isFavoriteSender = computed(() => props.entry.message.user?.id != null && props.favoriteUserIds.includes(props.entry.message.user.id));
-const avatarUrl = computed(() => props.entry.message.user?.avatarUrl ?? null);
+const avatarUrl = computed(() => displayAvatarUrl(props.entry.message.user));
+const avatarFallbackUrl = computed(() => fallbackAvatarUrl(props.entry.message.user));
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
 const linkPreview = computed(() => linkPreviewFromText(props.entry.message.text));
+const textParts = computed(() => parseMentionText(props.entry.message.text ?? '', props.mentionMembers));
+const displayReactions = computed(() => (props.entry.message.reactions ?? []).filter((reaction) => reaction.count > 0));
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);
 const imageSrc = computed(() => props.entry.message.file?.thumbnailUrl ?? props.entry.message.file?.url ?? '');
 const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
@@ -282,4 +341,8 @@ const reference = computed(() => {
     preview: author == null ? body : `${author}: ${body}`,
   };
 });
+
+function mentionInitial(user: UserSummary): string {
+  return (user.name ?? user.username).trim().slice(0, 1).toUpperCase() || '?';
+}
 </script>

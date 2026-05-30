@@ -65,6 +65,7 @@
       :has-more-older="chatStore.hasMoreOlder"
       :current-user-id="authStore.user?.id ?? null"
       :favorite-user-ids="settingsStore.favoriteUserIds"
+      :mention-members="allKnownMembers"
       @load-older="chatStore.loadOlder()"
       @reply="chatStore.setReplyTarget"
       @quote="chatStore.setQuoteTarget"
@@ -78,6 +79,7 @@
       data-panel-keep-open
       :reply-target="chatStore.replyTarget"
       :quote-target="chatStore.quoteTarget"
+      :mention-members="allKnownMembers"
       @send="chatStore.sendText"
       @send-file="chatStore.sendFile"
       @clear-context="chatStore.clearComposerContext()"
@@ -122,24 +124,52 @@ const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id =
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
 const favoriteMembersResolving = ref(false);
 const favoriteUsersById = ref<Record<string, UserSummary>>({});
+const mentionUsersByUsername = ref<Record<string, UserSummary>>({});
+const resolvingMentionUsernames = ref(new Set<string>());
 const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
+const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
+
+function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
+  if (current == null) {
+    return incoming;
+  }
+
+  return {
+    ...current,
+    ...incoming,
+    username: incoming.username || current.username,
+    name: incoming.name ?? current.name,
+    avatarUrl: incoming.avatarUrl ?? current.avatarUrl,
+    avatarFallbackUrl: incoming.avatarFallbackUrl ?? current.avatarFallbackUrl,
+  };
+}
 
 const allKnownMembers = computed(() => {
-  const membersFromStore = roomStore.membersByRoomId[roomId.value] ?? [];
-  const seenIds = new Set(membersFromStore.map((m) => m.id));
-  const uniqueTimelineUsers = chatStore.timeline.reduce<typeof membersFromStore>((acc, entry) => {
-    const user = entry.message.user;
-    if (user != null && !seenIds.has(user.id)) {
-      seenIds.add(user.id);
-      acc.push(user);
-    }
-    return acc;
-  }, []);
-  const fetchedFavoriteUsers = Object.values(favoriteUsersById.value).filter((user) => !seenIds.has(user.id));
-  for (const user of fetchedFavoriteUsers) {
-    seenIds.add(user.id);
+  const usersById = new Map<string, UserSummary>();
+  const addUser = (user: UserSummary) => {
+    usersById.set(user.id, mergeUserSummary(usersById.get(user.id), user));
+  };
+
+  for (const member of roomStore.membersByRoomId[roomId.value] ?? []) {
+    addUser(member);
   }
-  return [...membersFromStore, ...uniqueTimelineUsers, ...fetchedFavoriteUsers];
+
+  for (const entry of chatStore.timeline) {
+    const user = entry.message.user;
+    if (user != null) {
+      addUser(user);
+    }
+  }
+
+  for (const user of Object.values(favoriteUsersById.value)) {
+    addUser(user);
+  }
+
+  for (const user of Object.values(mentionUsersByUsername.value)) {
+    addUser(user);
+  }
+
+  return [...usersById.values()];
 });
 let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 
@@ -178,6 +208,57 @@ async function ensureFavoriteMembersLoaded(): Promise<void> {
     }
   } finally {
     favoriteMembersResolving.value = false;
+  }
+}
+
+function mentionedUsernamesFromTimeline(): string[] {
+  const usernames = new Set<string>();
+
+  for (const entry of chatStore.timeline) {
+    const text = entry.message.text;
+    if (text == null) {
+      continue;
+    }
+
+    for (const match of text.matchAll(MENTION_USERNAME_PATTERN)) {
+      const username = match[2];
+      if (username != null) {
+        usernames.add(username.toLowerCase());
+      }
+    }
+  }
+
+  return [...usernames];
+}
+
+function knownMentionUsernames(): Set<string> {
+  return new Set(allKnownMembers.value.map((member) => member.username.toLowerCase()));
+}
+
+async function resolveMentionUsername(username: string): Promise<void> {
+  resolvingMentionUsernames.value.add(username);
+
+  try {
+    const users = await createUserApiClient().show({ username, detail: false });
+    const user = users.find((candidate) => candidate.username.toLowerCase() === username) ?? users[0];
+    if (user != null) {
+      mentionUsersByUsername.value = {
+        ...mentionUsersByUsername.value,
+        [user.username.toLowerCase()]: user,
+      };
+    }
+  } finally {
+    resolvingMentionUsernames.value.delete(username);
+  }
+}
+
+function ensureMentionUsersLoaded(): void {
+  const knownUsernames = knownMentionUsernames();
+  const missingUsernames = mentionedUsernamesFromTimeline()
+    .filter((username) => !knownUsernames.has(username) && !resolvingMentionUsernames.value.has(username));
+
+  for (const username of missingUsernames) {
+    void resolveMentionUsername(username);
   }
 }
 
@@ -279,6 +360,7 @@ async function loadRoom(): Promise<void> {
     stopNewerPolling();
     await roomStore.ensureRoomVisible(roomId.value);
     await chatStore.loadInitial(roomId.value);
+    void ensureMembersLoaded();
     startRealtime();
     startNewerPolling();
   }
@@ -289,6 +371,7 @@ onMounted(() => {
   globalThis.document.addEventListener('pointerdown', handleDocumentPointerDown, true);
 });
 watch(roomId, loadRoom);
+watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.message.text ?? ''}`).join('|'), ensureMentionUsersLoaded);
 onBeforeUnmount(() => {
   stopNewerPolling();
   realtimeStore.stopRoom();

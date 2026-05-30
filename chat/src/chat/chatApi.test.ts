@@ -8,12 +8,17 @@ describe('chatApi', () => {
       toRoomId: 'room-1',
       created_at: '2026-01-01T00:00:00.000Z',
       body: 'hello',
-      sender: { userId: 'user-1', displayName: 'Alice', avatar: 'https://example.test/a.png' },
+      sender: { userId: 'user-1', displayName: 'Alice', image: 'https://example.test/a.png' },
+      reactions: { '👍': 2, '❤️': { count: 1, reacted: true } },
     })).toEqual(expect.objectContaining({
       id: 'm1',
       roomId: 'room-1',
       text: 'hello',
       user: expect.objectContaining({ id: 'user-1', username: 'Alice', name: 'Alice', avatarUrl: 'https://example.test/a.png' }),
+      reactions: [
+        { reaction: '👍', count: 2, reacted: false },
+        { reaction: '❤️', count: 1, reacted: true },
+      ],
     }));
   });
 

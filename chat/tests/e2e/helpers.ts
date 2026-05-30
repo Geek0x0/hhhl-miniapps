@@ -52,6 +52,11 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
+    if (route.request().url().startsWith('https://dc.hhhl.cc/proxy/avatar.webp')) {
+      await route.fulfill({ contentType: 'image/png', body: transparentPng });
+      return;
+    }
+
     if (!route.request().url().startsWith('https://dc.hhhl.cc/api/')) {
       await route.continue();
       return;
@@ -113,6 +118,11 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
 
     if (endpoint === 'users/show') {
+      if (body.username === 'eve') {
+        await route.fulfill({ headers, json: { id: 'user-99', username: 'eve', name: 'Eve', avatarUrl: '/avatar/eve.png' } });
+        return;
+      }
+
       const requestedIds = Array.isArray(body.userIds) ? body.userIds : [body.userId];
       const users = requestedIds.flatMap((userId) => {
         if (userId === 'user-32') {
@@ -134,7 +144,7 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       }
 
       await route.fulfill({ headers, json: [
-        { id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', fromUser: { id: 'user-1', username: 'alice', name: 'Alice', avatarUrl: '/avatar/alice.png' } },
+        { id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello @alice', fromUser: { id: 'user-1', username: 'alice', name: 'Alice', image: 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Falice-avatar.png&avatar=1' }, reactions: { '👍': 2, '❤️': { count: 1, reacted: true } } },
         { id: 'm2', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:01.000Z', content: 'image attached', fromUser: { id: 'user-2', username: 'bob', name: 'Bob' }, files: [{ id: 'file-1', name: 'photo.png', type: 'image/png', url: '/files/photo.png', thumbnailUrl: '/files/photo-thumb.png' }] },
         { id: 'm3', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:02.000Z', text: 'reply body https://example.com/docs', user: { id: 'user-1', username: 'alice', name: 'Alice' }, replyId: 'm1', reply: { id: 'm1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:00.000Z', text: 'hello', user: { id: 'user-1', username: 'alice', name: 'Alice' } } },
       ] });

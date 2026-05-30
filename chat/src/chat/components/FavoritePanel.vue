@@ -27,9 +27,11 @@
       >
         <img
           v-if="member.avatarUrl != null"
-          :src="member.avatarUrl"
+          :src="displayAvatarUrl(member) ?? ''"
+          referrerpolicy="no-referrer"
           alt=""
           class="member-row__avatar"
+          @error="useAvatarFallback($event, fallbackAvatarUrl(member))"
         >
         <span
           v-else
@@ -62,6 +64,7 @@
 import { computed } from 'vue';
 import { Heart } from '@lucide/vue';
 import { i18n } from '@/i18n';
+import { avatarDisplayUrl, avatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
 import type { UserSummary } from '@/shared/types';
 
 const props = defineProps<{
@@ -71,6 +74,14 @@ const props = defineProps<{
 }>();
 
 const favoriteMembers = computed(() => props.members.filter((member) => props.favoriteUserIds.includes(member.id)));
+
+function displayAvatarUrl(member: UserSummary): string | null {
+  return avatarDisplayUrl(member.avatarUrl, member.avatarFallbackUrl);
+}
+
+function fallbackAvatarUrl(member: UserSummary): string | null {
+  return avatarFallbackUrl(member.avatarUrl, member.avatarFallbackUrl);
+}
 
 function initial(member: UserSummary): string {
   return (member.name ?? member.username).trim().slice(0, 1).toUpperCase() || '?';

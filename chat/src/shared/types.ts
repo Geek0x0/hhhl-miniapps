@@ -3,6 +3,7 @@ export interface UserSummary {
   username: string;
   name?: string | null;
   avatarUrl?: string | null;
+  avatarFallbackUrl?: string | null;
 }
 
 export interface RoomSummary {
@@ -29,10 +30,17 @@ export interface ChatMessage {
   text?: string | null;
   user?: UserSummary | null;
   file?: DriveFile | null;
+  reactions?: MessageReaction[];
   replyId?: string | null;
   reply?: ChatMessage | null;
   quoteId?: string | null;
   quote?: ChatMessage | null;
+}
+
+export interface MessageReaction {
+  reaction: string;
+  count: number;
+  reacted?: boolean;
 }
 
 export interface PaginationParams {

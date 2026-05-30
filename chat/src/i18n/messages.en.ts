@@ -57,6 +57,8 @@ const messages = {
   'chat.quote': 'Quote',
   'chat.deleteMessage': 'Delete message',
   'chat.emoji': 'Emoji',
+  'chat.mentionSuggestions': 'Mention suggestions',
+  'chat.mentionMember': 'Mention {name} @{username}',
   'chat.favorites': 'Favorites',
   'chat.noFavorites': 'No favorite members yet',
   'chat.toggleFavorite': 'Toggle favorite for {name}',

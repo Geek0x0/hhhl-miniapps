@@ -1,6 +1,7 @@
 import type { EndpointCaller } from '@/api/endpointTypes';
+import { normalizeAvatarUrl } from '@/shared/avatarUrl';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
-import type { ChatMessage, PaginationParams, UserSummary } from '@/shared/types';
+import type { ChatMessage, MessageReaction, PaginationParams, UserSummary } from '@/shared/types';
 
 export interface CreateRoomMessageParams {
   toRoomId: string;
@@ -43,6 +44,10 @@ function numberField(value: unknown): number | null {
 
 function recordField(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function booleanField(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
 }
 
 function stringFrom(raw: Record<string, unknown>, keys: string[]): string | null {
@@ -105,7 +110,7 @@ function urlFrom(raw: Record<string, unknown>, keys: string[]): string | null {
 function normalizeUserSummary(value: unknown): UserSummary | null {
   if (typeof value === 'string' && value.trim() !== '') {
     const id = value.trim();
-    return { id, username: id, name: null, avatarUrl: null };
+    return { id, username: id, name: null, avatarUrl: null, avatarFallbackUrl: null };
   }
 
   const raw = recordField(value);
@@ -118,6 +123,7 @@ function normalizeUserSummary(value: unknown): UserSummary | null {
   const id = stringFrom(source, ['id', 'userId', 'fromUserId', 'senderId', 'authorId', 'accountId', 'username', 'acct']) ?? '';
   const name = stringFrom(source, ['name', 'displayName', 'display_name', 'nickname', 'nick', 'screenName']);
   const username = stringFrom(source, ['username', 'userName', 'acct', 'handle', 'screenName']) ?? name ?? id;
+  const avatar = normalizeAvatarUrl(urlFrom(source, ['avatarUrl', 'avatarURL', 'avatarUri', 'avatarURI', 'avatar', 'iconUrl', 'iconUri', 'image', 'imageUrl', 'photo', 'photoUrl', 'photoURL', 'picture', 'pictureUrl']));
 
   if (id === '' && username === '') {
     return null;
@@ -127,8 +133,45 @@ function normalizeUserSummary(value: unknown): UserSummary | null {
     id: id === '' ? username : id,
     username,
     name,
-    avatarUrl: urlFrom(source, ['avatarUrl', 'avatarURL', 'avatarUri', 'avatar', 'iconUrl', 'imageUrl', 'photoUrl', 'photoURL']),
+    avatarUrl: avatar.avatarUrl,
+    avatarFallbackUrl: avatar.avatarFallbackUrl,
   };
+}
+
+function normalizeReactionRecord(value: unknown, fallbackReaction?: string): MessageReaction | null {
+  const raw = recordField(value);
+  const reaction = stringField(raw?.reaction) ?? stringField(raw?.emoji) ?? stringField(raw?.name) ?? fallbackReaction ?? null;
+  const count = numberField(raw?.count ?? raw?.total ?? raw?.value ?? (typeof value === 'number' ? value : null)) ?? 1;
+
+  if (reaction == null || count <= 0) {
+    return null;
+  }
+
+  return {
+    reaction,
+    count,
+    reacted: booleanField(raw?.reacted ?? raw?.me ?? raw?.own ?? raw?.isMine) ?? false,
+  };
+}
+
+function normalizeReactions(value: unknown): MessageReaction[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      const reaction = normalizeReactionRecord(item);
+      return reaction == null ? [] : [reaction];
+    });
+  }
+
+  const raw = recordField(value);
+  if (raw == null) {
+    const single = normalizeReactionRecord(value);
+    return single == null ? [] : [single];
+  }
+
+  return Object.entries(raw).flatMap(([reactionName, reactionValue]) => {
+    const reaction = normalizeReactionRecord(reactionValue, reactionName);
+    return reaction == null ? [] : [reaction];
+  });
 }
 
 function normalizeDriveFile(value: unknown, fallback: Record<string, unknown>): ChatMessage['file'] {
@@ -186,11 +229,12 @@ export function normalizeChatMessage(value: unknown, depth = 0): ChatMessage {
     id: raw.userId ?? raw.fromUserId ?? raw.senderId ?? raw.authorId,
     username: raw.username ?? raw.fromUserUsername ?? raw.senderUsername ?? raw.authorUsername,
     name: raw.name ?? raw.userName ?? raw.fromUserName ?? raw.senderName ?? raw.authorName,
-    avatarUrl: raw.avatarUrl ?? raw.userAvatarUrl ?? raw.fromUserAvatarUrl ?? raw.senderAvatarUrl,
+    avatarUrl: raw.avatarUrl ?? raw.avatarURL ?? raw.avatarUri ?? raw.avatarURI ?? raw.avatar ?? raw.userAvatarUrl ?? raw.userAvatarURL ?? raw.fromUserAvatarUrl ?? raw.fromUserAvatarURL ?? raw.senderAvatarUrl ?? raw.senderAvatarURL ?? raw.userImage ?? raw.fromUserImage ?? raw.senderImage ?? raw.userPhotoUrl ?? raw.fromUserPhotoUrl ?? raw.senderPhotoUrl,
   });
   const fileSource = raw.file ?? raw.attachment ?? raw.driveFile ?? arrayFirstFrom(raw, ['files', 'attachments']);
   const replyId = stringFrom(raw, ['replyId', 'replyToId', 'replyMessageId']);
   const quoteId = stringFrom(raw, ['quoteId', 'quoteMessageId']);
+  const reactions = normalizeReactions(raw.reactions ?? raw.reactionSummary ?? raw.emojiReactions ?? raw.emojis);
 
   return {
     ...(raw as Partial<ChatMessage>),
@@ -200,6 +244,7 @@ export function normalizeChatMessage(value: unknown, depth = 0): ChatMessage {
     text: stringFrom(raw, ['text', 'body', 'content', 'message']),
     user,
     file: normalizeDriveFile(fileSource, raw),
+    reactions,
     replyId,
     reply: embeddedMessage(raw, ['reply', 'replyTo', 'replyMessage'], depth),
     quoteId,

@@ -12,6 +12,42 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.getByRole('button', { name: 'Manage room' })).toHaveCount(0);
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Alice' }).first()).toBeVisible();
   await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
+  const aliceBubble = page.locator('.message-bubble', { hasText: 'hello @alice' }).first();
+  await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveJSProperty('src', 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Falice-avatar.png&avatar=1');
+  await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
+  await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveJSProperty('complete', true);
+  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('.message-mention__avatar')).toBeVisible();
+  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toBeVisible();
+  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveJSProperty('src', 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Falice-avatar.png&avatar=1');
+  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
+  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveJSProperty('complete', true);
+  await expect(page.locator('.message-reactions', { hasText: '👍 2' })).toBeVisible();
+  await expect(page.locator('.message-reactions', { hasText: '❤️ 1' })).toBeVisible();
+  const mentionAvatarMetrics = await page.locator('.message-mention', { hasText: '@alice' }).locator('.message-mention__avatar').first().evaluate((avatar) => {
+    const mention = avatar.closest('.message-mention');
+    const label = avatar.nextElementSibling;
+    const previousText = mention.previousElementSibling;
+    if (!(mention instanceof HTMLElement) || !(label instanceof HTMLElement)) {
+      throw new Error('Mention wrapper or label not found');
+    }
+    if (!(previousText instanceof HTMLElement)) {
+      throw new Error('Reference text span not found');
+    }
+
+    const avatarRect = avatar.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const textRect = previousText.getBoundingClientRect();
+
+    return {
+      height: avatarRect.height,
+      fontSize: Number.parseFloat(window.getComputedStyle(mention).fontSize),
+      centerDelta: Math.abs((avatarRect.top + avatarRect.height / 2) - (labelRect.top + labelRect.height / 2)),
+      lineCenterDelta: Math.abs((avatarRect.top + avatarRect.height / 2) - (textRect.top + textRect.height / 2)),
+    };
+  });
+  expect(Math.abs(mentionAvatarMetrics.height - mentionAvatarMetrics.fontSize * 1.5)).toBeLessThan(0.5);
+  expect(mentionAvatarMetrics.centerDelta).toBeLessThan(1);
+  expect(mentionAvatarMetrics.lineCenterDelta).toBeLessThan(1);
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Bob' })).toBeVisible();
   await expect(page.locator('.message-bubble__image')).toBeVisible();
   await page.locator('.message-bubble__image').click();
@@ -24,6 +60,7 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.getByText('latest')).toBeVisible();
   await page.getByRole('button', { name: 'Emoji' }).click();
   await page.getByRole('button', { name: '😀' }).click();
+  await expect(page.getByRole('button', { name: '🚀' })).toBeVisible();
   await expect(page.getByPlaceholder('Message')).toHaveValue('😀');
   await page.getByPlaceholder('Message').pressSequentially('sent');
   await page.getByRole('button', { name: 'Send' }).click();
@@ -31,6 +68,22 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.getByPlaceholder('Message').fill('enter sent');
   await page.getByPlaceholder('Message').press('Enter');
   await expect(page.getByText('enter sent')).toBeVisible();
+  await page.getByPlaceholder('Message').fill('@');
+  await expect(page.getByRole('listbox', { name: 'Mention suggestions' })).toBeVisible();
+  await expect(page.locator('.mention-suggestions__item')).toHaveCount(6);
+  await page.getByPlaceholder('Message').fill('@member4');
+  await expect(page.locator('.mention-suggestions', { hasText: 'Member 4' })).toBeVisible();
+  await page.getByRole('option', { name: 'Mention Member 4 @member4' }).click();
+  await expect(page.getByPlaceholder('Message')).toHaveValue('@member4 ');
+  await page.getByPlaceholder('Message').fill('@bo');
+  await expect(page.locator('.mention-suggestions', { hasText: 'Bob' })).toBeVisible();
+  await page.getByRole('option', { name: 'Mention Bob @bob' }).click();
+  await expect(page.getByPlaceholder('Message')).toHaveValue('@bob ');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.locator('.message-bubble--own', { hasText: '@bob' }).locator('.message-mention__avatar')).toBeVisible();
+  await page.getByPlaceholder('Message').fill('manual @eve');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.locator('.message-bubble--own', { hasText: '@eve' }).locator('.message-mention__avatar')).toBeVisible();
 
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByPlaceholder('Search messages').fill('hello');
@@ -49,10 +102,10 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.side-panel')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Members' }).click();
-  await expect(page.getByText('@alice')).toBeVisible();
+  await expect(page.locator('.side-panel--members').getByText('@alice')).toBeVisible();
   await page.getByPlaceholder('Search members').fill(' @BOB ');
-  await expect(page.getByText('@bob')).toBeVisible();
-  await expect(page.getByText('@alice')).toHaveCount(0);
+  await expect(page.locator('.side-panel--members').getByText('@bob')).toBeVisible();
+  await expect(page.locator('.side-panel--members').getByText('@alice')).toHaveCount(0);
   await page.getByRole('button', { name: 'Toggle favorite for Bob' }).click();
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('.side-panel--favorites', { hasText: '@bob' })).toBeVisible();

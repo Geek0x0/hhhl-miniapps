@@ -1,5 +1,5 @@
 import type { EndpointCaller } from '@/api/endpointTypes';
-import { DC_HHHL_ORIGIN } from '@/shared/config';
+import { normalizeAvatarUrl } from '@/shared/avatarUrl';
 import type { PaginationParams, RoomSummary, UserSummary } from '@/shared/types';
 
 export interface RoomCreateParams {
@@ -33,19 +33,6 @@ function stringFrom(raw: Record<string, unknown>, keys: string[]): string | null
   return null;
 }
 
-function urlField(value: unknown): string | null {
-  const url = stringField(value);
-  if (url == null) {
-    return null;
-  }
-
-  if (/^(?:https?:|blob:|data:)/.test(url)) {
-    return url;
-  }
-
-  return url.startsWith('/') ? `${DC_HHHL_ORIGIN}${url}` : url;
-}
-
 export function normalizeRoomSummary(value: unknown): RoomSummary {
   const container = value as { room?: unknown };
   const raw = (container.room != null && typeof container.room === 'object' ? container.room : value) as Record<string, unknown>;
@@ -73,12 +60,14 @@ function normalizeUserSummary(value: unknown): UserSummary {
   const id = stringFrom(raw, ['id', 'userId', 'accountId', 'username', 'acct']) ?? '';
   const name = stringFrom(raw, ['name', 'displayName', 'display_name', 'nickname']);
   const username = stringFrom(raw, ['username', 'userName', 'acct', 'handle']) ?? name ?? id;
+  const avatar = normalizeAvatarUrl(raw.avatarUrl ?? raw.avatarURL ?? raw.avatarUri ?? raw.avatarURI ?? raw.avatar ?? raw.iconUrl ?? raw.iconUri ?? raw.image ?? raw.imageUrl ?? raw.photo ?? raw.photoUrl ?? raw.photoURL ?? raw.picture ?? raw.pictureUrl);
 
   return {
     id: id === '' ? username : id,
     username,
     name,
-    avatarUrl: urlField(raw.avatarUrl ?? raw.avatar ?? raw.iconUrl ?? raw.photoUrl),
+    avatarUrl: avatar.avatarUrl,
+    avatarFallbackUrl: avatar.avatarFallbackUrl,
   };
 }
 

@@ -8,6 +8,18 @@ describe('userApi', () => {
       username: 'alice',
       name: 'Alice',
       avatarUrl: 'https://dc.hhhl.cc/avatar.png',
+      avatarFallbackUrl: null,
+    });
+    expect(normalizeUserSummary({
+      id: 'user-2',
+      username: 'bob',
+      avatarUrl: 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fwebpublic-avatar.png&avatar=1',
+    })).toEqual({
+      id: 'user-2',
+      username: 'bob',
+      name: null,
+      avatarUrl: 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fwebpublic-avatar.png&avatar=1',
+      avatarFallbackUrl: 'https://dc.hhhl.cc/files/webpublic-avatar.png',
     });
   });
 
@@ -21,7 +33,7 @@ describe('userApi', () => {
     });
 
     await expect(api.show({ userIds: ['user-99'], detail: false })).resolves.toEqual([
-      { id: 'user-99', username: 'eve', name: 'Eve', avatarUrl: null },
+      { id: 'user-99', username: 'eve', name: 'Eve', avatarUrl: null, avatarFallbackUrl: null },
     ]);
     expect(calls).toEqual([
       { endpoint: 'users/show', params: { userIds: ['user-99'], detail: false } },
