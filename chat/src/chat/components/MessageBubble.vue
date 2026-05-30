@@ -214,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
@@ -248,7 +248,10 @@ interface LinkPreview {
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"')]+/i;
+const LONG_PRESS_DURATION_MS = 500;
 const imagePreviewOpen = ref(false);
+const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
+const isLongPress = ref(false);
 
 function linkPreviewFromText(text: string | null | undefined): LinkPreview | null {
   const rawMatch = text?.match(URL_PATTERN)?.[0];
@@ -283,12 +286,9 @@ function closeImagePreview(): void {
   imagePreviewOpen.value = false;
 }
 
-let longPressTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
-let isLongPress = false;
-
 function handleAvatarClick(): void {
-  if (isOwnMessage.value || isLongPress) {
-    isLongPress = false;
+  if (isOwnMessage.value || isLongPress.value) {
+    isLongPress.value = false;
     return;
   }
 
@@ -305,17 +305,17 @@ function handleAvatarPointerDown(): void {
     return;
   }
 
-  isLongPress = false;
-  longPressTimer = globalThis.setTimeout(() => {
-    isLongPress = true;
+  isLongPress.value = false;
+  longPressTimer.value = globalThis.setTimeout(() => {
+    isLongPress.value = true;
     handleAvatarLongPress();
-  }, 500);
+  }, LONG_PRESS_DURATION_MS);
 }
 
 function handleAvatarPointerUp(): void {
-  if (longPressTimer != null) {
-    globalThis.clearTimeout(longPressTimer);
-    longPressTimer = null;
+  if (longPressTimer.value != null) {
+    globalThis.clearTimeout(longPressTimer.value);
+    longPressTimer.value = null;
   }
 }
 
@@ -335,6 +335,12 @@ function handleAvatarLongPress(): void {
     emit('toggleFavorite', userId);
   }
 }
+
+onBeforeUnmount(() => {
+  if (longPressTimer.value != null) {
+    globalThis.clearTimeout(longPressTimer.value);
+  }
+});
 
 const formattedTime = computed(() => new Date(props.entry.message.createdAt).toLocaleTimeString([], {
   hour: '2-digit',

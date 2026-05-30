@@ -78,9 +78,8 @@ export function useAvatarFallback(event: Event, fallbackUrl: string | null | und
   if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
     element.setAttribute('crossorigin', 'anonymous');
     element.removeAttribute('referrerpolicy');
-    // Force reload by re-assigning current src
+    // Force reload by re-assigning src
     const currentSrc = element.currentSrc || element.src;
-    element.src = '';
     element.src = currentSrc;
     return;
   }
