@@ -9,7 +9,7 @@
     }"
   >
     <img
-      v-if="avatarUrl != null"
+      v-if="avatarUrl != null && !avatarLoadFailed"
       class="message-bubble__avatar"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :src="avatarUrl"
@@ -23,7 +23,7 @@
       @pointerleave="handleAvatarPointerUp"
       @keydown.enter="handleAvatarClick"
       @keydown.space.prevent="handleAvatarClick"
-      @error="useAvatarFallback($event, avatarFallbackUrl)"
+      @error="handleAvatarError"
     >
     <div
       v-else
@@ -214,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
@@ -252,6 +252,41 @@ const LONG_PRESS_DURATION_MS = 500;
 const imagePreviewOpen = ref(false);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
+const avatarLoadFailed = ref(false);
+
+watch(() => props.entry.message.user?.avatarUrl, () => {
+  avatarLoadFailed.value = false;
+});
+
+function handleAvatarError(event: globalThis.Event): void {
+  const element = event.currentTarget;
+  if (!(element instanceof globalThis.HTMLImageElement)) {
+    avatarLoadFailed.value = true;
+    return;
+  }
+
+  // If the image has a referrerpolicy but no crossorigin, try adding crossorigin first
+  if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
+    element.setAttribute('crossorigin', 'anonymous');
+    element.removeAttribute('referrerpolicy');
+    const currentSrc = element.currentSrc || element.src;
+    element.src = currentSrc;
+    return;
+  }
+
+  // Try fallback URL
+  const fallback = resolveAvatarFallbackUrl(element.currentSrc || element.src, avatarFallbackUrl.value);
+  if (fallback != null) {
+    const current = element.currentSrc || element.src;
+    if (current !== fallback) {
+      element.src = fallback;
+      return;
+    }
+  }
+
+  // All attempts failed, show the initial letter fallback
+  avatarLoadFailed.value = true;
+}
 
 function linkPreviewFromText(text: string | null | undefined): LinkPreview | null {
   const rawMatch = text?.match(URL_PATTERN)?.[0];
