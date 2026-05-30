@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { avatarDisplayUrl, avatarFallbackUrl, normalizeAvatarUrl, useAvatarFallback } from './avatarUrl';
+import { absoluteUrl, avatarDisplayUrl, avatarFallbackUrl, normalizeAvatarUrl, useAvatarFallback } from './avatarUrl';
 
 const proxyUrl = 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fwebpublic-avatar.png&avatar=1';
 const originalUrl = 'https://dc.hhhl.cc/files/webpublic-avatar.png';
@@ -32,5 +32,18 @@ describe('avatarUrl', () => {
     useAvatarFallback(event, null);
 
     expect(image.src).toBe(originalUrl);
+  });
+
+  it('decodes HTML entities in avatar URLs', () => {
+    const encodedProxyUrl = 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fwebpublic-avatar.png&amp;avatar=1';
+    expect(absoluteUrl(encodedProxyUrl)).toBe(proxyUrl);
+  });
+
+  it('normalizes avatar URLs with HTML entities and extracts fallback', () => {
+    const encodedProxyUrl = 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fwebpublic-avatar.png&amp;avatar=1';
+    expect(normalizeAvatarUrl(encodedProxyUrl)).toEqual({
+      avatarUrl: proxyUrl,
+      avatarFallbackUrl: originalUrl,
+    });
   });
 });

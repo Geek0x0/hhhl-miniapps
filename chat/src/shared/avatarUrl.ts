@@ -5,15 +5,21 @@ export interface NormalizedAvatarUrl {
   avatarFallbackUrl: string | null;
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&amp;/g, '&');
+}
+
 function stringField(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
 
 export function absoluteUrl(value: unknown): string | null {
-  const url = stringField(value);
-  if (url == null) {
+  const raw = stringField(value);
+  if (raw == null) {
     return null;
   }
+
+  const url = decodeHtmlEntities(raw);
 
   if (/^(?:https?:|blob:|data:)/.test(url)) {
     return url;
