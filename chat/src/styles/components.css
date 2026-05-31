@@ -779,7 +779,7 @@
 
 .image-lightbox__close {
   position: fixed;
-  top: max(14px, env(safe-area-inset-top));
+  top: calc(14px + var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)));
   right: max(14px, env(safe-area-inset-right));
   border-color: rgb(255 255 255 / 0.22);
   background: rgb(255 255 255 / 0.14);
