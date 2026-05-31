@@ -2,6 +2,19 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.0 - 2026-05-31
+
+### chat
+
+#### Added
+
+- Added current app version display in the settings view.
+
+#### Fixed
+
+- Fixed member list avatars not displaying correctly by applying the same referrerpolicy/crossorigin fallback strategy used in chat message avatars.
+- Fixed code quality issues in polling, chat store, room API, and start parameter handling.
+
 ## 0.2.0 - 2026-05-29
 
 ### Repository
