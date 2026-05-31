@@ -96,7 +96,7 @@ export function normalizeDriveFile(value: unknown, fallback: Record<string, unkn
     name: name ?? id ?? '',
     type: stringFrom(source, ['type', 'mimeType', 'contentType', 'mediaType']),
     size: numberField(source.size ?? source.byteSize ?? source.length),
-    url: urlFrom(source, ['url', 'src', 'downloadUrl', 'downloadURL', 'webpublicUrl', 'webUrl']),
+    url: urlFrom(source, ['webpublicUrl', 'webUrl', 'url', 'src', 'downloadUrl', 'downloadURL']),
     thumbnailUrl: urlFrom(source, ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL']),
     blurhash: stringFrom(source, ['blurhash', 'blurHash']),
     isSensitive: booleanField(source.isSensitive ?? source.sensitive),

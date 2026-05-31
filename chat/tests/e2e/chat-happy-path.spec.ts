@@ -14,12 +14,12 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
   const aliceBubble = page.locator('.message-bubble', { hasText: 'hello @alice' }).first();
   await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveJSProperty('src', 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Falice-avatar.png&avatar=1');
-  await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveAttribute('referrerpolicy', 'origin');
+  await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
   await expect(aliceBubble.locator('img.message-bubble__avatar')).toHaveJSProperty('complete', true);
   await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('.message-mention__avatar')).toBeVisible();
   await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toBeVisible();
   await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveJSProperty('src', 'https://dc.hhhl.cc/proxy/avatar.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Falice-avatar.png&avatar=1');
-  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveAttribute('referrerpolicy', 'origin');
+  await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
   await expect(page.locator('.message-mention', { hasText: '@alice' }).locator('img.message-mention__avatar')).toHaveJSProperty('complete', true);
   await expect(page.locator('.message-reactions', { hasText: '👍 2' })).toBeVisible();
   await expect(page.locator('.message-reactions', { hasText: '❤️ 1' })).toBeVisible();

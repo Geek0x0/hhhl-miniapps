@@ -13,7 +13,7 @@
       class="message-bubble__avatar"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :src="avatarUrl"
-      referrerpolicy="origin"
+      referrerpolicy="no-referrer"
       alt=""
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
@@ -78,7 +78,7 @@
               v-if="part.user.avatarUrl != null"
               class="message-mention__avatar"
               :src="displayAvatarUrl(part.user) ?? ''"
-              referrerpolicy="origin"
+              referrerpolicy="no-referrer"
               alt=""
               @error="useAvatarFallback($event, fallbackAvatarUrl(part.user))"
             >
@@ -113,7 +113,7 @@
         <img
           class="message-bubble__image"
           :src="imageSrc"
-          referrerpolicy="origin"
+          referrerpolicy="no-referrer"
           :alt="imageAlt"
           @error="handleMessageImageError"
         >
@@ -205,7 +205,7 @@
           <img
             class="image-lightbox__image"
             :src="fileUrl ?? imageSrc"
-            referrerpolicy="origin"
+            referrerpolicy="no-referrer"
             :alt="imageAlt"
           >
         </div>
@@ -276,13 +276,8 @@ function handleAvatarError(event: globalThis.Event): void {
     return;
   }
 
-  if (element.getAttribute('referrerpolicy') !== 'origin') {
-    element.removeAttribute('crossorigin');
-    element.setAttribute('referrerpolicy', 'origin');
-    const currentSrc = element.currentSrc || element.src;
-    element.src = currentSrc;
-    return;
-  }
+  element.removeAttribute('crossorigin');
+  element.setAttribute('referrerpolicy', 'no-referrer');
 
   // Try fallback URL
   const fallback = resolveAvatarFallbackUrl(element.currentSrc || element.src, avatarFallbackUrl.value);

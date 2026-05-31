@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.5 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Fixed `MessageBubble` media requests returning 500 in Mini App contexts by avoiding the Mini App origin referrer on avatar and image loads.
+- Preferred public Drive file URLs over same-origin file URLs when both are returned, so chat images do not depend on original-site cookies to render.
+
 ## 0.3.4 - 2026-05-31
 
 ### chat

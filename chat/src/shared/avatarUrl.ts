@@ -74,13 +74,8 @@ export function useAvatarFallback(event: Event, fallbackUrl: string | null | und
     return;
   }
 
-  if (element.getAttribute('referrerpolicy') !== 'origin') {
-    element.removeAttribute('crossorigin');
-    element.setAttribute('referrerpolicy', 'origin');
-    const currentSrc = element.currentSrc || element.src;
-    element.src = currentSrc;
-    return;
-  }
+  element.removeAttribute('crossorigin');
+  element.setAttribute('referrerpolicy', 'no-referrer');
 
   const fallback = avatarFallbackUrl(element.currentSrc || element.src, fallbackUrl);
   if (fallback == null) {

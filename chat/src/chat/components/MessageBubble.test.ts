@@ -15,7 +15,7 @@ function renderBubble(entry: TimelineEntry) {
 }
 
 describe('MessageBubble', () => {
-  it('uses origin referrer policy for avatars and message images', () => {
+  it('does not send the mini app origin as referrer for avatars and message images', () => {
     const { container } = renderBubble({
       kind: 'server',
       message: {
@@ -38,8 +38,8 @@ describe('MessageBubble', () => {
       },
     });
 
-    expect(container.querySelector<HTMLImageElement>('.message-bubble__avatar')?.getAttribute('referrerpolicy')).toBe('origin');
-    expect(container.querySelector<HTMLImageElement>('.message-bubble__image')?.getAttribute('referrerpolicy')).toBe('origin');
+    expect(container.querySelector<HTMLImageElement>('.message-bubble__avatar')?.getAttribute('referrerpolicy')).toBe('no-referrer');
+    expect(container.querySelector<HTMLImageElement>('.message-bubble__image')?.getAttribute('referrerpolicy')).toBe('no-referrer');
   });
 
   it('falls back from thumbnail to original image and then Sharkey media proxies', async () => {
