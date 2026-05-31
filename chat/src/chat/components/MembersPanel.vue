@@ -21,7 +21,7 @@
         class="member-row"
       >
         <img
-          v-if="member.avatarUrl != null"
+          v-if="displayAvatarUrl(member) != null"
           :src="displayAvatarUrl(member) ?? ''"
           referrerpolicy="no-referrer"
           alt=""
