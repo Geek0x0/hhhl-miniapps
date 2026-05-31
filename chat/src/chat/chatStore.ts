@@ -295,25 +295,27 @@ export const useChatStore = defineStore('chat', {
       }
 
       const localId = (options.idFactory ?? defaultIdFactory)();
+      const capturedReply = this.replyTarget;
+      const capturedQuote = this.quoteTarget;
       const pending = createPendingMessage({
         localId,
         roomId: this.roomId,
         text: text.trim(),
-        replyId: this.replyTarget?.id,
-        quoteId: this.quoteTarget?.id,
+        replyId: capturedReply?.id,
+        quoteId: capturedQuote?.id,
         createdAt: (options.now ?? (() => new Date().toISOString()))(),
       });
 
-      pending.localMessage = withComposerContext(pending.localMessage, this.replyTarget, this.quoteTarget);
+      pending.localMessage = withComposerContext(pending.localMessage, capturedReply, capturedQuote);
       this.outgoing = [...this.outgoing, pending];
       this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
       this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
+      this.clearComposerContext();
 
       try {
-        const serverMessage = withComposerContext(await api.createToRoom(pending.payload), this.replyTarget, this.quoteTarget);
+        const serverMessage = withComposerContext(await api.createToRoom(pending.payload), capturedReply, capturedQuote);
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
         this.timeline = replacePendingMessage(this.timeline, localId, serverMessage);
-        this.clearComposerContext();
       } catch (error) {
         const message = messageFromError(error);
         this.outgoing = failPendingMessage(this.outgoing, localId, message);
@@ -327,28 +329,37 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
-      const uploaded = await uploadWith(uploadApi, file);
+      let uploaded: DriveFile;
+      try {
+        uploaded = await uploadWith(uploadApi, file);
+      } catch (error) {
+        this.error = messageFromError(error);
+        return;
+      }
+
       const localId = (options.idFactory ?? defaultIdFactory)();
+      const capturedReply = this.replyTarget;
+      const capturedQuote = this.quoteTarget;
       const pending = createPendingMessage({
         localId,
         roomId: this.roomId,
         fileId: uploaded.id,
-        replyId: this.replyTarget?.id,
-        quoteId: this.quoteTarget?.id,
+        replyId: capturedReply?.id,
+        quoteId: capturedQuote?.id,
         createdAt: (options.now ?? (() => new Date().toISOString()))(),
       });
 
       pending.localMessage.file = uploaded;
-      pending.localMessage = withComposerContext(pending.localMessage, this.replyTarget, this.quoteTarget);
+      pending.localMessage = withComposerContext(pending.localMessage, capturedReply, capturedQuote);
       this.outgoing = [...this.outgoing, pending];
       this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
       this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
+      this.clearComposerContext();
 
       try {
-        const serverMessage = withComposerContext(withUploadedFile(await api.createToRoom(pending.payload), uploaded), this.replyTarget, this.quoteTarget);
+        const serverMessage = withComposerContext(withUploadedFile(await api.createToRoom(pending.payload), uploaded), capturedReply, capturedQuote);
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
         this.timeline = replacePendingMessage(this.timeline, localId, serverMessage);
-        this.clearComposerContext();
       } catch (error) {
         const message = messageFromError(error);
         this.outgoing = failPendingMessage(this.outgoing, localId, message);

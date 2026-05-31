@@ -11,7 +11,7 @@ export function parseStartParam(raw: string | undefined): StartParam {
   const value = raw.trim();
   const roomMatch = /^room_([A-Za-z0-9_-]+)$/.exec(value);
 
-  if (roomMatch != null) {
+  if (roomMatch?.[1] != null) {
     return { type: 'room', roomId: roomMatch[1] };
   }
 

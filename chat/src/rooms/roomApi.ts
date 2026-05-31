@@ -96,8 +96,8 @@ export function createRoomApi(client: EndpointCaller) {
     invitationsInbox: (params: PaginationParams = {}) =>
       client.callEndpoint<unknown>('chat/rooms/invitations/inbox', params).then(normalizeInvitations),
     invitationsOutbox: (roomId: string, params: PaginationParams = {}) =>
-      client.callEndpoint<unknown[]>('chat/rooms/invitations/outbox', { roomId, ...params }),
-    createInvitation: (roomId: string) => client.callEndpoint('chat/rooms/invitations/create', { roomId }),
+      client.callEndpoint<unknown>('chat/rooms/invitations/outbox', { roomId, ...params }).then(normalizeInvitations),
+    createInvitation: (roomId: string) => client.callEndpoint<unknown>('chat/rooms/invitations/create', { roomId }).then(normalizeInvitation),
     ignoreInvitation: (invitationId: string) => client.callEndpoint('chat/rooms/invitations/ignore', { invitationId }),
     show: async (roomId: string) => normalizeRoomSummary(await client.callEndpoint<unknown>('chat/rooms/show', { roomId })),
     join: async (roomId: string) => normalizeRoomSummary(await client.callEndpoint<unknown>('chat/rooms/join', { roomId })),
