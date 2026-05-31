@@ -63,7 +63,7 @@
         </div>
       </div>
       <p class="app-copy">
-        {{ DC_HHHL_ORIGIN }} · {{ realtimeStore.status }}
+        {{ DC_HHHL_ORIGIN }} · {{ realtimeStore.status }} · v{{ appVersion }}
       </p>
       <div class="app-actions">
         <button
@@ -118,6 +118,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const settings = useSettingsStore();
 const realtimeStore = useRealtimeStore();
+const appVersion = __APP_VERSION__;
 const themeOptions: Array<{ value: ThemeMode; label: MessageKey; icon: typeof Monitor }> = [
   { value: 'system', label: 'settings.themeSystem', icon: Monitor },
   { value: 'light', label: 'settings.themeLight', icon: Sun },

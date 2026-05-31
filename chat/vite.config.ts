@@ -5,6 +5,9 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   base: '/',
   plugins: [vue()],
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.3.0'),
+  },
   server: {
     watch: {
       usePolling: true,

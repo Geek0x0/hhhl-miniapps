@@ -21,12 +21,12 @@
         class="member-row"
       >
         <img
-          v-if="displayAvatarUrl(member) != null"
+          v-if="displayAvatarUrl(member) != null && !avatarFailedIds.has(member.id)"
           :src="displayAvatarUrl(member) ?? ''"
           referrerpolicy="no-referrer"
           alt=""
           class="member-row__avatar"
-          @error="useAvatarFallback($event, fallbackAvatarUrl(member))"
+          @error="handleAvatarError($event, member)"
         >
         <span
           v-else
@@ -67,10 +67,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Heart } from '@lucide/vue';
 import { i18n } from '@/i18n';
-import { avatarDisplayUrl, avatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
+import { avatarDisplayUrl, avatarFallbackUrl } from '@/shared/avatarUrl';
 import type { UserSummary } from '@/shared/types';
 
 const props = defineProps<{
@@ -87,6 +87,7 @@ const emit = defineEmits<{
 
 const listElement = ref<globalThis.HTMLElement | null>(null);
 const query = ref('');
+const avatarFailedIds = reactive(new Set<string>());
 let lastAutoLoadKey: string | null = null;
 
 function normalizeSearchText(value: string): string {
@@ -117,6 +118,36 @@ function displayAvatarUrl(member: UserSummary): string | null {
 
 function fallbackAvatarUrl(member: UserSummary): string | null {
   return avatarFallbackUrl(member.avatarUrl, member.avatarFallbackUrl);
+}
+
+function handleAvatarError(event: globalThis.Event, member: UserSummary): void {
+  const element = event.currentTarget;
+  if (!(element instanceof globalThis.HTMLImageElement)) {
+    avatarFailedIds.add(member.id);
+    return;
+  }
+
+  // If the image has a referrerpolicy but no crossorigin, try adding crossorigin first
+  if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
+    element.setAttribute('crossorigin', 'anonymous');
+    element.removeAttribute('referrerpolicy');
+    const currentSrc = element.currentSrc || element.src;
+    element.src = currentSrc;
+    return;
+  }
+
+  // Try fallback URL
+  const fallback = fallbackAvatarUrl(member);
+  if (fallback != null) {
+    const current = element.currentSrc || element.src;
+    if (current !== fallback) {
+      element.src = fallback;
+      return;
+    }
+  }
+
+  // All attempts failed, show the initial letter fallback
+  avatarFailedIds.add(member.id);
 }
 
 function memberInitial(member: UserSummary): string {
