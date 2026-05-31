@@ -61,12 +61,12 @@
         @click="insertMention(member)"
       >
         <img
-          v-if="member.avatarUrl != null"
+          v-if="displayAvatarUrl(member) != null && !avatarFailedIds.has(member.id)"
           class="mention-suggestions__avatar"
           :src="displayAvatarUrl(member) ?? ''"
           referrerpolicy="no-referrer"
           alt=""
-          @error="useAvatarFallback($event, fallbackAvatarUrl(member))"
+          @error="handleMentionAvatarError($event, member)"
         >
         <span
           v-else
@@ -101,13 +101,13 @@
 
 <script setup lang="ts">
 /* global ClipboardEvent, File, URL */
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { Send, Smile } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import FilePickerButton from '@/files/components/FilePickerButton.vue';
 import UploadProgressList from '@/files/components/UploadProgressList.vue';
 import { addUpload, removeUpload, validateUploadFile, type UploadItem } from '@/files/uploadQueue';
-import { avatarDisplayUrl, avatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
+import { avatarDisplayUrl, avatarFallbackUrl } from '@/shared/avatarUrl';
 import type { ChatMessage, UserSummary } from '@/shared/types';
 import { createUuid } from '@/shared/uuid';
 import { mentionCandidates } from '../mentions';
@@ -128,6 +128,7 @@ const emit = defineEmits<{
 const text = ref('');
 const uploads = ref<UploadItem[]>([]);
 const showEmojiPicker = ref(false);
+const avatarFailedIds = reactive(new Set<string>());
 const emojis = [
   '😀', '😃', '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤔', '😮', '😢', '😡', '👍', '👎', '👏', '🙏',
   '💪', '✅', '❌', '🔥', '🎉', '🚀', '❤️', '💯', '✨', '⭐', '👀', '📌', '🔑', '💬', '☕', '🍻', '🎯', '🧠',
@@ -186,6 +187,28 @@ function displayAvatarUrl(member: UserSummary): string | null {
 
 function fallbackAvatarUrl(member: UserSummary): string | null {
   return avatarFallbackUrl(member.avatarUrl, member.avatarFallbackUrl);
+}
+
+function handleMentionAvatarError(event: globalThis.Event, member: UserSummary): void {
+  const element = event.currentTarget;
+  if (!(element instanceof globalThis.HTMLImageElement)) {
+    avatarFailedIds.add(member.id);
+    return;
+  }
+
+  element.removeAttribute('crossorigin');
+  element.setAttribute('referrerpolicy', 'no-referrer');
+
+  const fallback = fallbackAvatarUrl(member);
+  if (fallback != null) {
+    const current = element.currentSrc || element.src;
+    if (current !== fallback) {
+      element.src = fallback;
+      return;
+    }
+  }
+
+  avatarFailedIds.add(member.id);
 }
 
 function memberInitial(member: UserSummary): string {

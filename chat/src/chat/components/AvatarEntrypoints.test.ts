@@ -59,4 +59,53 @@ describe('avatar entrypoints', () => {
 
     expect(container.querySelector<HTMLImageElement>('.mention-suggestions__avatar')?.getAttribute('referrerpolicy')).toBe('no-referrer');
   });
+
+  it('falls back mention suggestion avatars to the original URL and then the initial', async () => {
+    const { container, getByPlaceholderText } = render(MessageComposer, {
+      props: {
+        replyTarget: null,
+        quoteTarget: null,
+        mentionMembers: [{
+          id: 'user-1',
+          username: 'alice',
+          name: 'Alice',
+          avatarUrl: proxyAvatar,
+          avatarFallbackUrl: originalAvatar,
+        }],
+      },
+    });
+
+    await fireEvent.update(getByPlaceholderText('Message'), '@a');
+
+    const image = container.querySelector<HTMLImageElement>('.mention-suggestions__avatar');
+    await fireEvent.error(image as HTMLImageElement);
+
+    expect(image?.getAttribute('src')).toBe(originalAvatar);
+    expect(image?.getAttribute('referrerpolicy')).toBe('no-referrer');
+    expect(image?.hasAttribute('crossorigin')).toBe(false);
+
+    await fireEvent.error(image as HTMLImageElement);
+
+    expect(container.querySelector('.mention-suggestions__avatar--fallback')).not.toBeNull();
+  });
+
+  it('renders mention suggestion avatars when only a fallback URL is available', async () => {
+    const { container, getByPlaceholderText } = render(MessageComposer, {
+      props: {
+        replyTarget: null,
+        quoteTarget: null,
+        mentionMembers: [{
+          id: 'user-1',
+          username: 'alice',
+          name: 'Alice',
+          avatarUrl: null,
+          avatarFallbackUrl: originalAvatar,
+        }],
+      },
+    });
+
+    await fireEvent.update(getByPlaceholderText('Message'), '@a');
+
+    expect(container.querySelector<HTMLImageElement>('.mention-suggestions__avatar')?.getAttribute('src')).toBe(originalAvatar);
+  });
 });

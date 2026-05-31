@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.7 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Fixed send-message mention suggestion avatars by using the same no-referrer fallback state as chat message avatars.
+- Rendered mention suggestion images from fallback avatar URLs when no primary avatar URL is available, and switched to the initial fallback after both image attempts fail.
+
 ## 0.3.6 - 2026-05-31
 
 ### chat
