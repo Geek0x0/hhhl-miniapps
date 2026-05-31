@@ -41,15 +41,19 @@ export function createPollingFallback(options: PollingFallbackOptions): PollingF
     }
 
     timer = window.setTimeout(async () => {
-      if (roomId == null) {
+      const currentRoomId = roomId;
+      if (currentRoomId == null) {
         return;
       }
 
       try {
-        const messages = await options.roomTimeline(roomId, { limit: DEFAULT_PAGE_SIZE, sinceId: lastSeenId ?? undefined });
+        const messages = await options.roomTimeline(currentRoomId, { limit: DEFAULT_PAGE_SIZE, sinceId: lastSeenId ?? undefined });
+        if (roomId !== currentRoomId) {
+          return;
+        }
         if (messages.length > 0) {
           lastSeenId = messages[messages.length - 1]?.id ?? lastSeenId;
-          options.onMessages?.(roomId, messages);
+          options.onMessages?.(currentRoomId, messages);
         }
         intervalMs = baseIntervalMs;
       } catch {
