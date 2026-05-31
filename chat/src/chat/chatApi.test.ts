@@ -40,6 +40,12 @@ describe('chatApi', () => {
         type: 'image/png',
         url: '/files/image.png',
         thumbnailUrl: '/thumbs/image.webp',
+        blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+        isSensitive: true,
+        properties: {
+          width: 640,
+          height: 480,
+        },
       }],
       replyId: 'm1',
       reply: {
@@ -59,7 +65,16 @@ describe('chatApi', () => {
     });
 
     expect(message.user).toEqual(expect.objectContaining({ id: 'user-2', username: 'bob', name: 'Bob', avatarUrl: 'https://dc.hhhl.cc/avatar/bob.webp' }));
-    expect(message.file).toEqual(expect.objectContaining({ id: 'file-1', name: 'image.png', type: 'image/png', url: 'https://dc.hhhl.cc/files/image.png', thumbnailUrl: 'https://dc.hhhl.cc/thumbs/image.webp' }));
+    expect(message.file).toEqual(expect.objectContaining({
+      id: 'file-1',
+      name: 'image.png',
+      type: 'image/png',
+      url: 'https://dc.hhhl.cc/files/image.png',
+      thumbnailUrl: 'https://dc.hhhl.cc/thumbs/image.webp',
+      blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      isSensitive: true,
+      properties: { width: 640, height: 480 },
+    }));
     expect(message.replyId).toBe('m1');
     expect(message.reply).toEqual(expect.objectContaining({ id: 'm1', text: 'original', user: expect.objectContaining({ name: 'Alice' }) }));
     expect(message.quote).toEqual(expect.objectContaining({ id: 'm0', text: 'quoted', user: expect.objectContaining({ username: 'carol' }) }));

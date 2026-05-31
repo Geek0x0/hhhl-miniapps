@@ -21,6 +21,12 @@ export interface DriveFile {
   size?: number | null;
   url?: string | null;
   thumbnailUrl?: string | null;
+  blurhash?: string | null;
+  isSensitive?: boolean | null;
+  properties?: {
+    width?: number | null;
+    height?: number | null;
+  } | null;
 }
 
 export interface ChatMessage {

@@ -13,7 +13,7 @@
       class="message-bubble__avatar"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :src="avatarUrl"
-      referrerpolicy="no-referrer"
+      referrerpolicy="origin"
       alt=""
       :role="!isOwnMessage ? 'button' : undefined"
       :tabindex="!isOwnMessage ? 0 : undefined"
@@ -78,7 +78,7 @@
               v-if="part.user.avatarUrl != null"
               class="message-mention__avatar"
               :src="displayAvatarUrl(part.user) ?? ''"
-              referrerpolicy="no-referrer"
+              referrerpolicy="origin"
               alt=""
               @error="useAvatarFallback($event, fallbackAvatarUrl(part.user))"
             >
@@ -104,7 +104,7 @@
         <span class="message-link-preview__path">{{ linkPreview.path }}</span>
       </a>
       <button
-        v-if="fileUrl != null && isImageFile"
+        v-if="fileUrl != null && isImageFile && !imageLoadFailed"
         class="message-bubble__image-button"
         type="button"
         :aria-label="i18n.t('files.imagePreview')"
@@ -113,8 +113,9 @@
         <img
           class="message-bubble__image"
           :src="imageSrc"
-          referrerpolicy="no-referrer"
+          referrerpolicy="origin"
           :alt="imageAlt"
+          @error="handleMessageImageError"
         >
       </button>
       <a
@@ -204,7 +205,7 @@
           <img
             class="image-lightbox__image"
             :src="fileUrl ?? imageSrc"
-            referrerpolicy="no-referrer"
+            referrerpolicy="origin"
             :alt="imageAlt"
           >
         </div>
@@ -218,6 +219,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
+import { imageProxyUrl, previewProxyUrl } from '@/shared/mediaProxy';
 import { formatMessageTimestamp } from '@/shared/time';
 import type { ChatMessage, UserSummary } from '@/shared/types';
 import { parseMentionText } from '../mentions';
@@ -254,9 +256,17 @@ const imagePreviewOpen = ref(false);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
 const avatarLoadFailed = ref(false);
+const imageSourceIndex = ref(0);
+const imageLoadFailed = ref(false);
 
 watch(() => props.entry.message.user?.avatarUrl, () => {
   avatarLoadFailed.value = false;
+});
+
+watch(() => [props.entry.message.file?.url, props.entry.message.file?.thumbnailUrl], () => {
+  imageSourceIndex.value = 0;
+  imageLoadFailed.value = false;
+  imagePreviewOpen.value = false;
 });
 
 function handleAvatarError(event: globalThis.Event): void {
@@ -266,10 +276,9 @@ function handleAvatarError(event: globalThis.Event): void {
     return;
   }
 
-  // If the image has a referrerpolicy but no crossorigin, try adding crossorigin first
-  if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
-    element.setAttribute('crossorigin', 'anonymous');
-    element.removeAttribute('referrerpolicy');
+  if (element.getAttribute('referrerpolicy') !== 'origin') {
+    element.removeAttribute('crossorigin');
+    element.setAttribute('referrerpolicy', 'origin');
     const currentSrc = element.currentSrc || element.src;
     element.src = currentSrc;
     return;
@@ -319,6 +328,16 @@ function openImagePreview(): void {
 }
 
 function closeImagePreview(): void {
+  imagePreviewOpen.value = false;
+}
+
+function handleMessageImageError(): void {
+  if (imageSourceIndex.value < imageSources.value.length - 1) {
+    imageSourceIndex.value += 1;
+    return;
+  }
+
+  imageLoadFailed.value = true;
   imagePreviewOpen.value = false;
 }
 
@@ -398,7 +417,21 @@ const linkPreview = computed(() => linkPreviewFromText(props.entry.message.text)
 const textParts = computed(() => parseMentionText(props.entry.message.text ?? '', props.mentionMembers));
 const displayReactions = computed(() => (props.entry.message.reactions ?? []).filter((reaction) => reaction.count > 0));
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);
-const imageSrc = computed(() => props.entry.message.file?.thumbnailUrl ?? props.entry.message.file?.url ?? '');
+const imageSources = computed(() => {
+  const file = props.entry.message.file;
+  const baseUrl = file?.url ?? file?.thumbnailUrl ?? null;
+  const candidates = [
+    file?.thumbnailUrl,
+    file?.url,
+    baseUrl == null ? null : previewProxyUrl(baseUrl),
+    baseUrl == null ? null : imageProxyUrl(baseUrl),
+  ];
+
+  return candidates.filter((candidate, index): candidate is string => (
+    candidate != null && candidate !== '' && candidates.indexOf(candidate) === index
+  ));
+});
+const imageSrc = computed(() => imageSources.value[imageSourceIndex.value] ?? '');
 const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
 const isImageFile = computed(() => {
   const file = props.entry.message.file;

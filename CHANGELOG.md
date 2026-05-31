@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.3 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Improved avatar and message image loading by matching the original site's origin referrer behavior, retrying avatar fallbacks without forcing CORS, and falling back from thumbnails to original images and Sharkey media proxy URLs.
+- Preserved chat file metadata such as blurhash, sensitivity, and image dimensions for future media placeholder and sensitive-media handling.
+
 ## 0.3.2 - 2026-05-31
 
 ### chat

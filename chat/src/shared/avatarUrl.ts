@@ -74,11 +74,9 @@ export function useAvatarFallback(event: Event, fallbackUrl: string | null | und
     return;
   }
 
-  // If the image has a referrerpolicy but no crossorigin, try adding crossorigin first
-  if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
-    element.setAttribute('crossorigin', 'anonymous');
-    element.removeAttribute('referrerpolicy');
-    // Force reload by re-assigning src
+  if (element.getAttribute('referrerpolicy') !== 'origin') {
+    element.removeAttribute('crossorigin');
+    element.setAttribute('referrerpolicy', 'origin');
     const currentSrc = element.currentSrc || element.src;
     element.src = currentSrc;
     return;

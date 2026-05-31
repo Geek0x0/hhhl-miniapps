@@ -174,6 +174,14 @@ function normalizeReactions(value: unknown): MessageReaction[] {
   });
 }
 
+function normalizeDriveFileProperties(source: Record<string, unknown>): NonNullable<NonNullable<ChatMessage['file']>['properties']> | null {
+  const rawProperties = recordField(source.properties) ?? recordField(source.metadata) ?? {};
+  const width = numberField(rawProperties.width ?? source.width);
+  const height = numberField(rawProperties.height ?? source.height);
+
+  return width == null && height == null ? null : { width, height };
+}
+
 function normalizeDriveFile(value: unknown, fallback: Record<string, unknown>): ChatMessage['file'] {
   const raw = recordField(value) ?? (typeof value === 'string' ? { id: value, name: value } : null);
   if (raw == null && stringFrom(fallback, ['fileId', 'driveFileId', 'attachmentId', 'fileName', 'filename']) == null) {
@@ -195,6 +203,9 @@ function normalizeDriveFile(value: unknown, fallback: Record<string, unknown>): 
     size: numberField(source.size ?? source.byteSize ?? source.length),
     url: urlFrom(source, ['url', 'src', 'downloadUrl', 'downloadURL', 'webpublicUrl', 'webUrl']),
     thumbnailUrl: urlFrom(source, ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL']),
+    blurhash: stringFrom(source, ['blurhash', 'blurHash']),
+    isSensitive: booleanField(source.isSensitive ?? source.sensitive),
+    properties: normalizeDriveFileProperties(source),
   };
 }
 

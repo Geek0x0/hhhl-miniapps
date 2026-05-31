@@ -140,6 +140,9 @@ function withUploadedFile(message: ChatMessage, uploaded: DriveFile): ChatMessag
       thumbnailUrl: message.file.thumbnailUrl ?? uploaded.thumbnailUrl,
       type: message.file.type ?? uploaded.type,
       size: message.file.size ?? uploaded.size,
+      blurhash: message.file.blurhash ?? uploaded.blurhash,
+      isSensitive: message.file.isSensitive ?? uploaded.isSensitive,
+      properties: message.file.properties ?? uploaded.properties,
     },
   };
 }

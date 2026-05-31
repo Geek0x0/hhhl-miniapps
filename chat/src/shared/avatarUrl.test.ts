@@ -26,8 +26,27 @@ describe('avatarUrl', () => {
   it('falls back to the original file url when a proxied avatar image errors', () => {
     const image = document.createElement('img');
     image.src = proxyUrl;
+    image.setAttribute('referrerpolicy', 'origin');
     const event = new Event('error');
     Object.defineProperty(event, 'currentTarget', { value: image });
+
+    useAvatarFallback(event, null);
+
+    expect(image.src).toBe(originalUrl);
+  });
+
+  it('retries failed avatars with origin referrer before falling back to the original url', () => {
+    const image = document.createElement('img');
+    image.src = proxyUrl;
+    image.setAttribute('referrerpolicy', 'no-referrer');
+    const event = new Event('error');
+    Object.defineProperty(event, 'currentTarget', { value: image });
+
+    useAvatarFallback(event, null);
+
+    expect(image.src).toBe(proxyUrl);
+    expect(image.getAttribute('referrerpolicy')).toBe('origin');
+    expect(image.hasAttribute('crossorigin')).toBe(false);
 
     useAvatarFallback(event, null);
 
