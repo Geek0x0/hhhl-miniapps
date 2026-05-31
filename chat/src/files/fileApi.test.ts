@@ -15,9 +15,36 @@ describe('fileApi', () => {
       tokenProvider: () => 'secret-token',
     });
 
-    await expect(api.upload(new File(['hello'], 'hello.txt', { type: 'text/plain' }))).resolves.toEqual({
+    await expect(api.upload(new File(['hello'], 'hello.txt', { type: 'text/plain' }))).resolves.toMatchObject({
       id: 'file-1',
       name: 'hello.txt',
+    });
+  });
+
+  it('normalizes relative Drive file URLs returned by upload', async () => {
+    const api = createFileApi({
+      uploadFile: async () => ({
+        id: 'file-1',
+        name: 'photo.png',
+        type: 'image/png',
+        url: '/files/photo.png',
+        thumbnailUrl: '/files/photo-thumb.png',
+        blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+        isSensitive: true,
+        properties: { width: 640, height: 480 },
+      }),
+      tokenProvider: () => 'secret-token',
+    });
+
+    await expect(api.upload(new File(['photo'], 'photo.png', { type: 'image/png' }))).resolves.toMatchObject({
+      id: 'file-1',
+      name: 'photo.png',
+      type: 'image/png',
+      url: 'https://dc.hhhl.cc/files/photo.png',
+      thumbnailUrl: 'https://dc.hhhl.cc/files/photo-thumb.png',
+      blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj',
+      isSensitive: true,
+      properties: { width: 640, height: 480 },
     });
   });
 
@@ -42,7 +69,7 @@ describe('fileApi', () => {
 
     const api = createFileApi(apiClient);
 
-    await expect(api.upload(new File(['hello'], 'hello.txt', { type: 'text/plain' }))).resolves.toEqual({
+    await expect(api.upload(new File(['hello'], 'hello.txt', { type: 'text/plain' }))).resolves.toMatchObject({
       id: 'file-1',
       name: 'hello.txt',
     });

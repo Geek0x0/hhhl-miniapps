@@ -1,6 +1,7 @@
 import type { EndpointCaller } from '@/api/endpointTypes';
 import { normalizeAvatarUrl } from '@/shared/avatarUrl';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
+import { normalizeDriveFile } from '@/shared/driveFile';
 import type { ChatMessage, MessageReaction, PaginationParams, UserSummary } from '@/shared/types';
 
 export interface CreateRoomMessageParams {
@@ -172,41 +173,6 @@ function normalizeReactions(value: unknown): MessageReaction[] {
     const reaction = normalizeReactionRecord(reactionValue, reactionName);
     return reaction == null ? [] : [reaction];
   });
-}
-
-function normalizeDriveFileProperties(source: Record<string, unknown>): NonNullable<NonNullable<ChatMessage['file']>['properties']> | null {
-  const rawProperties = recordField(source.properties) ?? recordField(source.metadata) ?? {};
-  const width = numberField(rawProperties.width ?? source.width);
-  const height = numberField(rawProperties.height ?? source.height);
-
-  return width == null && height == null ? null : { width, height };
-}
-
-function normalizeDriveFile(value: unknown, fallback: Record<string, unknown>): ChatMessage['file'] {
-  const raw = recordField(value) ?? (typeof value === 'string' ? { id: value, name: value } : null);
-  if (raw == null && stringFrom(fallback, ['fileId', 'driveFileId', 'attachmentId', 'fileName', 'filename']) == null) {
-    return null;
-  }
-
-  const source = raw ?? fallback;
-  const id = stringFrom(source, raw == null ? ['fileId', 'driveFileId', 'attachmentId'] : ['id', 'fileId', 'driveFileId', 'attachmentId']);
-  const name = stringFrom(source, ['name', 'fileName', 'filename', 'originalName', 'title']) ?? id;
-
-  if (id == null && name == null) {
-    return null;
-  }
-
-  return {
-    id: id ?? name ?? '',
-    name: name ?? id ?? '',
-    type: stringFrom(source, ['type', 'mimeType', 'contentType', 'mediaType']),
-    size: numberField(source.size ?? source.byteSize ?? source.length),
-    url: urlFrom(source, ['url', 'src', 'downloadUrl', 'downloadURL', 'webpublicUrl', 'webUrl']),
-    thumbnailUrl: urlFrom(source, ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL']),
-    blurhash: stringFrom(source, ['blurhash', 'blurHash']),
-    isSensitive: booleanField(source.isSensitive ?? source.sensitive),
-    properties: normalizeDriveFileProperties(source),
-  };
 }
 
 function embeddedMessage(raw: Record<string, unknown>, keys: string[], depth: number): ChatMessage | null {

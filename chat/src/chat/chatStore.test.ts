@@ -141,6 +141,63 @@ describe('chatStore', () => {
     });
   });
 
+  it('normalizes uploaded file URLs before rendering pending and sent file messages', async () => {
+    let resolveStarted: () => void = () => {
+      throw new Error('create request did not start');
+    };
+    let resolveCreate: (message: ChatMessage) => void = () => {
+      throw new Error('create response was not awaited');
+    };
+    const createStarted = new Promise<void>((resolve) => {
+      resolveStarted = resolve;
+    });
+    const createResponse = new Promise<ChatMessage>((resolve) => {
+      resolveCreate = resolve;
+    });
+    const api = createApi({
+      createToRoom: vi.fn(async () => {
+        resolveStarted();
+        return createResponse;
+      }),
+    });
+    const uploadFile = vi.fn(async () => ({
+      id: 'file-1',
+      name: 'photo.png',
+      type: 'image/png',
+      url: '/files/photo.png',
+      thumbnailUrl: '/files/photo-thumb.png',
+    }));
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const send = store.sendFile(new File(['photo'], 'photo.png', { type: 'image/png' }), { uploadFile }, api, {
+      idFactory: () => 'local-file-1',
+      now: () => '2026-01-01T00:00:03.000Z',
+    });
+    await createStarted;
+
+    const pending = store.timeline.find((entry) => entry.kind === 'pending');
+    expect(pending?.message.file).toMatchObject({
+      url: 'https://dc.hhhl.cc/files/photo.png',
+      thumbnailUrl: 'https://dc.hhhl.cc/files/photo-thumb.png',
+    });
+
+    resolveCreate({
+      id: 'm3',
+      roomId: 'room-1',
+      createdAt: '2026-01-01T00:00:03.000Z',
+      text: null,
+      file: { id: 'file-1', name: 'photo.png', type: 'image/png' },
+    });
+    await send;
+
+    const sent = store.timeline.find((entry) => entry.message.id === 'm3');
+    expect(sent?.message.file).toMatchObject({
+      url: 'https://dc.hhhl.cc/files/photo.png',
+      thumbnailUrl: 'https://dc.hhhl.cc/files/photo-thumb.png',
+    });
+  });
+
   it('marks failed sends and retries them', async () => {
     const failingApi = createApi({
       createToRoom: vi.fn(async () => {

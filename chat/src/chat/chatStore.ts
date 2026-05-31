@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ApiClient } from '@/api/apiClient';
 import { API_BASE_URL, DEFAULT_PAGE_SIZE } from '@/shared/config';
+import { normalizeDriveFile } from '@/shared/driveFile';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import type { ChatMessage, DriveFile, PaginationParams } from '@/shared/types';
 import { createUuid } from '@/shared/uuid';
@@ -126,23 +127,30 @@ function withComposerContext(message: ChatMessage, replyTarget: ChatMessage | nu
   };
 }
 
+function normalizeUploadedFile(uploaded: DriveFile): DriveFile {
+  return normalizeDriveFile(uploaded) ?? uploaded;
+}
+
 function withUploadedFile(message: ChatMessage, uploaded: DriveFile): ChatMessage {
+  const normalizedUploaded = normalizeUploadedFile(uploaded);
   if (message.file == null) {
-    return { ...message, file: uploaded };
+    return { ...message, file: normalizedUploaded };
   }
+
+  const messageFile = normalizeDriveFile(message.file) ?? message.file;
 
   return {
     ...message,
     file: {
-      ...uploaded,
-      ...message.file,
-      url: message.file.url ?? uploaded.url,
-      thumbnailUrl: message.file.thumbnailUrl ?? uploaded.thumbnailUrl,
-      type: message.file.type ?? uploaded.type,
-      size: message.file.size ?? uploaded.size,
-      blurhash: message.file.blurhash ?? uploaded.blurhash,
-      isSensitive: message.file.isSensitive ?? uploaded.isSensitive,
-      properties: message.file.properties ?? uploaded.properties,
+      ...normalizedUploaded,
+      ...messageFile,
+      url: messageFile.url ?? normalizedUploaded.url,
+      thumbnailUrl: messageFile.thumbnailUrl ?? normalizedUploaded.thumbnailUrl,
+      type: messageFile.type ?? normalizedUploaded.type,
+      size: messageFile.size ?? normalizedUploaded.size,
+      blurhash: messageFile.blurhash ?? normalizedUploaded.blurhash,
+      isSensitive: messageFile.isSensitive ?? normalizedUploaded.isSensitive,
+      properties: messageFile.properties ?? normalizedUploaded.properties,
     },
   };
 }
@@ -370,7 +378,7 @@ export const useChatStore = defineStore('chat', {
 
       let uploaded: DriveFile;
       try {
-        uploaded = await uploadWith(uploadApi, file);
+        uploaded = normalizeUploadedFile(await uploadWith(uploadApi, file));
       } catch (error) {
         this.error = messageFromError(error);
         return;

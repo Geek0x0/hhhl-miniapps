@@ -1,5 +1,6 @@
 import type { DriveFile } from '@/shared/types';
 import type { TokenProvider } from '@/api/endpointTypes';
+import { normalizeDriveFile } from '@/shared/driveFile';
 
 export interface FileApiClient {
   uploadFile(formData: FormData, onProgress?: (progress: number) => void): Promise<DriveFile>;
@@ -8,7 +9,7 @@ export interface FileApiClient {
 
 export function createFileApi(client: FileApiClient) {
   return {
-    upload: (file: File, onProgress?: (progress: number) => void) => {
+    upload: async (file: File, onProgress?: (progress: number) => void) => {
       const formData = new FormData();
       const token = client.tokenProvider();
 
@@ -20,7 +21,8 @@ export function createFileApi(client: FileApiClient) {
       formData.set('file', file);
       formData.set('name', file.name);
 
-      return client.uploadFile(formData, onProgress);
+      const uploaded = await client.uploadFile(formData, onProgress);
+      return normalizeDriveFile(uploaded) ?? uploaded;
     },
   };
 }

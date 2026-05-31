@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.4 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Fixed sent message images in `MessageBubble` by normalizing uploaded Drive file URLs before pending and server messages render, preventing relative `/files/...` URLs from being resolved against the Mini App domain.
+- Shared Drive file normalization between timeline messages and uploaded files so blurhash, sensitivity, dimensions, thumbnails, and original file URLs stay consistent.
+
 ## 0.3.3 - 2026-05-31
 
 ### chat
