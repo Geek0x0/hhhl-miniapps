@@ -144,6 +144,42 @@ function withUploadedFile(message: ChatMessage, uploaded: DriveFile): ChatMessag
   };
 }
 
+function updateTimelineMessage(timeline: TimelineEntry[], messageId: string, updateMessage: (message: ChatMessage) => ChatMessage): TimelineEntry[] {
+  return timeline.map((entry) => entry.message.id === messageId ? { ...entry, message: updateMessage(entry.message) } : entry);
+}
+
+function withOptimisticReaction(message: ChatMessage, reaction: string): ChatMessage {
+  const reactions = [...(message.reactions ?? [])];
+  let hasReaction = false;
+
+  const next = reactions.map((item) => {
+    if (item.reaction === reaction) {
+      hasReaction = true;
+      return item.reacted === true ? item : { ...item, count: item.count + 1, reacted: true };
+    }
+
+    if (item.reacted === true) {
+      return { ...item, count: Math.max(0, item.count - 1), reacted: false };
+    }
+
+    return item;
+  });
+
+  if (!hasReaction) {
+    next.push({ reaction, count: 1, reacted: true });
+  }
+
+  return { ...message, reactions: next.filter((item) => item.count > 0) };
+}
+
+function withoutOptimisticReaction(message: ChatMessage): ChatMessage {
+  const next = (message.reactions ?? [])
+    .map((item) => item.reacted === true ? { ...item, count: Math.max(0, item.count - 1), reacted: false } : item)
+    .filter((item) => item.count > 0);
+
+  return { ...message, reactions: next };
+}
+
 function createSearchKey(query: string, userId: string | undefined): string {
   return JSON.stringify({ query, userId: userId ?? null });
 }
@@ -493,26 +529,32 @@ export const useChatStore = defineStore('chat', {
 
     async react(messageId: string, reaction: string, api: ChatApiLike = createDefaultChatApi()) {
       const previous = { ...this.reactionsByMessageId };
+      const previousTimeline = this.timeline;
       this.reactionsByMessageId = { ...this.reactionsByMessageId, [messageId]: reaction };
+      this.timeline = updateTimelineMessage(this.timeline, messageId, (message) => withOptimisticReaction(message, reaction));
 
       try {
         await api.react(messageId, reaction);
       } catch (error) {
         this.reactionsByMessageId = previous;
+        this.timeline = previousTimeline;
         this.error = messageFromError(error);
       }
     },
 
     async unreact(messageId: string, api: ChatApiLike = createDefaultChatApi()) {
       const previous = { ...this.reactionsByMessageId };
+      const previousTimeline = this.timeline;
       const next = { ...this.reactionsByMessageId };
       delete next[messageId];
       this.reactionsByMessageId = next;
+      this.timeline = updateTimelineMessage(this.timeline, messageId, withoutOptimisticReaction);
 
       try {
         await api.unreact(messageId);
       } catch (error) {
         this.reactionsByMessageId = previous;
+        this.timeline = previousTimeline;
         this.error = messageFromError(error);
       }
     },

@@ -188,6 +188,26 @@ describe('chatStore', () => {
     expect(store.error).toBe('react failed');
   });
 
+  it('shows optimistic reactions in the timeline before the API responds', async () => {
+    let resolveReaction: () => void = () => {
+      throw new Error('reaction request did not start');
+    };
+    const api = createApi({
+      react: vi.fn(async () => {
+        await new Promise<void>((resolve) => { resolveReaction = resolve; });
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const reactionRequest = store.react('m1', '👍', api);
+
+    expect(store.timeline[0]?.message.reactions).toEqual([{ reaction: '👍', count: 1, reacted: true }]);
+
+    resolveReaction();
+    await reactionRequest;
+  });
+
   it('tracks reply and quote targets and clears composer context on room switch', async () => {
     const store = useChatStore();
 

@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.2 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Fixed emoji reactions not appearing immediately after reacting to another user's message.
+
 ## 0.3.1 - 2026-05-31
 
 ### chat
