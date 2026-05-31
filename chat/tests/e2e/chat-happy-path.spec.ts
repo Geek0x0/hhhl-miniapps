@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { authorizeSession, installTelegramMock, mockApi } from './helpers';
+import { MOCK_KEY_TEXT, authorizeSession, installTelegramMock, mockApi } from './helpers';
 
 test('chat room supports message send, panels, and file preview', async ({ page }) => {
   await installTelegramMock(page);
@@ -125,15 +125,18 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.side-panel--favorites', { hasText: '@eve' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Search keys' }).click();
-  await expect(page.locator('.side-panel', { hasText: 'sk-test-secret' })).toBeVisible();
-  await expect(page.locator('.side-panel', { hasText: 'sk-other-secret' })).toHaveCount(0);
-  await page.locator('.search-result-row', { hasText: 'sk-test-secret' }).click();
+  await expect(page.locator('.search-result-row', { hasText: MOCK_KEY_TEXT })).toHaveCount(1);
+  await expect(page.locator('.side-panel', { hasText: 'sk-0123456789abcdefghijklmnopqrstuv' })).toHaveCount(0);
+  await expect(page.locator('.side-panel', { hasText: `${MOCK_KEY_TEXT} extra` })).toHaveCount(0);
+  await expect(page.locator('.side-panel', { hasText: `prefix ${MOCK_KEY_TEXT}` })).toHaveCount(0);
+  await expect(page.locator('.side-panel', { hasText: 'sk-test-secret' })).toHaveCount(0);
+  await page.locator('.search-result-row', { hasText: MOCK_KEY_TEXT }).click();
   await expect(page.getByRole('status', { name: 'Copied to clipboard' })).toBeVisible();
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await page.getByPlaceholder('Search messages').fill('hello');
   await page.getByRole('button', { name: 'Search', exact: true }).last().click();
   await expect(page.locator('.search-result-row', { hasText: 'archived hello' })).toBeVisible();
-  await expect(page.locator('.side-panel', { hasText: 'sk-test-secret' })).toHaveCount(0);
+  await expect(page.locator('.side-panel', { hasText: MOCK_KEY_TEXT })).toHaveCount(0);
 
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.getByLabel('Select file').click();

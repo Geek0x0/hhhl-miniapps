@@ -3,12 +3,20 @@ import { createPinia, setActivePinia } from 'pinia';
 import type { ChatMessage } from '@/shared/types';
 import { useChatStore, type ChatApiLike } from './chatStore';
 
+const KEY_SEARCH_USER = { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' };
+const VALID_KEY_TEXT = 'sk-AbCdEfGhIjKlMnOpQrStUvWxYz012345';
+const SECOND_VALID_KEY_TEXT = 'sk-0123456789abcdefghijklmnopqrstuv';
+
 function message(id: string, createdAt = `2026-01-01T00:00:${id.slice(1).padStart(2, '0')}.000Z`): ChatMessage {
   return { id, roomId: 'room-1', createdAt, text: id };
 }
 
-function userMessage(id: string, user: NonNullable<ChatMessage['user']>): ChatMessage {
-  return { ...message(id), user };
+function textMessage(id: string, text: string): ChatMessage {
+  return { ...message(id), text };
+}
+
+function userTextMessage(id: string, text: string, user: NonNullable<ChatMessage['user']> = KEY_SEARCH_USER): ChatMessage {
+  return { ...textMessage(id, text), user };
 }
 
 function createApi(overrides: Partial<ChatApiLike> = {}): ChatApiLike {
@@ -317,7 +325,7 @@ describe('chatStore', () => {
 
   it('keeps key search results separate from normal message search', async () => {
     const api = createApi({
-      search: vi.fn(async (params) => params.query === 'sk-' ? [userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })] : [message('m2')]),
+      search: vi.fn(async (params) => params.query === 'sk-' ? [userTextMessage('key-1', VALID_KEY_TEXT)] : [message('m2')]),
     });
     const store = useChatStore();
 
@@ -331,12 +339,30 @@ describe('chatStore', () => {
     expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
   });
 
+  it('only shows key search results whose full text is an exact key token', async () => {
+    const api = createApi({
+      search: vi.fn(async () => [
+        userTextMessage('key-1', VALID_KEY_TEXT),
+        userTextMessage('key-2', `${VALID_KEY_TEXT} extra`),
+        userTextMessage('key-3', `prefix ${VALID_KEY_TEXT}`),
+        userTextMessage('key-4', ` ${VALID_KEY_TEXT}`),
+        userTextMessage('key-5', 'sk-test-secret'),
+      ]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchKeyMessages(api);
+
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+  });
+
   it('verifies direct key search results without sender details', async () => {
     const api = {
       ...createApi({
-        search: vi.fn(async (params) => params.userId === 'amk1v51gkh1u0001' ? [message('key-1')] : []),
+        search: vi.fn(async (params) => params.userId === 'amk1v51gkh1u0001' ? [textMessage('key-1', VALID_KEY_TEXT)] : []),
       }),
-      show: vi.fn(async () => userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })),
+      show: vi.fn(async () => userTextMessage('key-1', VALID_KEY_TEXT)),
     } as ChatApiLike & { show: (messageId: string) => Promise<ChatMessage> };
     const store = useChatStore();
 
@@ -351,9 +377,9 @@ describe('chatStore', () => {
   it('does not show key results without a verified target sender', async () => {
     const api = createApi({
       search: vi.fn(async () => [
-        userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' }),
-        userMessage('key-2', { id: 'user-2', username: 'alice', name: 'Alice' }),
-        message('key-3'),
+        userTextMessage('key-1', VALID_KEY_TEXT),
+        userTextMessage('key-2', SECOND_VALID_KEY_TEXT, { id: 'user-2', username: 'alice', name: 'Alice' }),
+        textMessage('key-3', VALID_KEY_TEXT),
       ]),
     });
     const store = useChatStore();
@@ -371,13 +397,13 @@ describe('chatStore', () => {
       ...createApi({
       search: vi.fn(async (params) => params.userId == null
         ? [
-          userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' }),
-          userMessage('key-2', { id: 'user-2', username: 'alice', name: 'Alice' }),
-          message('key-3'),
+          userTextMessage('key-1', VALID_KEY_TEXT),
+          userTextMessage('key-2', SECOND_VALID_KEY_TEXT, { id: 'user-2', username: 'alice', name: 'Alice' }),
+          textMessage('key-3', SECOND_VALID_KEY_TEXT),
         ]
         : []),
       }),
-      show: vi.fn(async () => userMessage('key-3', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })),
+      show: vi.fn(async () => userTextMessage('key-3', SECOND_VALID_KEY_TEXT)),
     } as ChatApiLike & { show: (messageId: string) => Promise<ChatMessage> };
     const store = useChatStore();
 
@@ -393,9 +419,9 @@ describe('chatStore', () => {
   it('does not show query-only key results when sender details cannot be verified', async () => {
     const api = {
       ...createApi({
-        search: vi.fn(async (params) => params.userId == null ? [message('key-1')] : []),
+        search: vi.fn(async (params) => params.userId == null ? [textMessage('key-1', VALID_KEY_TEXT)] : []),
       }),
-      show: vi.fn(async () => message('key-1')),
+      show: vi.fn(async () => textMessage('key-1', VALID_KEY_TEXT)),
     } as ChatApiLike & { show: (messageId: string) => Promise<ChatMessage> };
     const store = useChatStore();
 
@@ -410,7 +436,7 @@ describe('chatStore', () => {
 
     await store.loadInitial('room-1', createApi());
     await store.searchMessages({ query: 'hello' }, createApi());
-    await store.searchKeyMessages(createApi({ search: vi.fn(async () => [userMessage('key-1', { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' })]) }));
+    await store.searchKeyMessages(createApi({ search: vi.fn(async () => [userTextMessage('key-1', VALID_KEY_TEXT)]) }));
     expect(store.searchResults).toHaveLength(1);
     expect(store.keySearchResults).toHaveLength(1);
 

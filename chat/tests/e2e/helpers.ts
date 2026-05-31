@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+export const MOCK_KEY_TEXT = 'sk-AbCdEfGhIjKlMnOpQrStUvWxYz012345';
+
 const transparentPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
   'base64',
@@ -177,9 +179,12 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
 
       if (body.query === 'sk-' && body.userId == null) {
         await route.fulfill({ headers, json: [
-          { id: 'key-1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:05.000Z', text: 'sk-test-secret', user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' } },
-          { id: 'key-2', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:06.000Z', text: 'sk-other-secret', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
-          { id: 'key-3', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:07.000Z', text: 'sk-without-user' },
+          { id: 'key-1', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:05.000Z', text: MOCK_KEY_TEXT, user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' } },
+          { id: 'key-2', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:06.000Z', text: 'sk-0123456789abcdefghijklmnopqrstuv', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
+          { id: 'key-3', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:07.000Z', text: `${MOCK_KEY_TEXT} extra`, user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' } },
+          { id: 'key-4', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:08.000Z', text: `prefix ${MOCK_KEY_TEXT}`, user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' } },
+          { id: 'key-5', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:09.000Z', text: 'sk-test-secret', user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' } },
+          { id: 'key-6', roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:10.000Z', text: MOCK_KEY_TEXT },
         ] });
         return;
       }

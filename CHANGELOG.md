@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.8 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Restricted key-search results to messages whose entire text is exactly `sk-` followed by a 32-character alphanumeric key, excluding surrounding content.
+
 ## 0.3.7 - 2026-05-31
 
 ### chat

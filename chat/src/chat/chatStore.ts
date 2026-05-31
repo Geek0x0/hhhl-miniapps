@@ -55,6 +55,7 @@ export interface ChatState {
 
 const KEY_SEARCH_QUERY = 'sk-';
 const KEY_SEARCH_USER_ID = 'amk1v51gkh1u0001';
+const KEY_SEARCH_PATTERN = /^sk-[A-Za-z0-9]{32}$/;
 
 function createDefaultChatApi(): ChatApiLike {
   const storage = createLocalStorageAdapter();
@@ -195,8 +196,12 @@ function createSearchKey(query: string, userId: string | undefined): string {
   return JSON.stringify({ query, userId: userId ?? null });
 }
 
+function isExactKeySearchMessage(message: ChatMessage): boolean {
+  return typeof message.text === 'string' && KEY_SEARCH_PATTERN.test(message.text);
+}
+
 function isAllowedKeySearchMessage(message: ChatMessage): boolean {
-  return message.user?.id === KEY_SEARCH_USER_ID;
+  return message.user?.id === KEY_SEARCH_USER_ID && isExactKeySearchMessage(message);
 }
 
 async function verifyKeySearchMessages(messages: ChatMessage[], api: ChatApiLike): Promise<ChatMessage[]> {
