@@ -127,14 +127,8 @@ function handleAvatarError(event: globalThis.Event, member: UserSummary): void {
     return;
   }
 
-  // If the image has a referrerpolicy but no crossorigin, try adding crossorigin first
-  if (!element.hasAttribute('crossorigin') && element.getAttribute('referrerpolicy') === 'no-referrer') {
-    element.setAttribute('crossorigin', 'anonymous');
-    element.removeAttribute('referrerpolicy');
-    const currentSrc = element.currentSrc || element.src;
-    element.src = currentSrc;
-    return;
-  }
+  element.removeAttribute('crossorigin');
+  element.setAttribute('referrerpolicy', 'no-referrer');
 
   // Try fallback URL
   const fallback = fallbackAvatarUrl(member);

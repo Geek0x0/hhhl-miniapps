@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.6 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Aligned member list avatar loading with `MessageBubble` by keeping failed avatar retries on `no-referrer` and removing the old crossorigin retry path.
+- Added coverage for member, favorite, and mention suggestion avatar entrypoints to prevent referrer and CORS fallback regressions.
+
 ## 0.3.5 - 2026-05-31
 
 ### chat
