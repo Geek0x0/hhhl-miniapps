@@ -218,6 +218,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Heart, RefreshCw, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
+import { formatMessageTimestamp } from '@/shared/time';
 import type { ChatMessage, UserSummary } from '@/shared/types';
 import { parseMentionText } from '../mentions';
 import type { TimelineEntry } from '../timelineMerge';
@@ -377,10 +378,7 @@ onBeforeUnmount(() => {
   }
 });
 
-const formattedTime = computed(() => new Date(props.entry.message.createdAt).toLocaleTimeString([], {
-  hour: '2-digit',
-  minute: '2-digit',
-}));
+const formattedTime = computed(() => formatMessageTimestamp(props.entry.message.createdAt));
 
 function displayAvatarUrl(user: UserSummary | null | undefined): string | null {
   return resolveAvatarDisplayUrl(user?.avatarUrl, user?.avatarFallbackUrl);

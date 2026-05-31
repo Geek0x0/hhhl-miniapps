@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.1 - 2026-05-31
+
+### chat
+
+#### Fixed
+
+- Changed chat message timestamps from `HH:MM` to `MM-DD HH:MM`.
+
 ## 0.3.0 - 2026-05-31
 
 ### chat

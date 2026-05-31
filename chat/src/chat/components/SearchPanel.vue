@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { i18n } from '@/i18n';
+import { formatMessageTimestamp } from '@/shared/time';
 import type { ChatMessage } from '@/shared/types';
 
 defineProps<{
@@ -80,6 +81,6 @@ function senderInitial(message: ChatMessage): string {
 }
 
 function formattedTime(message: ChatMessage): string {
-  return new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return formatMessageTimestamp(message.createdAt);
 }
 </script>
