@@ -15,6 +15,22 @@ function renderBubble(entry: TimelineEntry) {
 }
 
 describe('MessageBubble', () => {
+  it('displays nested special tag wrappers as their inner message text', () => {
+    const { container, queryByText } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: '$[shake $[jump 签到成功 ✅  今日份在线打卡，状态：稳得一批～]]',
+        user: { id: 'user-1', username: 'alice' },
+      },
+    });
+
+    expect(container.querySelector('.message-bubble__text')?.textContent).toContain('签到成功 ✅  今日份在线打卡，状态：稳得一批～');
+    expect(queryByText(/\$\[shake/)).not.toBeInTheDocument();
+  });
+
   it('does not send the mini app origin as referrer for avatars and message images', () => {
     const { container } = renderBubble({
       kind: 'server',

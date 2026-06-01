@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.9 - 2026-06-01
+
+### chat
+
+#### Fixed
+
+- Stripped nested `$[tag ...]` special-format wrappers from displayed chat messages so arbitrary MFM-style effects show their inner text in the Mini App.
+
 ## 0.3.8 - 2026-05-31
 
 ### chat

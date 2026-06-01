@@ -222,6 +222,7 @@ import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resol
 import { imageProxyUrl, previewProxyUrl } from '@/shared/mediaProxy';
 import { formatMessageTimestamp } from '@/shared/time';
 import type { ChatMessage, UserSummary } from '@/shared/types';
+import { displayMessageText } from '../messageText';
 import { parseMentionText } from '../mentions';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageActions from './MessageActions.vue';
@@ -408,8 +409,9 @@ const isFavoriteSender = computed(() => props.entry.message.user?.id != null && 
 const avatarUrl = computed(() => displayAvatarUrl(props.entry.message.user));
 const avatarFallbackUrl = computed(() => fallbackAvatarUrl(props.entry.message.user));
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
-const linkPreview = computed(() => linkPreviewFromText(props.entry.message.text));
-const textParts = computed(() => parseMentionText(props.entry.message.text ?? '', props.mentionMembers));
+const displayedText = computed(() => displayMessageText(props.entry.message.text ?? ''));
+const linkPreview = computed(() => linkPreviewFromText(displayedText.value));
+const textParts = computed(() => parseMentionText(displayedText.value, props.mentionMembers));
 const displayReactions = computed(() => (props.entry.message.reactions ?? []).filter((reaction) => reaction.count > 0));
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);
 const imageSources = computed(() => {
@@ -446,7 +448,7 @@ const reference = computed(() => {
   }
 
   const author = target?.user?.name ?? target?.user?.username ?? target?.user?.id ?? null;
-  const body = target?.text ?? target?.file?.name ?? id ?? '';
+  const body = displayMessageText(target?.text ?? target?.file?.name ?? id ?? '');
   return {
     label: isReply ? i18n.t('chat.replyingTo', { name: author ?? id ?? '' }) : i18n.t('chat.quote'),
     preview: author == null ? body : `${author}: ${body}`,
