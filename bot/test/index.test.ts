@@ -73,7 +73,11 @@ describe('telegram bot worker', () => {
         inline_keyboard: [
           [
             {
-              text: 'Open Mini App',
+              text: '打开hhhl',
+              url: 'https://dc.hhhl.cc',
+            },
+            {
+              text: '打开 Chat App',
               web_app: {
                 url: 'https://miniapp.example.com',
               },
@@ -100,7 +104,11 @@ describe('telegram bot worker', () => {
         inline_keyboard: [
           [
             {
-              text: '打开 Mini App',
+              text: '打开hhhl',
+              url: 'https://dc.hhhl.cc',
+            },
+            {
+              text: '打开 Chat App',
             },
           ],
         ],

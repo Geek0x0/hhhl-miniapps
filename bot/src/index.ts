@@ -16,15 +16,15 @@ interface TelegramUpdate {
 }
 
 const TELEGRAM_API_BASE_URL = 'https://api.telegram.org';
+const HHHL_URL = 'https://dc.hhhl.cc';
+const CHAT_APP_BUTTON_TEXT = '打开 Chat App';
 
 const startMessageCopy = {
   en: {
     text: 'Open the Mini App with the button below.',
-    buttonText: 'Open Mini App',
   },
   zh: {
     text: '点击下方按钮打开 Mini App。',
-    buttonText: '打开 Mini App',
   },
 } as const;
 
@@ -133,7 +133,11 @@ async function sendStartMessage(chatId: number | string, languageCode: string | 
         inline_keyboard: [
           [
             {
-              text: copy.buttonText,
+              text: '打开hhhl',
+              url: HHHL_URL,
+            },
+            {
+              text: CHAT_APP_BUTTON_TEXT,
               web_app: {
                 url: env.MINI_APP_URL,
               },
