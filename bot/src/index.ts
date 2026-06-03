@@ -54,7 +54,7 @@ export default {
     if (message != null && isStartCommand(message.text)) {
       const sent = await sendStartMessage(message.chat.id, message.languageCode, config);
       if (!sent) {
-        return json({ ok: false, error: 'telegram send failed' }, { status: 502 });
+        return json({ ok: false, error: 'telegram send failed' });
       }
     }
 
@@ -145,7 +145,11 @@ async function sendStartMessage(chatId: number | string, languageCode: string | 
   });
 
   if (!response.ok) {
-    console.error('Telegram sendMessage failed', { status: response.status });
+    const body = await response.text();
+    console.error('Telegram sendMessage failed', {
+      body,
+      status: response.status,
+    });
   }
 
   return response.ok;

@@ -129,6 +129,33 @@ describe('telegram bot worker', () => {
     expect(telegramFetch).not.toHaveBeenCalled();
   });
 
+  it('acknowledges webhook updates when Telegram sendMessage fails so updates are not retried', async () => {
+    const telegramFetch = vi.fn(async () =>
+      Response.json(
+        {
+          ok: false,
+          error_code: 400,
+          description: 'Bad Request: BUTTON_TYPE_INVALID',
+        },
+        { status: 400 },
+      ),
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', telegramFetch);
+
+    const response = await dispatch(webhookRequest(messageUpdate('/start')));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: 'telegram send failed',
+    });
+    expect(consoleError).toHaveBeenCalledWith('Telegram sendMessage failed', {
+      body: '{"ok":false,"error_code":400,"description":"Bad Request: BUTTON_TYPE_INVALID"}',
+      status: 400,
+    });
+  });
+
   it('returns a configuration error when required environment variables are missing', async () => {
     const telegramFetch = vi.fn();
     vi.stubGlobal('fetch', telegramFetch);
