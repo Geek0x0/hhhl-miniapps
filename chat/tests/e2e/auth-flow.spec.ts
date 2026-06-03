@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { authorizeSession, installTelegramMock, mockApi } from './helpers';
 
-test('Telegram auth guide opens MiAuth and authorized sessions load rooms', async ({ page }) => {
+test('Telegram auth guide opens hhhl authorization and authorized sessions load rooms', async ({ page }) => {
   await installTelegramMock(page);
   await mockApi(page);
 

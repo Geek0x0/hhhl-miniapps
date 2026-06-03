@@ -2,6 +2,25 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.3.10 - 2026-06-03
+
+### chat
+
+#### Added
+
+- Added the HHHL logo to the login and room-list headings with shared 45px sizing and aligned heading layout.
+
+#### Changed
+
+- Opened message reaction emoji choices in a floating popover instead of expanding inside the message bubble.
+- Updated the new-message prompt to show the number of unseen incoming messages.
+- Updated login authorization copy and the primary login button to use `hhhl` wording instead of `MiAuth` or `hhhl.cc`.
+- Removed the secondary `dc.hhhl.cc` button from the login guide.
+
+#### Fixed
+
+- Prevented long reply and quote previews from overflowing the chat bubble or composer width.
+
 ## 0.3.9 - 2026-06-01
 
 ### chat

@@ -29,6 +29,29 @@
   letter-spacing: 0;
 }
 
+.app-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-heading-logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 8px;
+  flex: none;
+  object-fit: cover;
+}
+
+.app-panel .app-heading-row {
+  margin-bottom: 12px;
+}
+
+.app-panel .app-heading-row h1 {
+  margin: 0;
+}
+
 .app-copy {
   margin: 0;
   color: var(--tg-hint);
@@ -691,27 +714,40 @@
 .message-reference {
   display: grid;
   gap: 2px;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   margin: 0 0 8px;
   padding: 7px 9px;
   border-left: 3px solid var(--tg-button);
   border-radius: 10px;
   background: color-mix(in srgb, var(--tg-button) 10%, transparent);
+  overflow: hidden;
 }
 
-.message-reference strong,
-.message-reference span {
+.message-reference__label,
+.message-reference__preview {
   min-width: 0;
+}
+
+.message-reference__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.message-reference strong {
+.message-reference__label {
   font-size: 0.78rem;
 }
 
-.message-reference span,
+.message-reference__preview {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.message-reference__preview,
 .message-file-link {
   color: var(--tg-hint);
   font-size: 0.86rem;
@@ -816,21 +852,27 @@
   color: var(--tg-hint);
 }
 
-.message-actions,
-.reaction-picker {
+.message-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   justify-content: flex-end;
 }
 
-.reaction-picker {
-  width: 100%;
+.reaction-picker-popover {
+  position: fixed;
+  z-index: 100;
   padding: 4px;
   border: 1px solid var(--tg-soft-border);
   border-radius: 12px;
   background: var(--tg-panel);
   box-shadow: var(--tg-shadow);
+}
+
+.reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .reaction-picker__button {
@@ -1030,16 +1072,24 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   padding: 8px 10px;
   border-left: 3px solid var(--tg-button);
   border-radius: 10px;
   background: color-mix(in srgb, var(--tg-button) 10%, transparent);
+  overflow: hidden;
 }
 
-.reply-preview span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.reply-preview__content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.reply-preview .chat-icon-button {
+  flex: none;
 }
 
 .sr-only {

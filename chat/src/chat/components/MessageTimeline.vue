@@ -34,12 +34,12 @@
       @mention-user="$emit('mentionUser', $event)"
     />
     <button
-      v-if="hasNewMessages"
+      v-if="newMessageCount > 0"
       class="message-timeline__new-messages"
       type="button"
       @click="scrollToBottomAndDismiss"
     >
-      {{ i18n.t('chat.newMessages') }}
+      {{ i18n.t('chat.newMessages', { count: newMessageCount }) }}
     </button>
   </section>
 </template>
@@ -73,7 +73,7 @@ const emit = defineEmits<{
 }>();
 
 const timelineElement = ref<globalThis.HTMLElement | null>(null);
-const hasNewMessages = ref(false);
+const newMessageCount = ref(0);
 let previousScrollHeight = 0;
 let previousScrollTop = 0;
 let loadingFromScroll = false;
@@ -93,7 +93,7 @@ function scrollToBottom(): void {
 
 function scrollToBottomAndDismiss(): void {
   scrollToBottom();
-  hasNewMessages.value = false;
+  newMessageCount.value = 0;
 }
 
 function scrollToMessage(messageId: string): boolean {
@@ -123,7 +123,7 @@ async function handleScroll(): Promise<void> {
 
   // Dismiss new messages indicator when scrolled to bottom
   if (isNearBottom(element)) {
-    hasNewMessages.value = false;
+    newMessageCount.value = 0;
   }
 
   if (props.loadingOlder || loadingFromScroll || !props.hasMoreOlder || props.entries.length === 0) {
@@ -158,15 +158,23 @@ watch(() => props.loadingOlder, async (loading, wasLoading) => {
 watch(() => props.entries.map(entryKey).join('|'), async () => {
   const element = timelineElement.value;
   const nextLastKey = props.entries.at(-1) == null ? null : entryKey(props.entries.at(-1) as TimelineEntry);
+  const nextKeys = props.entries.map(entryKey);
+  const previousLastIndex = previousLastKey == null ? -1 : nextKeys.indexOf(previousLastKey);
+  const appendedCount = previousLastKey == null || nextLastKey === previousLastKey
+    ? 0
+    : previousLastIndex >= 0
+      ? Math.max(0, nextKeys.length - previousLastIndex - 1)
+      : 1;
   const shouldStickToBottom = previousLastKey == null || (nextLastKey !== previousLastKey && element != null && isNearBottom(element));
   const hasNewEntry = previousLastKey != null && nextLastKey !== previousLastKey;
   previousLastKey = nextLastKey;
 
   if (!loadingFromScroll && shouldStickToBottom) {
+    newMessageCount.value = 0;
     await nextTick();
     scrollToBottom();
   } else if (hasNewEntry && element != null && !isNearBottom(element)) {
-    hasNewMessages.value = true;
+    newMessageCount.value += Math.max(1, appendedCount);
   }
 });
 

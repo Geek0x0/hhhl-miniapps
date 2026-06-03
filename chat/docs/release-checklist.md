@@ -7,12 +7,12 @@ Run this checklist before changing the Telegram bot menu URL or announcing a pro
 - [ ] BotFather menu button points to the current Mini App URL.
 - [ ] Group entry links use `https://t.me/<bot>?startapp=room_<roomId>` and open the expected room.
 - [ ] Cloudflare Pages deployment URL loads `/`, `/rooms`, `/rooms/<roomId>`, `/auth/callback`, and `/settings` without a 404.
-- [ ] Custom domain, if used, is the URL configured in BotFather and MiAuth callback settings.
+- [ ] Custom domain, if used, is the URL configured in BotFather and hhhl authorization callback settings.
 - [ ] `npm run build` and `npm run verify:pages` pass against the deployment artifact.
 
 ## Authentication And Data
 
-- [ ] MiAuth login opens `dc.hhhl.cc` and returns to `/auth/callback` on the deployed domain.
+- [ ] hhhl authorization opens `dc.hhhl.cc` and returns to `/auth/callback` on the deployed domain.
 - [ ] A valid dc.hhhl.cc token restores the room list without using Telegram identity as login.
 - [ ] Logout clears auth, recent room, and draft local data, then returns to the login gate.
 - [ ] Diagnostics output redacts tokens and does not print token-bearing URLs.

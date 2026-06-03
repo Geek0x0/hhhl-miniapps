@@ -5,7 +5,16 @@
         <p class="app-eyebrow">
           dc.hhhl.cc
         </p>
-        <h1>{{ i18n.t('rooms.title') }}</h1>
+        <div class="rooms-header__headline app-heading-row">
+          <img
+            class="rooms-header__logo app-heading-logo"
+            src="https://dc.hhhl.cc/client-assets/icon.png"
+            alt="HHHL Logo"
+            width="45"
+            height="45"
+          >
+          <h1>{{ i18n.t('rooms.title') }}</h1>
+        </div>
       </div>
       <button
         class="chat-icon-button"

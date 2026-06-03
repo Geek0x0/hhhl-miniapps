@@ -17,7 +17,6 @@
     <LoginGuide
       :error="auth.error"
       @login="auth.startLogin(dependencies)"
-      @register="openExternalLink(DC_HHHL_ORIGIN)"
     />
   </main>
   <RouterView v-else />
@@ -26,9 +25,7 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { DC_HHHL_ORIGIN } from '@/shared/config';
 import { i18n } from '@/i18n';
-import { openExternalLink } from '@/telegram/telegram';
 import { createAuthDependencies, useAuthStore } from '../authStore';
 import LoginGuide from './LoginGuide.vue';
 

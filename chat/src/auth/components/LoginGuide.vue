@@ -3,12 +3,18 @@
     class="app-panel"
     aria-labelledby="login-guide-title"
   >
-    <p class="app-eyebrow">
-      dc.hhhl.cc
-    </p>
-    <h1 id="login-guide-title">
-      {{ i18n.t('auth.loginTitle') }}
-    </h1>
+    <div class="app-heading-row">
+      <img
+        class="app-heading-logo"
+        src="https://dc.hhhl.cc/client-assets/icon.png"
+        alt="HHHL Logo"
+        width="45"
+        height="45"
+      >
+      <h1 id="login-guide-title">
+        {{ i18n.t('auth.loginTitle') }}
+      </h1>
+    </div>
     <p class="app-copy">
       {{ i18n.t('auth.loginBody') }}
     </p>
@@ -27,13 +33,6 @@
       >
         {{ i18n.t('auth.loginAction') }}
       </button>
-      <button
-        class="app-button app-button-secondary"
-        type="button"
-        @click="$emit('register')"
-      >
-        dc.hhhl.cc
-      </button>
     </div>
   </section>
 </template>
@@ -47,6 +46,5 @@ defineProps<{
 
 defineEmits<{
   login: [];
-  register: [];
 }>();
 </script>

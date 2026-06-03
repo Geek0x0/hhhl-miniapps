@@ -64,6 +64,8 @@ describe('i18n state', () => {
 
     expect(i18n.locale.value).toBe('zh');
     expect(i18n.t('home.title')).toBe('HHHL 聊天小程序');
+    expect(i18n.t('auth.loginBody')).toBe('使用 hhhl 授权本小程序访问聊天、房间、邀请和上传功能。');
+    expect(i18n.t('auth.loginAction')).toBe('使用 hhhl 授权');
   });
 
   it('falls back to browser language and supports runtime locale changes', () => {

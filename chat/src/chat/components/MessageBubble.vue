@@ -58,8 +58,8 @@
         v-if="reference != null"
         class="message-reference"
       >
-        <strong>{{ reference.label }}</strong>
-        <span>{{ reference.preview }}</span>
+        <strong class="message-reference__label">{{ reference.label }}</strong>
+        <span class="message-reference__preview">{{ reference.preview }}</span>
       </div>
       <p
         v-if="entry.message.text != null"

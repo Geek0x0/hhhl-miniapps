@@ -89,4 +89,27 @@ describe('MessageBubble', () => {
     await fireEvent.error(image as HTMLImageElement);
     expect(image?.getAttribute('src')).toBe('https://dc.hhhl.cc/proxy/image.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fphoto.png&fallback=1');
   });
+
+  it('marks long reply previews as wrapping text inside the bubble width', () => {
+    const { container } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm2',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:01.000Z',
+        text: 'reply',
+        user: { id: 'user-2', username: 'bob' },
+        replyId: 'm1',
+        reply: {
+          id: 'm1',
+          roomId: 'room-1',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          text: 'https://example.com/really/long/path/that/should/not/stretch/the/message/bubble/past/the/current/timeline/width',
+          user: { id: 'user-1', username: 'alice', name: 'Alice' },
+        },
+      },
+    });
+
+    expect(container.querySelector('.message-reference__preview')).toHaveTextContent('https://example.com/really/long/path');
+  });
 });

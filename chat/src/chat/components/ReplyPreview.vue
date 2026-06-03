@@ -3,7 +3,7 @@
     v-if="message != null"
     class="reply-preview"
   >
-    <span>{{ label }}: {{ message.text ?? message.id }}</span>
+    <span class="reply-preview__content">{{ label }}: {{ message.text ?? message.id }}</span>
     <button
       class="chat-icon-button"
       type="button"
