@@ -207,6 +207,8 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
   const chat = input.chat ?? {};
   const errors = input.errors ?? {};
   const routePath = requiredText(route.path);
+  const userId = optionalText(auth.userId);
+  const username = optionalText(auth.username);
 
   return {
     environment: {
@@ -219,9 +221,9 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
     },
     auth: {
       status: requiredText(auth.status),
-      hasUser: auth.hasUser ?? (auth.userId != null || auth.username != null),
-      userId: optionalText(auth.userId),
-      username: optionalText(auth.username),
+      hasUser: auth.hasUser ?? (userId != null || username != null),
+      userId,
+      username,
     },
     route: {
       name: requiredText(route.name),
@@ -269,7 +271,7 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
 }
 
 export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
-  return redactSensitiveText([
+  const lines = [
     '[environment]',
     `appVersion=${snapshot.environment.appVersion}`,
     `mode=${snapshot.environment.mode}`,
@@ -311,8 +313,13 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
     `chatError=${freeFormDiagnosticValue(snapshot.errors.chat, snapshot)}`,
     `searchError=${freeFormDiagnosticValue(snapshot.errors.search, snapshot)}`,
     `keySearchError=${freeFormDiagnosticValue(snapshot.errors.keySearch, snapshot)}`,
-    `raw=${freeFormDiagnosticValue(snapshot.errors.raw, snapshot)}`,
-  ].join('\n'));
+  ];
+
+  if (snapshot.errors.raw != null) {
+    lines.push('', '[raw]', freeFormDiagnosticValue(snapshot.errors.raw, snapshot));
+  }
+
+  return redactSensitiveText(lines.join('\n'));
 }
 
 export function renderDetailedDiagnostics(snapshot: DiagnosticsSnapshot): string {
@@ -363,16 +370,48 @@ function freeFormDiagnosticValue(value: string | null, snapshot: DiagnosticsSnap
     return NONE;
   }
 
-  return redactKnownIdentifiers(redactSensitiveText(value), snapshot);
+  return sanitizeFreeformValue(value, snapshot);
 }
 
-function redactKnownIdentifiers(value: string, snapshot: DiagnosticsSnapshot): string {
+function sanitizeFreeformValue(value: string, snapshot: DiagnosticsSnapshot): string {
+  const tokenRedacted = redactSensitiveText(value);
+
+  if (looksLikeTelegramInitData(tokenRedacted)) {
+    return REDACTED;
+  }
+
+  if (looksLikeFileUrlOrMessageIdList(tokenRedacted)) {
+    return REDACTED;
+  }
+
+  return redactKnownIdentifiersInFreeform(tokenRedacted, snapshot);
+}
+
+function looksLikeTelegramInitData(value: string): boolean {
+  return /(?:^|[?&#])(?:query_id|auth_date|hash|signature|user)=/i.test(value);
+}
+
+function looksLikeFileUrlOrMessageIdList(value: string): boolean {
+  return (
+    /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(value) ||
+    /(?:^|[?&#])(?:thumbnailUrl|downloadUrl|fileUrl)=/i.test(value) ||
+    /(?:^|[?&#])messageIds=/i.test(value) ||
+    /(?:^|[?&#])messageId(?:\[\]|%5b%5d)=/i.test(value) ||
+    /["']messageIds["']\s*:/i.test(value) ||
+    /["']messageId["']\s*:/i.test(value)
+  );
+}
+
+function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSnapshot): string {
   const identifiers = knownIdentifiers(snapshot);
 
   if (
-    identifiers.some(
-      (identifier) =>
-        identifier.length < MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH && value.includes(identifier),
+    identifiers.some((identifier) =>
+      knownIdentifierRedactionTerms(identifier).some(
+        (term) =>
+          identifier.length < MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH &&
+          knownIdentifierTermRegExp(term).test(value),
+      ),
     )
   ) {
     return REDACTED;
@@ -380,10 +419,56 @@ function redactKnownIdentifiers(value: string, snapshot: DiagnosticsSnapshot): s
 
   return identifiers
     .filter((identifier) => identifier.length >= MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH)
-    .reduce(
-      (output, identifier) => output.replace(new RegExp(escapeRegExp(identifier), 'g'), REDACTED),
-      value,
-    );
+    .reduce((output, identifier) => {
+      return knownIdentifierRedactionTerms(identifier).reduce((termOutput, term) => {
+        return termOutput.replace(knownIdentifierTermRegExp(term), REDACTED);
+      }, output);
+    }, value);
+}
+
+interface KnownIdentifierRedactionTerm {
+  value: string;
+  caseInsensitive: boolean;
+}
+
+function knownIdentifierRedactionTerms(identifier: string): KnownIdentifierRedactionTerm[] {
+  const terms: KnownIdentifierRedactionTerm[] = [{ value: identifier, caseInsensitive: false }];
+
+  try {
+    const encoded = encodeURIComponent(identifier);
+    const formEncoded = encoded.replace(/%20/g, '+');
+
+    if (encoded !== identifier) {
+      terms.push({ value: encoded, caseInsensitive: true });
+    }
+
+    if (formEncoded !== encoded && formEncoded !== identifier) {
+      terms.push({ value: formEncoded, caseInsensitive: true });
+    }
+  } catch {
+    // A malformed surrogate should not prevent plain identifier redaction.
+  }
+
+  return uniqueRedactionTerms(terms);
+}
+
+function uniqueRedactionTerms(terms: KnownIdentifierRedactionTerm[]): KnownIdentifierRedactionTerm[] {
+  const seen = new Set<string>();
+
+  return terms.filter((term) => {
+    const key = `${term.caseInsensitive}:${term.value}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return term.value.length > 0;
+  });
+}
+
+function knownIdentifierTermRegExp(term: KnownIdentifierRedactionTerm): RegExp {
+  return new RegExp(escapeRegExp(term.value), term.caseInsensitive ? 'gi' : 'g');
 }
 
 function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {

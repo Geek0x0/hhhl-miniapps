@@ -130,6 +130,57 @@ describe('diagnostics renderer', () => {
     expect(detailed).not.toContain('json-token');
   });
 
+  it('redacts raw Telegram initData-like values', () => {
+    const { safe, detailed } = createDiagnosticsOutput({
+      raw: 'query_id=abc&user=%7B%22id%22%3A1%7D&auth_date=1&hash=secret&signature=sig',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(detailed).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('query_id=abc');
+    expect(detailed).not.toContain('hash=secret');
+  });
+
+  it('redacts URL-encoded identifiers from free-form errors', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { username: 'alice@example' },
+      rooms: {
+        activeRoomName: 'Secret Room',
+        error: 'failed for alice%40example in Secret%20Room',
+      },
+    });
+
+    expect(safe).toContain('roomsError=failed for [redacted] in [redacted]');
+    expect(safe).not.toContain('alice%40example');
+    expect(safe).not.toContain('Secret%20Room');
+  });
+
+  it('redacts file and media URLs from raw diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      raw: 'thumbnailUrl=https://dc.hhhl.cc/files/secret-image.png',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('/files/secret-image.png');
+  });
+
+  it('redacts message ID lists from raw diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      raw: '{"messageIds":["msg-1","msg-2"]}',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('msg-1');
+  });
+
+  it('infers hasUser from normalized identifiers', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { userId: '   ', username: '   ' },
+    });
+
+    expect(safe).toContain('hasUser=false');
+  });
+
   it('renders not-set route name when route name is null', () => {
     const { safe } = createDiagnosticsOutput({
       route: { name: null, path: '/settings' },
@@ -170,7 +221,7 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('chatLoading=false');
     expect(safe).toContain('roomsError=[redacted]');
     expect(safe).toContain('chatError=[redacted]');
-    expect(safe).toContain('raw=[redacted]');
+    expect(safe).toContain('[raw]\n[redacted]');
     expect(safe).not.toContain('a room chat x failed');
     expect(safe).not.toContain('a room chat x raw');
   });
