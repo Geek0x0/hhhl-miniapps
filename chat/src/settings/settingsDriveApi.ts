@@ -44,7 +44,6 @@ type UnknownRecord = Record<string, unknown>;
 
 const FOLDER_RECORD_KEYS = ['folder', 'driveFolder', 'item', 'data', 'result', 'body', 'payload', 'response', 'value'];
 const FILE_RECORD_KEYS = ['file', 'driveFile', 'item', 'data', 'result', 'body', 'payload', 'response', 'value'];
-const FILE_ARRAY_KEYS = ['files', 'driveFiles', 'items', 'data', 'result', 'body', 'payload', 'response', 'value'];
 const FILE_URL_KEYS = ['webpublicUrl', 'webUrl', 'url', 'src', 'downloadUrl', 'downloadURL'];
 const FILE_THUMBNAIL_URL_KEYS = ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL'];
 
@@ -122,36 +121,6 @@ function unwrapSingularRecord(value: unknown, keys: string[]): UnknownRecord | n
   return raw;
 }
 
-function unwrapArray(value: unknown, keys: string[]): unknown[] {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  const raw = recordField(value);
-  if (raw == null) {
-    return [];
-  }
-
-  for (const key of keys) {
-    const nested = raw[key];
-    if (Array.isArray(nested)) {
-      return nested;
-    }
-  }
-
-  for (const key of keys) {
-    const nested = recordField(raw[key]);
-    if (nested != null) {
-      const values = unwrapArray(nested, keys);
-      if (values.length > 0) {
-        return values;
-      }
-    }
-  }
-
-  return isSummaryRecord(raw) ? [raw] : [];
-}
-
 function normalizeFolder(value: unknown): DriveFolderSummary | null {
   const raw = unwrapSingularRecord(value, FOLDER_RECORD_KEYS);
   if (raw == null) {
@@ -160,13 +129,13 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
 
   const id = stringFrom(raw, ['id', 'folderId', 'driveFolderId']);
   const name = stringFrom(raw, ['name', 'folderName']);
-  if (id == null && name == null) {
+  if (id == null) {
     return null;
   }
 
   return {
-    id: id ?? name ?? '',
-    name: name ?? id ?? '',
+    id,
+    name: name ?? id,
   };
 }
 
@@ -215,10 +184,40 @@ function normalizeFile(value: unknown): SettingsDriveFile | null {
   return normalized;
 }
 
+function fileArrayFrom(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  const raw = recordField(value);
+  if (raw == null) {
+    return null;
+  }
+
+  if (Array.isArray(raw.files)) {
+    return raw.files;
+  }
+
+  if (Array.isArray(raw.items)) {
+    return raw.items;
+  }
+
+  return null;
+}
+
 function normalizeFiles(value: unknown): SettingsDriveFile[] {
-  return unwrapArray(value, FILE_ARRAY_KEYS).flatMap((item) => {
+  const items = fileArrayFrom(value);
+  if (items == null) {
+    throw new ApiError('DRIVE_FILE_INVALID', 'Invalid Drive file response');
+  }
+
+  return items.map((item) => {
     const file = normalizeFile(item);
-    return file == null ? [] : [file];
+    if (file == null) {
+      throw new ApiError('DRIVE_FILE_INVALID', 'Invalid Drive file response');
+    }
+
+    return file;
   });
 }
 
@@ -252,11 +251,28 @@ function allowedFileUrl(fileUrl: string): string {
     throw new ApiError('DRIVE_FILE_URL_NOT_ALLOWED', 'Drive file URL is not allowed');
   }
 
-  if (url.origin !== DC_HHHL_ORIGIN) {
+  if (url.origin !== DC_HHHL_ORIGIN || hasSensitiveSearchParam(url)) {
     throw new ApiError('DRIVE_FILE_URL_NOT_ALLOWED', 'Drive file URL is not allowed');
   }
 
   return url.toString();
+}
+
+function hasSensitiveSearchParam(url: URL): boolean {
+  for (const key of url.searchParams.keys()) {
+    const normalizedKey = key.toLowerCase();
+    if (normalizedKey === 'i' || normalizedKey === 'token') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function validateResponseFileUrl(response: Response): void {
+  if (response.url !== '') {
+    allowedFileUrl(response.url);
+  }
 }
 
 function folderParams(name: string, parentId?: string): { name: string; parentId?: string } {
@@ -265,6 +281,23 @@ function folderParams(name: string, parentId?: string): { name: string; parentId
 
 function networkErrorFrom(error: unknown): NetworkError {
   return new NetworkError('NETWORK_ERROR', redactSensitiveText(error instanceof Error ? error.message : String(error)));
+}
+
+function serializeJson(value: unknown): string {
+  try {
+    const json = JSON.stringify(value);
+    if (json == null) {
+      throw new ApiError('DRIVE_JSON_NOT_SERIALIZABLE', 'Settings JSON is not serializable');
+    }
+
+    return json;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('DRIVE_JSON_NOT_SERIALIZABLE', 'Settings JSON is not serializable');
+  }
 }
 
 export function createSettingsDriveApi(options: SettingsDriveApiOptions): SettingsDriveApi {
@@ -283,7 +316,7 @@ export function createSettingsDriveApi(options: SettingsDriveApiOptions): Settin
       const url = allowedFileUrl(fileUrl);
       let response: Response;
       try {
-        response = await fetchImpl(url);
+        response = await fetchImpl(url, { redirect: 'error' });
       } catch (error) {
         throw networkErrorFrom(error);
       }
@@ -292,6 +325,8 @@ export function createSettingsDriveApi(options: SettingsDriveApiOptions): Settin
         throw new ApiError(`HTTP_${response.status}`, response.statusText, response.status);
       }
 
+      validateResponseFileUrl(response);
+
       try {
         return await response.json() as T;
       } catch (error) {
@@ -299,10 +334,7 @@ export function createSettingsDriveApi(options: SettingsDriveApiOptions): Settin
       }
     },
     createJsonFile: async (folderId, name, value) => {
-      const json = JSON.stringify(value);
-      if (json == null) {
-        throw new ApiError('DRIVE_JSON_NOT_SERIALIZABLE', 'Settings JSON is not serializable');
-      }
+      const json = serializeJson(value);
 
       const formData = new FormData();
       const token = options.tokenProvider();

@@ -80,6 +80,20 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('rejects folder responses without real ids', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async () => ({ name: 'telegram-bot-chat' })) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.createFolder('telegram-bot-chat')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FOLDER_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
   it('normalizes path-relative file URLs against the Drive origin', async () => {
     const api = createSettingsDriveApi({
       callEndpoint: vi.fn(async (endpoint: string) => {
@@ -148,10 +162,25 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('rejects non-serializable JSON config values', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.createJsonFile('folder-1', 'settings.json', { value: BigInt(1) })).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_JSON_NOT_SERIALIZABLE',
+    } satisfies Partial<ApiError>);
+  });
+
   it('fetches JSON only from allowed dc.hhhl.cc file URLs without appending a token', async () => {
-    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       expect(String(input)).toBe('https://dc.hhhl.cc/files/settings.json?download=1');
       expect(String(input)).not.toContain('secret-token');
+      expect(init).toMatchObject({ redirect: 'error' });
       return Response.json({ ok: true });
     });
     const api = createSettingsDriveApi({
@@ -163,6 +192,46 @@ describe('settingsDriveApi', () => {
 
     await expect(api.fetchJsonFile('/files/settings.json?download=1')).resolves.toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects token-bearing file URLs before fetching', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ ok: true }));
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json?i=secret-token')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
+    await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json?token=secret-token')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('rejects redirected file response URLs outside the Drive origin', async () => {
+    const response = Response.json({ ok: true });
+    Object.defineProperty(response, 'url', { value: 'https://evil.example/files/settings.json' });
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      expect(init).toMatchObject({ redirect: 'error' });
+      return response;
+    });
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
   });
 
   it('rejects external file URLs and unreadable file responses', async () => {
@@ -180,6 +249,30 @@ describe('settingsDriveApi', () => {
     await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/missing.json')).rejects.toMatchObject({
       name: 'ApiError',
       code: 'HTTP_404',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('rejects malformed file find responses and invalid file list items', async () => {
+    const malformedApi = createSettingsDriveApi({
+      callEndpoint: vi.fn(async () => ({ ok: true })) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+    const invalidItemApi = createSettingsDriveApi({
+      callEndpoint: vi.fn(async () => [{ name: 'settings.json' }]) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(malformedApi.findFiles('settings.json', 'folder-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(invalidItemApi.findFiles('settings.json', 'folder-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
     } satisfies Partial<ApiError>);
   });
 
