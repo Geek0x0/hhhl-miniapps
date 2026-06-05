@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.4.1 - 2026-06-05
+
+### chat
+
+#### Fixed
+
+- Fixed Save to Drive treating empty Drive folder lookup results as invalid responses, so first-time settings sync can create the app folder instead of showing `Invalid Drive folder response`.
+
 ## 0.4.0 - 2026-06-05
 
 ### chat

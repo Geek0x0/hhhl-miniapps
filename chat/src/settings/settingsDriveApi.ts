@@ -144,7 +144,7 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
 }
 
 function normalizeOptionalFolder(value: unknown): DriveFolderSummary | null {
-  if (value == null) {
+  if (value == null || (Array.isArray(value) && value.length === 0)) {
     return null;
   }
 

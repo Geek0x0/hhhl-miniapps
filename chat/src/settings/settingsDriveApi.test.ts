@@ -58,6 +58,17 @@ describe('settingsDriveApi', () => {
     ]);
   });
 
+  it('treats empty Drive folder find arrays as missing folders', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async () => []) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFolder('telegram-bot-chat')).resolves.toBeNull();
+  });
+
   it('rejects invalid folder and file responses with contract error codes', async () => {
     const api = createSettingsDriveApi({
       callEndpoint: vi.fn(async (endpoint: string) => {
