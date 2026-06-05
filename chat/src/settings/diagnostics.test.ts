@@ -207,6 +207,15 @@ describe('diagnostics renderer', () => {
     expect(safe).not.toContain('room%2fsecret');
   });
 
+  it('redacts double-encoded known identifiers in free-form diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      rooms: { activeRoomId: 'room/secret', error: 'failed room%252Fsecret' },
+    });
+
+    expect(safe).toContain('roomsError=[redacted]');
+    expect(safe).not.toContain('room%252Fsecret');
+  });
+
   it('redacts display identifiers case-insensitively from free-form errors', () => {
     const { safe } = createDiagnosticsOutput({
       auth: { username: 'Alice' },

@@ -5,6 +5,7 @@ const NOT_SET = 'not-set';
 const NONE = 'none';
 const REDACTED = '[redacted]';
 const MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH = 4;
+const MAX_PERCENT_DECODE_ROUNDS = 3;
 const SENSITIVE_URL_FIELD_PATTERN =
   /(?:^|[^\w])["']?(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl|webpublicUrl|url|src|thumbnail)["']?\s*[:=]/i;
 const TOKEN_FIELD_MARKER_PATTERN =
@@ -482,18 +483,31 @@ function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSn
 }
 
 function decodedPercentValueContainsKnownIdentifier(value: string, snapshot: DiagnosticsSnapshot): boolean {
-  const decoded = decodeValidPercentEscapes(value);
+  const identifiers = knownIdentifiers(snapshot);
+  let decoded = value;
 
-  if (decoded === value) {
-    return false;
+  for (let round = 0; round < MAX_PERCENT_DECODE_ROUNDS; round += 1) {
+    const nextDecoded = decodeValidPercentEscapes(decoded);
+
+    if (nextDecoded === decoded) {
+      return false;
+    }
+
+    decoded = nextDecoded;
+
+    if (
+      identifiers.some((identifier) =>
+        knownIdentifierTermRegExp({
+          value: identifier.value,
+          caseInsensitive: identifier.caseInsensitive,
+        }).test(decoded),
+      )
+    ) {
+      return true;
+    }
   }
 
-  return knownIdentifiers(snapshot).some((identifier) =>
-    knownIdentifierTermRegExp({
-      value: identifier.value,
-      caseInsensitive: identifier.caseInsensitive,
-    }).test(decoded),
-  );
+  return false;
 }
 
 interface KnownIdentifier {
