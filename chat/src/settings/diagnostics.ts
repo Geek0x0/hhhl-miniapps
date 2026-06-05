@@ -3,6 +3,7 @@ import { redactSensitiveText } from '@/shared/errors';
 
 const NOT_SET = 'not-set';
 const NONE = 'none';
+const MIN_REDACTABLE_IDENTIFIER_LENGTH = 5;
 
 export type DiagnosticsRouteType = 'root' | 'rooms' | 'room' | 'settings' | 'auth-callback' | 'other';
 
@@ -24,7 +25,7 @@ export interface DiagnosticsAuthInput {
 }
 
 export interface DiagnosticsRouteInput {
-  name?: string;
+  name?: string | null;
   path?: string;
 }
 
@@ -373,7 +374,10 @@ function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {
     snapshot.rooms.pendingStartRoomId,
     snapshot.chat.roomId,
   ]
-    .filter((identifier): identifier is string => identifier != null && identifier.trim() !== '')
+    .filter(
+      (identifier): identifier is string =>
+        identifier != null && identifier.trim().length >= MIN_REDACTABLE_IDENTIFIER_LENGTH,
+    )
     .sort((left, right) => right.length - left.length);
 }
 

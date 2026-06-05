@@ -130,6 +130,71 @@ describe('diagnostics renderer', () => {
     expect(detailed).not.toContain('json-token');
   });
 
+  it('renders not-set route name when route name is null', () => {
+    const { safe } = createDiagnosticsOutput({
+      route: { name: null, path: '/settings' },
+    });
+
+    expect(safe).toContain('routeName=not-set');
+    expect(safe).toContain('routeType=settings');
+  });
+
+  it('does not corrupt safe diagnostics when identifiers are short common words', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: {
+        userId: 'a',
+        username: 'room',
+      },
+      route: {
+        name: 'room-view',
+        path: '/rooms/a',
+      },
+      rooms: {
+        roomCount: 1,
+        activeRoomName: 'chat',
+      },
+      chat: {
+        loading: false,
+      },
+    });
+
+    expect(safe).toContain('[rooms]');
+    expect(safe).toContain('roomCount=1');
+    expect(safe).toContain('routeType=room');
+    expect(safe).toContain('chatLoading=false');
+  });
+
+  it('redacts identifiers from the safe section of detailed diagnostics', () => {
+    const { detailed } = createDiagnosticsOutput(richDiagnosticsInput());
+    const safeSection = detailed.split('[details]')[0];
+
+    expect(safeSection).not.toContain('user-secret');
+    expect(safeSection).not.toContain('alice');
+    expect(safeSection).not.toContain('room-secret');
+    expect(safeSection).not.toContain('Secret Room');
+  });
+
+  it('renders legacy status fields', () => {
+    const { safe } = createDiagnosticsOutput({
+      instanceUrl: 'https://legacy.example',
+      realtimeStatus: 'connected',
+      storageStatus: 'memory-only',
+    });
+
+    expect(safe).toContain('instance=https://legacy.example');
+    expect(safe).toContain('realtimeStatus=connected');
+    expect(safe).toContain('storageStatus=memory-only');
+  });
+
+  it('renders default values for empty input', () => {
+    const { safe } = createDiagnosticsOutput();
+
+    expect(safe).toContain('appVersion=not-set');
+    expect(safe).toContain('authStatus=not-set');
+    expect(safe).toContain('storageStatus=not-set');
+    expect(safe).toContain('authError=none');
+  });
+
   it('classifies known route paths', () => {
     expect(routeTypeFromPath('/')).toBe('root');
     expect(routeTypeFromPath('/rooms')).toBe('rooms');
