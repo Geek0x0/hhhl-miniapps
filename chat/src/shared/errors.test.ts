@@ -13,9 +13,21 @@ describe('typed errors', () => {
 
 describe('redactSensitiveText', () => {
   it('redacts token query strings and JSON token fields', () => {
-    const raw = 'https://dc.hhhl.cc/streaming?i=secret-token token=secret-token {"i":"secret-token"}';
+    const raw = [
+      'https://dc.hhhl.cc/streaming?i=secret-token',
+      'https://dc.hhhl.cc/api?room=1&i=query-token&safe=1',
+      'token=form-token',
+      '{"i":"json-i-token"}',
+      '{"token":"json-token"}',
+    ].join(' ');
 
-    expect(redactSensitiveText(raw)).toBe('https://dc.hhhl.cc/streaming?i=[redacted] token=[redacted] {"i":"[redacted]"}');
+    expect(redactSensitiveText(raw)).toBe([
+      'https://dc.hhhl.cc/streaming?i=[redacted]',
+      'https://dc.hhhl.cc/api?room=1&i=[redacted]&safe=1',
+      'token=[redacted]',
+      '{"i":"[redacted]"}',
+      '{"token":"[redacted]"}',
+    ].join(' '));
   });
 });
 
