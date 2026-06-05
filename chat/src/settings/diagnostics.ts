@@ -3,7 +3,8 @@ import { redactSensitiveText } from '@/shared/errors';
 
 const NOT_SET = 'not-set';
 const NONE = 'none';
-const MIN_REDACTABLE_IDENTIFIER_LENGTH = 5;
+const REDACTED = '[redacted]';
+const MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH = 4;
 
 export type DiagnosticsRouteType = 'root' | 'rooms' | 'room' | 'settings' | 'auth-callback' | 'other';
 
@@ -268,7 +269,7 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
 }
 
 export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
-  return redactKnownIdentifiers(redactSensitiveText([
+  return redactSensitiveText([
     '[environment]',
     `appVersion=${snapshot.environment.appVersion}`,
     `mode=${snapshot.environment.mode}`,
@@ -305,13 +306,13 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
     `keySearchResultCount=${snapshot.chat.keySearchResultCount}`,
     '',
     '[errors]',
-    `authError=${diagnosticValue(snapshot.errors.auth)}`,
-    `roomsError=${diagnosticValue(snapshot.errors.rooms)}`,
-    `chatError=${diagnosticValue(snapshot.errors.chat)}`,
-    `searchError=${diagnosticValue(snapshot.errors.search)}`,
-    `keySearchError=${diagnosticValue(snapshot.errors.keySearch)}`,
-    `raw=${diagnosticValue(snapshot.errors.raw)}`,
-  ].join('\n')), snapshot);
+    `authError=${freeFormDiagnosticValue(snapshot.errors.auth, snapshot)}`,
+    `roomsError=${freeFormDiagnosticValue(snapshot.errors.rooms, snapshot)}`,
+    `chatError=${freeFormDiagnosticValue(snapshot.errors.chat, snapshot)}`,
+    `searchError=${freeFormDiagnosticValue(snapshot.errors.search, snapshot)}`,
+    `keySearchError=${freeFormDiagnosticValue(snapshot.errors.keySearch, snapshot)}`,
+    `raw=${freeFormDiagnosticValue(snapshot.errors.raw, snapshot)}`,
+  ].join('\n'));
 }
 
 export function renderDetailedDiagnostics(snapshot: DiagnosticsSnapshot): string {
@@ -357,15 +358,36 @@ function diagnosticValue(value: string | number | null): string {
   return value == null ? NONE : String(value);
 }
 
+function freeFormDiagnosticValue(value: string | null, snapshot: DiagnosticsSnapshot): string {
+  if (value == null) {
+    return NONE;
+  }
+
+  return redactKnownIdentifiers(redactSensitiveText(value), snapshot);
+}
+
 function redactKnownIdentifiers(value: string, snapshot: DiagnosticsSnapshot): string {
-  return knownIdentifiers(snapshot).reduce(
-    (output, identifier) => output.replace(new RegExp(escapeRegExp(identifier), 'g'), '[redacted]'),
-    value,
-  );
+  const identifiers = knownIdentifiers(snapshot);
+
+  if (
+    identifiers.some(
+      (identifier) =>
+        identifier.length < MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH && value.includes(identifier),
+    )
+  ) {
+    return REDACTED;
+  }
+
+  return identifiers
+    .filter((identifier) => identifier.length >= MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH)
+    .reduce(
+      (output, identifier) => output.replace(new RegExp(escapeRegExp(identifier), 'g'), REDACTED),
+      value,
+    );
 }
 
 function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {
-  return [
+  const identifiers = [
     snapshot.auth.userId,
     snapshot.auth.username,
     snapshot.realtime.roomId,
@@ -374,11 +396,10 @@ function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {
     snapshot.rooms.pendingStartRoomId,
     snapshot.chat.roomId,
   ]
-    .filter(
-      (identifier): identifier is string =>
-        identifier != null && identifier.trim().length >= MIN_REDACTABLE_IDENTIFIER_LENGTH,
-    )
-    .sort((left, right) => right.length - left.length);
+    .map((identifier) => identifier?.trim())
+    .filter((identifier): identifier is string => identifier != null && identifier.length > 0);
+
+  return [...new Set(identifiers)].sort((left, right) => right.length - left.length);
 }
 
 function escapeRegExp(value: string): string {

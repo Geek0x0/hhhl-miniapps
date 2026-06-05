@@ -139,29 +139,52 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('routeType=settings');
   });
 
-  it('does not corrupt safe diagnostics when identifiers are short common words', () => {
+  it('redacts short identifiers from free-form safe values without corrupting labels', () => {
     const { safe } = createDiagnosticsOutput({
       auth: {
+        status: 'authorized',
+        hasUser: true,
         userId: 'a',
         username: 'room',
       },
       route: {
-        name: 'room-view',
-        path: '/rooms/a',
+        name: 'room-detail',
+        path: '/rooms/room-1',
       },
       rooms: {
         roomCount: 1,
+        activeRoomId: 'x',
         activeRoomName: 'chat',
+        error: 'a room chat x failed',
       },
       chat: {
         loading: false,
+        error: 'chat a room x failed',
       },
+      raw: 'a room chat x raw',
     });
 
     expect(safe).toContain('[rooms]');
     expect(safe).toContain('roomCount=1');
     expect(safe).toContain('routeType=room');
     expect(safe).toContain('chatLoading=false');
+    expect(safe).toContain('roomsError=[redacted]');
+    expect(safe).toContain('chatError=[redacted]');
+    expect(safe).toContain('raw=[redacted]');
+    expect(safe).not.toContain('a room chat x failed');
+    expect(safe).not.toContain('a room chat x raw');
+  });
+
+  it('redacts label-like identifiers from free-form safe values without corrupting labels', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { username: 'route' },
+      route: { name: 'room-detail', path: '/rooms/room-1' },
+      rooms: { roomCount: 2, activeRoomName: 'roomCount', error: 'route roomCount failed' },
+    });
+
+    expect(safe).toContain('routeType=room');
+    expect(safe).toContain('roomCount=2');
+    expect(safe).toContain('roomsError=[redacted] [redacted] failed');
   });
 
   it('redacts identifiers from the safe section of detailed diagnostics', () => {
