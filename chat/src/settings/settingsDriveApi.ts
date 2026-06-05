@@ -45,6 +45,8 @@ type UnknownRecord = Record<string, unknown>;
 const FOLDER_RECORD_KEYS = ['folder', 'driveFolder', 'item', 'data', 'result', 'body', 'payload', 'response', 'value'];
 const FILE_RECORD_KEYS = ['file', 'driveFile', 'item', 'data', 'result', 'body', 'payload', 'response', 'value'];
 const FILE_ARRAY_KEYS = ['files', 'driveFiles', 'items', 'data', 'result', 'body', 'payload', 'response', 'value'];
+const FILE_URL_KEYS = ['webpublicUrl', 'webUrl', 'url', 'src', 'downloadUrl', 'downloadURL'];
+const FILE_THUMBNAIL_URL_KEYS = ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL'];
 
 function recordField(value: unknown): UnknownRecord | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : null;
@@ -185,10 +187,28 @@ function compactDriveFile(file: DriveFile): SettingsDriveFile {
   return normalized;
 }
 
+function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null {
+  const url = stringFrom(raw, keys);
+  return url == null ? null : new URL(url, DC_HHHL_ORIGIN).toString();
+}
+
 function normalizeFile(value: unknown): SettingsDriveFile | null {
   const raw = unwrapSingularRecord(value, FILE_RECORD_KEYS);
   const file = normalizeDriveFile(raw);
-  return file == null ? null : compactDriveFile(file);
+  if (file == null) {
+    return null;
+  }
+
+  const normalized = compactDriveFile(file);
+  if (raw != null) {
+    const url = driveUrlFrom(raw, FILE_URL_KEYS);
+    const thumbnailUrl = driveUrlFrom(raw, FILE_THUMBNAIL_URL_KEYS);
+
+    if (url != null) normalized.url = url;
+    if (thumbnailUrl != null) normalized.thumbnailUrl = thumbnailUrl;
+  }
+
+  return normalized;
 }
 
 function normalizeFiles(value: unknown): SettingsDriveFile[] {

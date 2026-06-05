@@ -80,6 +80,32 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('normalizes path-relative file URLs against the Drive origin', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async (endpoint: string) => {
+        if (endpoint === 'drive/files/find') {
+          return [{ id: 'file-1', name: 'settings.json', url: 'files/settings.json' }];
+        }
+        if (endpoint === 'drive/files/show') {
+          return { id: 'file-1', name: 'settings.json', url: 'files/settings.json' };
+        }
+        return null;
+      }) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFiles('settings.json', 'folder-1')).resolves.toEqual([
+      { id: 'file-1', name: 'settings.json', url: 'https://dc.hhhl.cc/files/settings.json' },
+    ]);
+    await expect(api.showFile('file-1')).resolves.toEqual({
+      id: 'file-1',
+      name: 'settings.json',
+      url: 'https://dc.hhhl.cc/files/settings.json',
+    });
+  });
+
   it('creates JSON config files with token, folderId, force flag, and JSON blob', async () => {
     const uploadFile = vi.fn(async (formData: FormData) => {
       expect(formData.get('i')).toBe('secret-token');
