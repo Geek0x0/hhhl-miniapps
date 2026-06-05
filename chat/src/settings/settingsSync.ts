@@ -79,6 +79,41 @@ function newestCandidate(left: CloudSettingsCandidate, right: CloudSettingsCandi
   return compareUpdatedAt(left.document.updatedAt, right.document.updatedAt) >= 0 ? left : right;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function documentsEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) {
+    return true;
+  }
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+      return false;
+    }
+
+    return left.every((item, index) => documentsEqual(item, right[index]));
+  }
+
+  if (isRecord(left) || isRecord(right)) {
+    if (!isRecord(left) || !isRecord(right)) {
+      return false;
+    }
+
+    const leftKeys = Object.keys(left).sort();
+    const rightKeys = Object.keys(right).sort();
+
+    if (!documentsEqual(leftKeys, rightKeys)) {
+      return false;
+    }
+
+    return leftKeys.every((key) => documentsEqual(left[key], right[key]));
+  }
+
+  return false;
+}
+
 export function createSettingsSyncService(options: SettingsSyncServiceOptions): SettingsSyncService {
   const now = options.now ?? (() => new Date());
   const { drive } = options;
@@ -120,16 +155,22 @@ export function createSettingsSyncService(options: SettingsSyncServiceOptions): 
     };
   }
 
-  async function createLocalFile(
-    folderId: string,
+  function createLocalDocument(
     snapshot: LocalSettingsSnapshot,
-    status: Extract<SettingsSyncStatus, 'created' | 'saved-local'>,
-  ): Promise<SettingsSyncResult> {
-    const document = createCloudSettingsDocument(
+    fallbackCloudDocument: CloudSettingsDocument | null,
+  ): CloudSettingsDocument {
+    return createCloudSettingsDocument(
       snapshot.preferences,
       snapshot.updatedAt,
-      snapshot.baseDocument ?? null,
+      snapshot.baseDocument ?? fallbackCloudDocument,
     );
+  }
+
+  async function createLocalFile(
+    folderId: string,
+    document: CloudSettingsDocument,
+    status: Extract<SettingsSyncStatus, 'created' | 'saved-local'>,
+  ): Promise<SettingsSyncResult> {
     const file = await drive.createJsonFile(folderId, SETTINGS_SYNC_FILE_NAME, document);
 
     return {
@@ -143,13 +184,13 @@ export function createSettingsSyncService(options: SettingsSyncServiceOptions): 
   async function replaceWithLocal(
     folderId: string,
     exactFiles: SettingsDriveFile[],
-    snapshot: LocalSettingsSnapshot,
+    document: CloudSettingsDocument,
   ): Promise<SettingsSyncResult> {
     for (const file of exactFiles) {
       await drive.deleteFile(file.id);
     }
 
-    return createLocalFile(folderId, snapshot, 'saved-local');
+    return createLocalFile(folderId, document, 'saved-local');
   }
 
   async function sync(snapshot: LocalSettingsSnapshot): Promise<SettingsSyncResult> {
@@ -157,7 +198,7 @@ export function createSettingsSyncService(options: SettingsSyncServiceOptions): 
     const cloud = await readCloud(folder.id);
 
     if (cloud.selected == null) {
-      return createLocalFile(folder.id, snapshot, 'created');
+      return createLocalFile(folder.id, createLocalDocument(snapshot, null), 'created');
     }
 
     const updatedAtComparison = compareUpdatedAt(snapshot.updatedAt, cloud.selected.document.updatedAt);
@@ -172,15 +213,25 @@ export function createSettingsSyncService(options: SettingsSyncServiceOptions): 
     }
 
     if (updatedAtComparison === 0 && cloud.exactFiles.length === 1) {
-      return {
-        status: 'unchanged',
-        document: cloud.selected.document,
-        fileId: cloud.selected.file.id,
-        syncedAt: now().toISOString(),
-      };
+      const localDocument = createLocalDocument(snapshot, cloud.selected.document);
+
+      if (documentsEqual(localDocument, cloud.selected.document)) {
+        return {
+          status: 'unchanged',
+          document: cloud.selected.document,
+          fileId: cloud.selected.file.id,
+          syncedAt: now().toISOString(),
+        };
+      }
+
+      return replaceWithLocal(folder.id, cloud.exactFiles, localDocument);
     }
 
-    return replaceWithLocal(folder.id, cloud.exactFiles, snapshot);
+    return replaceWithLocal(
+      folder.id,
+      cloud.exactFiles,
+      createLocalDocument(snapshot, cloud.selected.document),
+    );
   }
 
   return {

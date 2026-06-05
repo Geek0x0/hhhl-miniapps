@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, NetworkError } from '@/shared/errors';
-import { createCloudSettingsDocument, type SettingsPreferences } from './settingsConfig';
+import { createCloudSettingsDocument, type CloudSettingsDocument, type SettingsPreferences } from './settingsConfig';
 import type { DriveFolderSummary, SettingsDriveApi, SettingsDriveFile } from './settingsDriveApi';
 import {
   createSettingsSyncService,
@@ -34,8 +34,12 @@ function file(id: string, url = `/files/${id}.json`): SettingsDriveFile {
   };
 }
 
-function document(preferences: SettingsPreferences, updatedAt: string) {
-  return createCloudSettingsDocument(preferences, updatedAt);
+function document(
+  preferences: SettingsPreferences,
+  updatedAt: string,
+  base?: CloudSettingsDocument | null,
+) {
+  return createCloudSettingsDocument(preferences, updatedAt, base);
 }
 
 function snapshot(updatedAt = LOCAL_UPDATED_AT): LocalSettingsSnapshot {
@@ -136,6 +140,34 @@ describe('settingsSync', () => {
       'folder-1',
       SETTINGS_SYNC_FILE_NAME,
       document(localPreferences, LOCAL_UPDATED_AT),
+    );
+  });
+
+  it('preserves unknown fields from older selected cloud config when local config is newer', async () => {
+    const cloudDocument = {
+      ...document(cloudPreferences, CLOUD_OLDER_UPDATED_AT),
+      topLevelExtension: { keep: true },
+      preferences: {
+        ...cloudPreferences,
+        extraPreference: 'preserve-me',
+      },
+    };
+    const drive = createFakeDrive({
+      findFiles: vi.fn(async () => [file('old-file')]),
+      fetchJsonFile: fetchJsonFileMock(() => cloudDocument),
+    });
+    const service = createService(drive);
+    const expectedDocument = document(localPreferences, LOCAL_UPDATED_AT, cloudDocument);
+
+    const result = await service.save(snapshot());
+
+    expect(result.status).toBe('saved-local');
+    expect(result.document).toEqual(expectedDocument);
+    expect(drive.deleteFile).toHaveBeenCalledWith('old-file');
+    expect(drive.createJsonFile).toHaveBeenCalledWith(
+      'folder-1',
+      SETTINGS_SYNC_FILE_NAME,
+      expectedDocument,
     );
   });
 
@@ -255,7 +287,7 @@ describe('settingsSync', () => {
   });
 
   it('returns unchanged for one exact file with matching updatedAt', async () => {
-    const cloudDocument = document(cloudPreferences, LOCAL_UPDATED_AT);
+    const cloudDocument = document(localPreferences, LOCAL_UPDATED_AT);
     const drive = createFakeDrive({
       findFiles: vi.fn(async () => [file('cloud-file')]),
       fetchJsonFile: fetchJsonFileMock(() => cloudDocument),
@@ -272,6 +304,27 @@ describe('settingsSync', () => {
     });
     expect(drive.deleteFile).not.toHaveBeenCalled();
     expect(drive.createJsonFile).not.toHaveBeenCalled();
+  });
+
+  it('replaces cloud config when one exact file has matching updatedAt but different preferences', async () => {
+    const cloudDocument = document(cloudPreferences, LOCAL_UPDATED_AT);
+    const drive = createFakeDrive({
+      findFiles: vi.fn(async () => [file('cloud-file')]),
+      fetchJsonFile: fetchJsonFileMock(() => cloudDocument),
+    });
+    const service = createService(drive);
+    const expectedDocument = document(localPreferences, LOCAL_UPDATED_AT, cloudDocument);
+
+    const result = await service.save(snapshot());
+
+    expect(result.status).toBe('saved-local');
+    expect(result.document).toEqual(expectedDocument);
+    expect(drive.deleteFile).toHaveBeenCalledWith('cloud-file');
+    expect(drive.createJsonFile).toHaveBeenCalledWith(
+      'folder-1',
+      SETTINGS_SYNC_FILE_NAME,
+      expectedDocument,
+    );
   });
 
   it('skips create when delete fails', async () => {
