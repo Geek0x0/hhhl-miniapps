@@ -7,7 +7,7 @@ describe('DiagnosticsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     i18n.setLocale('en');
-    Object.defineProperty(navigator, 'clipboard', {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
       value: { writeText: vi.fn(async () => undefined) },
       configurable: true,
     });
@@ -39,6 +39,7 @@ describe('DiagnosticsPanel', () => {
     });
 
     await fireEvent.click(screen.getByRole('button', { name: 'Show development details' }));
+    expect(emitted()['confirm-detail']).toBeUndefined();
     expect(
       screen.getByText(
         'Development details may include user and room identifiers. They do not include message text or tokens.',
@@ -62,9 +63,31 @@ describe('DiagnosticsPanel', () => {
     expect(screen.getByText('detail output')).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole('button', { name: 'Copy safe summary' }));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('safe output');
+    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('safe output');
 
     await fireEvent.click(screen.getByRole('button', { name: 'Copy development details' }));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('detail output');
+    expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('detail output');
+  });
+
+  it('ignores clipboard write failures when diagnostics remain visible', async () => {
+    const writeText = vi.fn(async () => {
+      throw new Error('clipboard blocked');
+    });
+
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(DiagnosticsPanel, {
+      props: {
+        safeDiagnostics: 'safe output',
+        detailedDiagnostics: 'detail output',
+        detailConfirmed: true,
+      },
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Copy safe summary' }));
+    expect(writeText).toHaveBeenCalledWith('safe output');
   });
 });
