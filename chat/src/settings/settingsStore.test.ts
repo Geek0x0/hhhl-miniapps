@@ -183,6 +183,20 @@ describe('settingsStore', () => {
     expect(store.syncError).toBeNull();
   });
 
+  it('uses epoch updatedAt fallback before init', () => {
+    const store = useSettingsStore();
+
+    expect(store.localSnapshot().updatedAt).toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  it('normalizes favorite users in preference snapshots', () => {
+    const store = useSettingsStore();
+
+    store.favoriteUserIds = [' user-1 ', 'user-1', '', 'user-2'];
+
+    expect(store.preferencesSnapshot().favoriteUserIds).toEqual(['user-1', 'user-2']);
+  });
+
   it('updates local updatedAt and auto-saves changed language using fake timers', async () => {
     vi.useFakeTimers();
     try {
@@ -208,6 +222,27 @@ describe('settingsStore', () => {
       });
       expect(store.syncStatus).toBe('synced');
       expect(store.lastSyncedAt).toBe('2026-06-05T02:00:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('uses 750ms auto-save debounce when partial dependencies omit debounceMs', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      const sync = syncDeps(storage).sync;
+      const store = useSettingsStore();
+
+      store.init({ storage, sync, now: () => new Date('2026-06-05T01:00:00.000Z') });
+      store.setLanguage('zh', { storage, sync, now: () => new Date('2026-06-05T01:00:00.000Z') });
+      await vi.advanceTimersByTimeAsync(749);
+
+      expect(sync.save).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(sync.save).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
@@ -252,6 +287,25 @@ describe('settingsStore', () => {
     expect(store.syncStatus).toBe('synced');
     expect(store.syncError).toBeNull();
     expect(store.lastSyncedAt).toBe('2026-06-05T02:00:00.000Z');
+  });
+
+  it('normalizes cloud favorite users when applying a document', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const store = useSettingsStore();
+    const document = createCloudSettingsDocument(
+      {
+        language: 'en',
+        themeMode: 'system',
+        favoriteUserIds: ['user-1'],
+      },
+      '2026-06-05T03:00:00.000Z',
+    );
+
+    document.preferences.favoriteUserIds = [' user-1 ', 'user-1', '', 'user-2'];
+    store.applyCloudDocument(document, storage);
+
+    expect(store.favoriteUserIds).toEqual(['user-1', 'user-2']);
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual(['user-1', 'user-2']);
   });
 
   it('keeps local UI state when sync save fails and redacts token secrets', async () => {

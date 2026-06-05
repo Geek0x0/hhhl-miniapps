@@ -28,6 +28,7 @@ export const SETTINGS_THEME_MODE_KEY = 'hhhl-chat:theme-mode';
 export const SETTINGS_FAVORITE_USERS_KEY = 'hhhl-chat:favorite-users';
 const DRAFTS_KEY = 'hhhl-chat:drafts';
 const RECENT_ROOM_KEY = 'hhhl-chat:recent-room';
+const DEFAULT_DEBOUNCE_MS = 750;
 
 type AuthStore = ReturnType<typeof useAuthStore>;
 export type { ThemeMode } from './settingsConfig';
@@ -145,7 +146,7 @@ function createDefaultDependencies(): SettingsStoreDependencies {
     storage,
     sync: createSettingsSyncService({ drive }),
     now: () => new Date(),
-    debounceMs: 500,
+    debounceMs: DEFAULT_DEBOUNCE_MS,
   };
 }
 
@@ -158,15 +159,17 @@ function resolveDependencies(input?: SettingsStoreInput): SettingsStoreDependenc
     return {
       storage: input,
       now: () => new Date(),
-      debounceMs: 500,
+      debounceMs: DEFAULT_DEBOUNCE_MS,
     };
   }
 
+  const defaults = createDefaultDependencies();
+
   return {
-    storage: input.storage ?? createLocalStorageAdapter(),
-    sync: input.sync,
-    now: input.now ?? (() => new Date()),
-    debounceMs: input.debounceMs ?? 500,
+    storage: input.storage ?? defaults.storage,
+    sync: input.sync ?? defaults.sync,
+    now: input.now ?? defaults.now,
+    debounceMs: input.debounceMs ?? defaults.debounceMs,
   };
 }
 
@@ -200,14 +203,14 @@ export const useSettingsStore = defineStore('settings', {
       return {
         language: this.language,
         themeMode: this.themeMode,
-        favoriteUserIds: this.favoriteUserIds,
+        favoriteUserIds: normalizeFavoriteUserIds(this.favoriteUserIds) ?? [],
       };
     },
 
     localSnapshot() {
       return {
         preferences: this.preferencesSnapshot(),
-        updatedAt: this.localUpdatedAt ?? new Date().toISOString(),
+        updatedAt: this.localUpdatedAt ?? new Date(0).toISOString(),
         baseDocument: this.baseCloudDocument,
       };
     },
@@ -293,7 +296,7 @@ export const useSettingsStore = defineStore('settings', {
     applyCloudDocument(document: CloudSettingsDocument, storage: LocalStorageAdapter) {
       this.language = document.preferences.language;
       this.themeMode = document.preferences.themeMode;
-      this.favoriteUserIds = document.preferences.favoriteUserIds;
+      this.favoriteUserIds = normalizeFavoriteUserIds(document.preferences.favoriteUserIds) ?? [];
       this.localUpdatedAt = document.updatedAt;
       this.baseCloudDocument = document;
       i18n.setLocale(this.language);
