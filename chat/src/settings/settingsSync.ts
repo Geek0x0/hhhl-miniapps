@@ -1,0 +1,196 @@
+import { ApiError } from '@/shared/errors';
+import {
+  compareUpdatedAt,
+  createCloudSettingsDocument,
+  parseCloudSettingsJson,
+  type CloudSettingsDocument,
+  type SettingsPreferences,
+} from './settingsConfig';
+import type { DriveFolderSummary, SettingsDriveApi, SettingsDriveFile } from './settingsDriveApi';
+
+export const SETTINGS_SYNC_FOLDER_NAME = 'telegram-bot-chat';
+export const SETTINGS_SYNC_FILE_NAME = 'settings.json';
+
+export interface LocalSettingsSnapshot {
+  preferences: SettingsPreferences;
+  updatedAt: string;
+  baseDocument?: CloudSettingsDocument;
+}
+
+export type SettingsSyncStatus = 'created' | 'loaded-cloud' | 'saved-local' | 'unchanged';
+
+export interface SettingsSyncResult {
+  status: SettingsSyncStatus;
+  document: CloudSettingsDocument;
+  fileId?: string;
+  syncedAt: string;
+}
+
+export interface SettingsSyncServiceOptions {
+  drive: SettingsDriveApi;
+  now?: () => Date;
+}
+
+export interface SettingsSyncService {
+  syncAfterLogin(snapshot: LocalSettingsSnapshot): Promise<SettingsSyncResult>;
+  save(snapshot: LocalSettingsSnapshot): Promise<SettingsSyncResult>;
+}
+
+interface CloudSettingsCandidate {
+  file: SettingsDriveFile;
+  document: CloudSettingsDocument;
+}
+
+interface CloudSettingsRead {
+  exactFiles: SettingsDriveFile[];
+  selected: CloudSettingsCandidate | null;
+}
+
+function parseFetchedDocument(value: unknown): CloudSettingsDocument | null {
+  let json: string | undefined;
+
+  if (typeof value === 'string') {
+    json = value;
+  } else {
+    try {
+      const serialized = JSON.stringify(value);
+      json = typeof serialized === 'string' ? serialized : undefined;
+    } catch {
+      json = undefined;
+    }
+  }
+
+  if (json == null) {
+    return null;
+  }
+
+  const parsed = parseCloudSettingsJson(json);
+  return parsed.ok ? parsed.document : null;
+}
+
+function isFatalCandidateError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'DRIVE_FILE_URL_NOT_ALLOWED';
+}
+
+function newestCandidate(left: CloudSettingsCandidate, right: CloudSettingsCandidate): CloudSettingsCandidate {
+  return compareUpdatedAt(left.document.updatedAt, right.document.updatedAt) >= 0 ? left : right;
+}
+
+export function createSettingsSyncService(options: SettingsSyncServiceOptions): SettingsSyncService {
+  const now = options.now ?? (() => new Date());
+  const { drive } = options;
+
+  async function ensureFolder(): Promise<DriveFolderSummary> {
+    const folder = await drive.findFolder(SETTINGS_SYNC_FOLDER_NAME);
+    return folder ?? drive.createFolder(SETTINGS_SYNC_FOLDER_NAME);
+  }
+
+  async function readCloud(folderId: string): Promise<CloudSettingsRead> {
+    const exactFiles = (await drive.findFiles(SETTINGS_SYNC_FILE_NAME, folderId))
+      .filter((file) => file.name === SETTINGS_SYNC_FILE_NAME);
+
+    if (exactFiles.length === 0) {
+      return { exactFiles, selected: null };
+    }
+
+    const validCandidates: CloudSettingsCandidate[] = [];
+
+    for (const file of exactFiles) {
+      try {
+        const shownFile = await drive.showFile(file.id);
+        if (shownFile.url == null) {
+          continue;
+        }
+
+        const fetched = await drive.fetchJsonFile<unknown>(shownFile.url);
+        const document = parseFetchedDocument(fetched);
+        if (document == null) {
+          continue;
+        }
+
+        validCandidates.push({ file, document });
+      } catch (error) {
+        if (isFatalCandidateError(error)) {
+          throw error;
+        }
+      }
+    }
+
+    if (validCandidates.length === 0) {
+      throw new Error('No valid cloud settings document found');
+    }
+
+    return {
+      exactFiles,
+      selected: validCandidates.reduce(newestCandidate),
+    };
+  }
+
+  async function createLocalFile(
+    folderId: string,
+    snapshot: LocalSettingsSnapshot,
+    status: Extract<SettingsSyncStatus, 'created' | 'saved-local'>,
+  ): Promise<SettingsSyncResult> {
+    const document = createCloudSettingsDocument(
+      snapshot.preferences,
+      snapshot.updatedAt,
+      snapshot.baseDocument ?? null,
+    );
+    const file = await drive.createJsonFile(folderId, SETTINGS_SYNC_FILE_NAME, document);
+
+    return {
+      status,
+      document,
+      fileId: file.id,
+      syncedAt: now().toISOString(),
+    };
+  }
+
+  async function replaceWithLocal(
+    folderId: string,
+    exactFiles: SettingsDriveFile[],
+    snapshot: LocalSettingsSnapshot,
+  ): Promise<SettingsSyncResult> {
+    for (const file of exactFiles) {
+      await drive.deleteFile(file.id);
+    }
+
+    return createLocalFile(folderId, snapshot, 'saved-local');
+  }
+
+  async function sync(snapshot: LocalSettingsSnapshot): Promise<SettingsSyncResult> {
+    const folder = await ensureFolder();
+    const cloud = await readCloud(folder.id);
+
+    if (cloud.selected == null) {
+      return createLocalFile(folder.id, snapshot, 'created');
+    }
+
+    const updatedAtComparison = compareUpdatedAt(snapshot.updatedAt, cloud.selected.document.updatedAt);
+
+    if (updatedAtComparison < 0) {
+      return {
+        status: 'loaded-cloud',
+        document: cloud.selected.document,
+        fileId: cloud.selected.file.id,
+        syncedAt: now().toISOString(),
+      };
+    }
+
+    if (updatedAtComparison === 0 && cloud.exactFiles.length === 1) {
+      return {
+        status: 'unchanged',
+        document: cloud.selected.document,
+        fileId: cloud.selected.file.id,
+        syncedAt: now().toISOString(),
+      };
+    }
+
+    return replaceWithLocal(folder.id, cloud.exactFiles, snapshot);
+  }
+
+  return {
+    syncAfterLogin: sync,
+    save: sync,
+  };
+}
