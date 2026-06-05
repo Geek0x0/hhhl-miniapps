@@ -26,15 +26,27 @@
 import { watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { i18n } from '@/i18n';
+import { useSettingsStore } from '@/settings/settingsStore';
 import { createAuthDependencies, useAuthStore } from '../authStore';
 import LoginGuide from './LoginGuide.vue';
 
 const auth = useAuthStore();
+const settings = useSettingsStore();
 const route = useRoute();
 const router = useRouter();
 const dependencies = createAuthDependencies();
 let restored = false;
 let callbackSessionInFlight: string | null = null;
+let syncedToken: string | null = null;
+
+function syncSettingsAfterAuthorization(): void {
+  if (!auth.isAuthorized || auth.token == null || syncedToken === auth.token) {
+    return;
+  }
+
+  syncedToken = auth.token;
+  void settings.syncAfterLogin();
+}
 
 function resolveSession(querySession: unknown): string | null {
   if (typeof querySession === 'string' && querySession !== '') {
@@ -59,6 +71,7 @@ async function handleAuthRoute(): Promise<void> {
     callbackSessionInFlight = session;
     try {
       await auth.completeCallback(session, dependencies);
+      syncSettingsAfterAuthorization();
       restored = true;
       await router.replace('/');
     } catch {
@@ -71,6 +84,7 @@ async function handleAuthRoute(): Promise<void> {
   if (!restored && !isAuthCallback) {
     restored = true;
     await auth.restore(dependencies);
+    syncSettingsAfterAuthorization();
   }
 }
 
