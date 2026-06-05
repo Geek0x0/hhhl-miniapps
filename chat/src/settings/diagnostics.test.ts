@@ -230,6 +230,21 @@ describe('diagnostics renderer', () => {
     }
   });
 
+  it('redacts object-log media url fields in raw diagnostics', () => {
+    for (const raw of [
+      '{"previewUrl":"https://cdn.example/private.png"}',
+      'webUrl: https://cdn.example/private.png',
+      'downloadUrl : https://cdn.example/private.png',
+      'fileUrl = https://cdn.example/private.png',
+    ]) {
+      const { safe, detailed } = createDiagnosticsOutput({ raw });
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(detailed).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('private.png');
+      expect(detailed).not.toContain('private.png');
+    }
+  });
+
   it('redacts message ID lists from raw diagnostics', () => {
     const { safe } = createDiagnosticsOutput({
       raw: '{"messageIds":["msg-1","msg-2"]}',

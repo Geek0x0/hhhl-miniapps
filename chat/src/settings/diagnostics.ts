@@ -5,6 +5,8 @@ const NOT_SET = 'not-set';
 const NONE = 'none';
 const REDACTED = '[redacted]';
 const MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH = 4;
+const SENSITIVE_URL_FIELD_PATTERN =
+  /(?:^|[^\w])["']?(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl)["']?\s*[:=]/i;
 
 export type DiagnosticsRouteType = 'root' | 'rooms' | 'room' | 'settings' | 'auth-callback' | 'other';
 
@@ -400,7 +402,7 @@ function looksLikeFileUrlOrMessageIdList(value: string): boolean {
     (candidate) =>
       /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(candidate) ||
       /(?:\/|%2f)media(?:\/|%2f)/i.test(candidate) ||
-      /(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl)=/i.test(candidate) ||
+      SENSITIVE_URL_FIELD_PATTERN.test(candidate) ||
       /messageIds?(?:\[\]|%5b%5d)?=/i.test(candidate) ||
       /\bmessageIds?\s*:/i.test(candidate) ||
       /["']messageIds?["']/i.test(candidate),
