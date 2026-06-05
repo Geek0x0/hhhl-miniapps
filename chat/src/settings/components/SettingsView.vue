@@ -65,7 +65,37 @@
       <p class="app-copy">
         {{ DC_HHHL_ORIGIN }} · {{ realtimeStore.status }} · v{{ appVersion }}
       </p>
+      <div
+        class="settings-field"
+        aria-live="polite"
+      >
+        <span class="room-direct-join__label">{{ i18n.t('settings.sync') }}</span>
+        <p class="app-copy">
+          <strong>{{ i18n.t(syncStatusLabel) }}</strong>
+        </p>
+        <p
+          v-if="settings.lastSyncedAt != null"
+          class="app-copy"
+        >
+          {{ i18n.t('settings.lastSynced', { time: settings.lastSyncedAt }) }}
+        </p>
+        <p
+          v-if="settings.syncError != null"
+          class="app-copy"
+          role="alert"
+        >
+          {{ i18n.t('settings.syncError', { error: settings.syncError }) }}
+        </p>
+      </div>
       <div class="app-actions">
+        <button
+          class="app-button app-button-secondary"
+          type="button"
+          :disabled="syncBusy"
+          @click="saveToDrive"
+        >
+          {{ i18n.t('settings.saveToDrive') }}
+        </button>
         <button
           class="app-button app-button-secondary"
           type="button"
@@ -104,7 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, Monitor, Moon, Sun } from '@lucide/vue';
 import { createAuthDependencies, useAuthStore } from '@/auth/authStore';
@@ -125,11 +155,32 @@ const themeOptions: Array<{ value: ThemeMode; label: MessageKey; icon: typeof Mo
   { value: 'dark', label: 'settings.themeDark', icon: Moon },
 ];
 
+const syncStatusLabel = computed<MessageKey>(() => {
+  switch (settings.syncStatus) {
+    case 'loading':
+      return 'settings.syncLoading';
+    case 'saving':
+      return 'settings.syncSaving';
+    case 'synced':
+      return 'settings.syncSynced';
+    case 'failed':
+      return 'settings.syncFailed';
+    default:
+      return 'settings.syncIdle';
+  }
+});
+
+const syncBusy = computed(() => settings.syncStatus === 'loading' || settings.syncStatus === 'saving');
+
 onMounted(() => settings.init());
 
 function toggleDiagnostics(): void {
   settings.toggleDebug();
   settings.collectDiagnostics({ instanceUrl: DC_HHHL_ORIGIN, realtimeStatus: realtimeStore.status });
+}
+
+async function saveToDrive(): Promise<void> {
+  await settings.saveToCloud();
 }
 
 function logout(): void {
