@@ -15,6 +15,11 @@ const expectedParams: Record<string, string[]> = {
   'chat/messages/search': ['query', 'limit', 'untilId', 'userId', 'roomId'],
   'chat/rooms/create': ['name', 'description', 'joinMode'],
   'drive/files/create': ['folderId', 'name', 'comment', 'isSensitive', 'force'],
+  'drive/files/delete': ['fileId'],
+  'drive/files/find': ['name', 'folderId'],
+  'drive/files/show': ['fileId', 'url'],
+  'drive/folders/create': ['name', 'parentId'],
+  'drive/folders/find': ['name', 'parentId'],
   'miauth/gen-token': ['session', 'name', 'description', 'iconUrl', 'permission', 'grantees', 'rank'],
   'users/show': ['userId', 'userIds', 'username', 'host', 'detail'],
 };

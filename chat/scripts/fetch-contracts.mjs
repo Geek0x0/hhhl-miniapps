@@ -29,6 +29,11 @@ export const requiredEndpoints = [
   'chat/messages/show',
   'chat/messages/unreact',
   'drive/files/create',
+  'drive/files/delete',
+  'drive/files/find',
+  'drive/files/show',
+  'drive/folders/create',
+  'drive/folders/find',
   'users/show',
 ];
 

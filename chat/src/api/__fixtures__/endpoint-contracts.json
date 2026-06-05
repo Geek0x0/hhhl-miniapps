@@ -371,6 +371,67 @@
       }
     ]
   },
+  "drive/files/delete": {
+    "endpoint": "drive/files/delete",
+    "params": [
+      {
+        "name": "fileId",
+        "type": "String"
+      }
+    ]
+  },
+  "drive/files/find": {
+    "endpoint": "drive/files/find",
+    "params": [
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "folderId",
+        "type": "String"
+      }
+    ]
+  },
+  "drive/files/show": {
+    "endpoint": "drive/files/show",
+    "params": [
+      {
+        "name": "fileId",
+        "type": "String"
+      },
+      {
+        "name": "url",
+        "type": "String"
+      }
+    ]
+  },
+  "drive/folders/create": {
+    "endpoint": "drive/folders/create",
+    "params": [
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "parentId",
+        "type": "String"
+      }
+    ]
+  },
+  "drive/folders/find": {
+    "endpoint": "drive/folders/find",
+    "params": [
+      {
+        "name": "name",
+        "type": "String"
+      },
+      {
+        "name": "parentId",
+        "type": "String"
+      }
+    ]
+  },
   "i": {
     "endpoint": "i",
     "params": []
