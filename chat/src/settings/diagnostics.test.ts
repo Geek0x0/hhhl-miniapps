@@ -155,6 +155,16 @@ describe('diagnostics renderer', () => {
     expect(safe).not.toContain('Secret%20Room');
   });
 
+  it('redacts route-only room IDs from raw diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      route: { name: 'room-detail', path: '/rooms/room-secret' },
+      raw: 'room-secret failed before stores loaded',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted] failed before stores loaded');
+    expect(safe).not.toContain('room-secret');
+  });
+
   it('redacts file and media URLs from raw diagnostics', () => {
     const { safe } = createDiagnosticsOutput({
       raw: 'thumbnailUrl=https://dc.hhhl.cc/files/secret-image.png',
@@ -164,10 +174,35 @@ describe('diagnostics renderer', () => {
     expect(safe).not.toContain('/files/secret-image.png');
   });
 
+  it('redacts media URLs from raw diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      raw: 'render failed for https://dc.hhhl.cc/media/secret.png',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('/media/secret.png');
+  });
+
+  it('redacts mediaUrl fields from raw diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      raw: 'preview failed mediaUrl=https://dc.hhhl.cc/media/secret.png',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('mediaUrl=');
+  });
+
   it('redacts message ID lists from raw diagnostics', () => {
     const { safe } = createDiagnosticsOutput({
       raw: '{"messageIds":["msg-1","msg-2"]}',
     });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('msg-1');
+  });
+
+  it('redacts prose-prefixed message ID lists from raw diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({ raw: 'failed messageIds=msg-1,msg-2' });
 
     expect(safe).toContain('[raw]\n[redacted]');
     expect(safe).not.toContain('msg-1');

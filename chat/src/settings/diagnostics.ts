@@ -394,11 +394,12 @@ function looksLikeTelegramInitData(value: string): boolean {
 function looksLikeFileUrlOrMessageIdList(value: string): boolean {
   return (
     /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(value) ||
-    /(?:^|[?&#])(?:thumbnailUrl|downloadUrl|fileUrl)=/i.test(value) ||
-    /(?:^|[?&#])messageIds=/i.test(value) ||
-    /(?:^|[?&#])messageId(?:\[\]|%5b%5d)=/i.test(value) ||
-    /["']messageIds["']\s*:/i.test(value) ||
-    /["']messageId["']\s*:/i.test(value)
+    /(?:\/|%2f)media(?:\/|%2f)/i.test(value) ||
+    /(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl)=/i.test(value) ||
+    /messageIds=/i.test(value) ||
+    /messageId(?:\[\]|%5b%5d)=/i.test(value) ||
+    /["']messageIds["']/i.test(value) ||
+    /["']messageId["']/i.test(value)
   );
 }
 
@@ -475,6 +476,7 @@ function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {
   const identifiers = [
     snapshot.auth.userId,
     snapshot.auth.username,
+    roomIdFromRoutePath(snapshot.route.path),
     snapshot.realtime.roomId,
     snapshot.rooms.activeRoomId,
     snapshot.rooms.activeRoomName,
@@ -485,6 +487,22 @@ function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {
     .filter((identifier): identifier is string => identifier != null && identifier.length > 0);
 
   return [...new Set(identifiers)].sort((left, right) => right.length - left.length);
+}
+
+function roomIdFromRoutePath(path: string): string | null {
+  const normalizedPath = path.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+  const match = /^\/rooms\/([^/]+)(?:\/|$)/.exec(normalizedPath);
+  const roomId = match?.[1]?.trim();
+
+  if (roomId == null || roomId === '') {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(roomId);
+  } catch {
+    return roomId;
+  }
 }
 
 function escapeRegExp(value: string): string {
