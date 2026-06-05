@@ -1,9 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createLocalStorageAdapter } from '@/shared/storage';
+import type { LocalStorageAdapter } from '@/shared/storage';
 import { useAuthStore, type AuthDependencies } from '@/auth/authStore';
 import { i18n } from '@/i18n';
-import { useSettingsStore, SETTINGS_FAVORITE_USERS_KEY, SETTINGS_LANGUAGE_KEY, SETTINGS_THEME_MODE_KEY } from './settingsStore';
+import {
+  SETTINGS_FAVORITE_USERS_KEY,
+  SETTINGS_LANGUAGE_KEY,
+  SETTINGS_THEME_MODE_KEY,
+  useSettingsStore,
+} from './settingsStore';
+import { createCloudSettingsDocument, SETTINGS_UPDATED_AT_KEY } from './settingsConfig';
+import type { SettingsSyncResult, SettingsSyncService } from './settingsSync';
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -45,8 +53,35 @@ function authDeps(storage = createLocalStorageAdapter(new MemoryStorage())): Aut
   };
 }
 
+function syncDeps(
+  storage = createLocalStorageAdapter(new MemoryStorage()),
+  overrides: Partial<SettingsSyncService> = {},
+): { storage: LocalStorageAdapter; sync: SettingsSyncService; now: () => Date; debounceMs: number } {
+  const sync: SettingsSyncService = {
+    syncAfterLogin: vi.fn(async (snapshot): Promise<SettingsSyncResult> => ({
+      status: 'unchanged',
+      document: createCloudSettingsDocument(snapshot.preferences, snapshot.updatedAt, snapshot.baseDocument ?? null),
+      syncedAt: '2026-06-05T02:00:00.000Z',
+    })),
+    save: vi.fn(async (snapshot): Promise<SettingsSyncResult> => ({
+      status: 'saved-local',
+      document: createCloudSettingsDocument(snapshot.preferences, snapshot.updatedAt, snapshot.baseDocument ?? null),
+      syncedAt: '2026-06-05T02:00:00.000Z',
+    })),
+    ...overrides,
+  };
+
+  return {
+    storage,
+    sync,
+    now: () => new Date('2026-06-05T01:00:00.000Z'),
+    debounceMs: 10,
+  };
+}
+
 describe('settingsStore', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     setActivePinia(createPinia());
     i18n.setLocale('en');
     document.documentElement.removeAttribute('data-theme');
@@ -134,6 +169,130 @@ describe('settingsStore', () => {
     expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, null)).toBeNull();
     expect(store.favoriteUserIds).toEqual([]);
     expect(store.lastAction).toBe('settings.clearLocalDataDone');
+  });
+
+  it('initializes local updatedAt when missing', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const store = useSettingsStore();
+
+    store.init(syncDeps(storage));
+
+    expect(store.localUpdatedAt).toBe('2026-06-05T01:00:00.000Z');
+    expect(storage.getJson(SETTINGS_UPDATED_AT_KEY, null)).toBe('2026-06-05T01:00:00.000Z');
+    expect(store.syncStatus).toBe('idle');
+    expect(store.syncError).toBeNull();
+  });
+
+  it('updates local updatedAt and auto-saves changed language using fake timers', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      const deps = syncDeps(storage);
+      const store = useSettingsStore();
+
+      store.init(deps);
+      store.setLanguage('zh', deps);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(store.language).toBe('zh');
+      expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
+      expect(storage.getJson(SETTINGS_UPDATED_AT_KEY, null)).toBe('2026-06-05T01:00:00.000Z');
+      expect(deps.sync.save).toHaveBeenCalledWith({
+        preferences: {
+          language: 'zh',
+          themeMode: 'system',
+          favoriteUserIds: [],
+        },
+        updatedAt: '2026-06-05T01:00:00.000Z',
+        baseDocument: undefined,
+      });
+      expect(store.syncStatus).toBe('synced');
+      expect(store.lastSyncedAt).toBe('2026-06-05T02:00:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('applies newer cloud settings after login', async () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    storage.setJson(SETTINGS_LANGUAGE_KEY, 'en');
+    storage.setJson(SETTINGS_THEME_MODE_KEY, 'light');
+    storage.setJson(SETTINGS_FAVORITE_USERS_KEY, ['local-user']);
+    storage.setJson(SETTINGS_UPDATED_AT_KEY, '2026-06-05T01:00:00.000Z');
+    const cloudDocument = createCloudSettingsDocument(
+      {
+        language: 'zh',
+        themeMode: 'dark',
+        favoriteUserIds: ['cloud-user'],
+      },
+      '2026-06-05T03:00:00.000Z',
+    );
+    const deps = syncDeps(storage, {
+      syncAfterLogin: vi.fn(async (): Promise<SettingsSyncResult> => ({
+        status: 'loaded-cloud',
+        document: cloudDocument,
+        syncedAt: '2026-06-05T02:00:00.000Z',
+      })),
+    });
+    const store = useSettingsStore();
+
+    await store.syncAfterLogin(deps);
+
+    expect(store.language).toBe('zh');
+    expect(store.themeMode).toBe('dark');
+    expect(store.favoriteUserIds).toEqual(['cloud-user']);
+    expect(store.localUpdatedAt).toBe('2026-06-05T03:00:00.000Z');
+    expect(store.baseCloudDocument).toEqual(cloudDocument);
+    expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
+    expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBe('dark');
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual(['cloud-user']);
+    expect(storage.getJson(SETTINGS_UPDATED_AT_KEY, null)).toBe('2026-06-05T03:00:00.000Z');
+    expect(i18n.locale.value).toBe('zh');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(store.syncStatus).toBe('synced');
+    expect(store.syncError).toBeNull();
+    expect(store.lastSyncedAt).toBe('2026-06-05T02:00:00.000Z');
+  });
+
+  it('keeps local UI state when sync save fails and redacts token secrets', async () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const deps = syncDeps(storage, {
+      save: vi.fn(async () => {
+        throw new Error('request failed token=secret-token');
+      }),
+    });
+    const store = useSettingsStore();
+
+    store.init(deps);
+    store.setThemeMode('dark', deps);
+    await store.saveToCloud(deps);
+
+    expect(store.themeMode).toBe('dark');
+    expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(store.syncStatus).toBe('failed');
+    expect(store.syncError).toBe('request failed token=[redacted]');
+    expect(store.syncError).not.toContain('secret-token');
+  });
+
+  it('does not delete or save cloud config when clearing local data', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const deps = syncDeps(storage);
+    const store = useSettingsStore();
+
+    storage.setJson('hhhl-chat:drafts', { 'room-1': 'draft' });
+    storage.setJson('hhhl-chat:recent-room', 'room-1');
+    storage.setJson(SETTINGS_FAVORITE_USERS_KEY, ['user-2']);
+    store.favoriteUserIds = ['user-2'];
+    store.clearLocalData(deps);
+
+    expect(storage.getJson('hhhl-chat:drafts', null)).toBeNull();
+    expect(storage.getJson('hhhl-chat:recent-room', null)).toBeNull();
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, null)).toBeNull();
+    expect(store.favoriteUserIds).toEqual([]);
+    expect(store.lastAction).toBe('settings.clearLocalDataDone');
+    expect(deps.sync.save).not.toHaveBeenCalled();
+    expect(deps.sync.syncAfterLogin).not.toHaveBeenCalled();
   });
 
   it('logs out through auth store and redirects to login route', async () => {
