@@ -191,24 +191,23 @@ function routeName(): string | null {
   return route.name == null ? null : String(route.name);
 }
 
-function currentRoomId(): string | null {
-  return roomStore.activeRoomId ?? chatStore.roomId ?? realtimeStore.roomId ?? null;
-}
-
-function currentRoomName(): string | null {
-  const roomId = currentRoomId();
-  if (roomId == null) {
+function activeRoomName(): string | null {
+  const activeRoomId = roomStore.activeRoomId;
+  if (activeRoomId == null) {
     return null;
   }
-  return roomStore.rooms.find((entry) => entry.room.id === roomId)?.room.name ?? roomStore.deepLinkedRoom?.name ?? null;
+  return (
+    roomStore.rooms.find((entry) => entry.room.id === activeRoomId)?.room.name ??
+    (roomStore.deepLinkedRoom?.id === activeRoomId ? roomStore.deepLinkedRoom.name : null)
+  );
 }
 
 function currentMemberCount(): number {
-  const roomId = currentRoomId();
-  if (roomId == null) {
+  const activeRoomId = roomStore.activeRoomId;
+  if (activeRoomId == null) {
     return 0;
   }
-  return roomStore.membersByRoomId[roomId]?.length ?? 0;
+  return roomStore.membersByRoomId[activeRoomId]?.length ?? 0;
 }
 
 function failedOutgoingCount(): number {
@@ -244,8 +243,8 @@ function collectSettingsDiagnostics(): void {
       loading: roomStore.loading,
       roomCount: roomStore.rooms.length,
       invitationCount: roomStore.invitations.length,
-      activeRoomId: currentRoomId(),
-      activeRoomName: currentRoomName(),
+      activeRoomId: roomStore.activeRoomId,
+      activeRoomName: activeRoomName(),
       pendingStartRoomId: roomStore.pendingStartRoomId,
       memberCount: currentMemberCount(),
       outboxInvitationCount: roomStore.outboxInvitations.length,

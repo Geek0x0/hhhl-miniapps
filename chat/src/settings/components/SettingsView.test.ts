@@ -184,26 +184,27 @@ describe('SettingsView', () => {
 
   it('collects rich diagnostics context when diagnostics open', async () => {
     mocks.route.name = 'room';
-    mocks.route.path = '/rooms/room-secret';
+    mocks.route.path = '/rooms/room-route';
     mocks.auth.user = { id: 'user-secret', username: 'alice', name: 'Alice' };
     mocks.auth.error = 'auth error';
     mocks.realtimeStore.status = 'connected';
-    mocks.realtimeStore.roomId = 'room-secret';
+    mocks.realtimeStore.roomId = 'room-realtime';
     mocks.roomStore.loading = false;
     mocks.roomStore.rooms = [
-      { room: { id: 'room-secret', name: 'Secret Room' } },
+      { room: { id: 'room-active', name: 'Active Room' } },
       { room: { id: 'room-other', name: 'Other Room' } },
     ];
     mocks.roomStore.invitations = [{ id: 'invite-1' }, { id: 'invite-2' }];
-    mocks.roomStore.activeRoomId = 'room-secret';
+    mocks.roomStore.activeRoomId = 'room-active';
+    mocks.roomStore.deepLinkedRoom = { id: 'room-stale', name: 'Stale Deep Linked Room' };
     mocks.roomStore.pendingStartRoomId = 'room-pending';
     mocks.roomStore.membersByRoomId = {
-      'room-secret': [{ id: 'user-secret' }, { id: 'user-2' }],
+      'room-active': [{ id: 'user-secret' }, { id: 'user-2' }],
     };
     mocks.roomStore.outboxInvitations = [{ id: 'outbox-1' }];
     mocks.roomStore.error = 'room error';
     mocks.chatStore.loading = true;
-    mocks.chatStore.roomId = 'room-secret';
+    mocks.chatStore.roomId = 'room-chat';
     mocks.chatStore.timeline = [{ id: 'message-1' }, { id: 'message-2' }, { id: 'message-3' }];
     mocks.chatStore.outgoing = [{ status: 'failed' }, { status: 'sending' }, { status: 'failed' }];
     mocks.chatStore.searchResults = [{ id: 'search-1' }];
@@ -238,18 +239,18 @@ describe('SettingsView', () => {
       },
       route: {
         name: 'room',
-        path: '/rooms/room-secret',
+        path: '/rooms/room-route',
       },
       realtime: {
         status: 'connected',
-        roomId: 'room-secret',
+        roomId: 'room-realtime',
       },
       rooms: {
         loading: false,
         roomCount: 2,
         invitationCount: 2,
-        activeRoomId: 'room-secret',
-        activeRoomName: 'Secret Room',
+        activeRoomId: 'room-active',
+        activeRoomName: 'Active Room',
         pendingStartRoomId: 'room-pending',
         memberCount: 2,
         outboxInvitationCount: 1,
@@ -257,7 +258,7 @@ describe('SettingsView', () => {
       },
       chat: {
         loading: true,
-        roomId: 'room-secret',
+        roomId: 'room-chat',
         timelineCount: 3,
         outgoingCount: 3,
         failedOutgoingCount: 2,
@@ -270,6 +271,9 @@ describe('SettingsView', () => {
         keySearchError: 'key search error',
       },
     });
+    expect(mocks.settings.collectDiagnostics.mock.calls[0]?.[0].rooms.activeRoomName).not.toBe(
+      'Stale Deep Linked Room',
+    );
   });
 
   it('wires development detail confirmation to the settings store', async () => {
