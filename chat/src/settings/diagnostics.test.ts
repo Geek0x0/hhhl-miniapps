@@ -245,6 +245,35 @@ describe('diagnostics renderer', () => {
     }
   });
 
+  it('redacts object-log file url aliases in raw diagnostics', () => {
+    for (const raw of [
+      '{"url":"https://cdn.example/private.png"}',
+      'src: https://cdn.example/private.png',
+      'thumbnail = https://cdn.example/private.png',
+      'webpublicUrl: https://cdn.example/private.png',
+    ]) {
+      const { safe, detailed } = createDiagnosticsOutput({ raw });
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(detailed).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('private.png');
+      expect(detailed).not.toContain('private.png');
+    }
+  });
+
+  it('redacts broader token-like free-form diagnostics', () => {
+    for (const raw of [
+      'Token=secret-token',
+      'access_token=secret-token',
+      'Authorization: Bearer secret-token',
+      'Bearer secret-token',
+      'token%3Dsecret-token',
+    ]) {
+      const { safe } = createDiagnosticsOutput({ raw });
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('secret-token');
+    }
+  });
+
   it('redacts message ID lists from raw diagnostics', () => {
     const { safe } = createDiagnosticsOutput({
       raw: '{"messageIds":["msg-1","msg-2"]}',

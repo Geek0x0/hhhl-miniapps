@@ -6,7 +6,11 @@ const NONE = 'none';
 const REDACTED = '[redacted]';
 const MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH = 4;
 const SENSITIVE_URL_FIELD_PATTERN =
-  /(?:^|[^\w])["']?(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl)["']?\s*[:=]/i;
+  /(?:^|[^\w])["']?(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl|webpublicUrl|url|src|thumbnail)["']?\s*[:=]/i;
+const TOKEN_FIELD_MARKER_PATTERN =
+  /(?:^|[^\w])["']?(?:access_)?token["']?\s*[:=]\s*["']?(?!\[redacted\]["']?(?:[\s,}&\]]|$))[^\s"',}&\]]+/i;
+const BEARER_TOKEN_MARKER_PATTERN =
+  /\b(?:Authorization\s*:\s*)?Bearer\s+(?!\[redacted\](?:[\s,}&\]]|$))[A-Za-z0-9._~+/=\-]{6,}/i;
 
 export type DiagnosticsRouteType = 'root' | 'rooms' | 'room' | 'settings' | 'auth-callback' | 'other';
 
@@ -382,6 +386,10 @@ function sanitizeFreeformValue(value: string, snapshot: DiagnosticsSnapshot): st
     return REDACTED;
   }
 
+  if (looksLikeTokenLikeFreeform(tokenRedacted)) {
+    return REDACTED;
+  }
+
   if (looksLikeFileUrlOrMessageIdList(tokenRedacted)) {
     return REDACTED;
   }
@@ -394,6 +402,14 @@ function looksLikeTelegramInitData(value: string): boolean {
     (candidate) =>
       /(?:^|[?&#])(?:query_id|auth_date|hash|signature|user)=/i.test(candidate) ||
       /(?:^|[?&#\s])initData=/i.test(candidate),
+  );
+}
+
+function looksLikeTokenLikeFreeform(value: string): boolean {
+  return markerDetectionValues(value).some(
+    (candidate) =>
+      TOKEN_FIELD_MARKER_PATTERN.test(candidate) ||
+      BEARER_TOKEN_MARKER_PATTERN.test(candidate),
   );
 }
 
