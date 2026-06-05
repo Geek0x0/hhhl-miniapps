@@ -8,9 +8,9 @@ const MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH = 4;
 const SENSITIVE_URL_FIELD_PATTERN =
   /(?:^|[^\w])["']?(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl|webpublicUrl|url|src|thumbnail)["']?\s*[:=]/i;
 const TOKEN_FIELD_MARKER_PATTERN =
-  /(?:^|[^\w])["']?(?:access_)?token["']?\s*[:=]\s*["']?(?!\[redacted\]["']?(?:[\s,}&\]]|$))[^\s"',}&\]]+/i;
+  /(?:^|[^\w])["']?(?:(?:access|refresh|id)_token|(?:auth|bot)Token|token)["']?\s*[:=]\s*["']?(?!\[redacted\]["']?(?:[\s,}&\]]|$))[^\s"',}&\]]+/i;
 const BEARER_TOKEN_MARKER_PATTERN =
-  /\b(?:Authorization\s*:\s*)?Bearer\s+(?!\[redacted\](?:[\s,}&\]]|$))[A-Za-z0-9._~+/=\-]{6,}/i;
+  /\b(?:Authorization\s*:\s*)?Bearer\s+(?!\[redacted\](?:[\s,}&\]]|$))[A-Za-z0-9._~+/=-]{6,}/i;
 
 export type DiagnosticsRouteType = 'root' | 'rooms' | 'room' | 'settings' | 'auth-callback' | 'other';
 
@@ -483,17 +483,42 @@ function knownIdentifierRedactionTerms(identifier: KnownIdentifier): KnownIdenti
     const formEncoded = encoded.replace(/%20/g, '+');
 
     if (encoded !== identifier.value) {
-      terms.push({ value: encoded, caseInsensitive: identifier.caseInsensitive });
+      for (const encodedVariant of percentEncodedCaseVariants(encoded)) {
+        terms.push({ value: encodedVariant, caseInsensitive: identifier.caseInsensitive });
+      }
     }
 
     if (formEncoded !== encoded && formEncoded !== identifier.value) {
-      terms.push({ value: formEncoded, caseInsensitive: identifier.caseInsensitive });
+      for (const formEncodedVariant of percentEncodedCaseVariants(formEncoded)) {
+        terms.push({ value: formEncodedVariant, caseInsensitive: identifier.caseInsensitive });
+      }
     }
   } catch {
     // A malformed surrogate should not prevent plain identifier redaction.
   }
 
   return uniqueRedactionTerms(terms);
+}
+
+function percentEncodedCaseVariants(value: string): string[] {
+  return uniqueStringValues([
+    value,
+    value.replace(/%[0-9A-Fa-f]{2}/g, (match) => match.toLowerCase()),
+    value.replace(/%[0-9A-Fa-f]{2}/g, (match) => match.toUpperCase()),
+  ]);
+}
+
+function uniqueStringValues(values: string[]): string[] {
+  const seen = new Set<string>();
+
+  return values.filter((value) => {
+    if (seen.has(value)) {
+      return false;
+    }
+
+    seen.add(value);
+    return true;
+  });
 }
 
 function uniqueRedactionTerms(terms: KnownIdentifierRedactionTerm[]): KnownIdentifierRedactionTerm[] {

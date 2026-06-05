@@ -166,6 +166,15 @@ describe('diagnostics renderer', () => {
     expect(safe).not.toContain('Secret%20Room');
   });
 
+  it('redacts lowercase percent-encoded known identifiers in free-form diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      rooms: { activeRoomId: 'room/secret', error: 'failed room%2fsecret' },
+    });
+
+    expect(safe).toContain('roomsError=failed [redacted]');
+    expect(safe).not.toContain('room%2fsecret');
+  });
+
   it('redacts display identifiers case-insensitively from free-form errors', () => {
     const { safe } = createDiagnosticsOutput({
       auth: { username: 'Alice' },
@@ -264,6 +273,10 @@ describe('diagnostics renderer', () => {
     for (const raw of [
       'Token=secret-token',
       'access_token=secret-token',
+      'refresh_token=secret-token',
+      'id_token=secret-token',
+      'authToken=secret-token',
+      'botToken: secret-token',
       'Authorization: Bearer secret-token',
       'Bearer secret-token',
       'token%3Dsecret-token',
