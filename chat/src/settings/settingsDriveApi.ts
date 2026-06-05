@@ -46,6 +46,9 @@ const FOLDER_RECORD_KEYS = ['folder', 'driveFolder', 'item', 'data', 'result', '
 const FILE_RECORD_KEYS = ['file', 'driveFile', 'item', 'data', 'result', 'body', 'payload', 'response', 'value'];
 const FILE_URL_KEYS = ['webpublicUrl', 'webUrl', 'url', 'src', 'downloadUrl', 'downloadURL'];
 const FILE_THUMBNAIL_URL_KEYS = ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL'];
+const FOLDER_ID_KEYS = ['id', 'folderId', 'driveFolderId'];
+const FOLDER_NAME_KEYS = ['name', 'folderName'];
+const FOLDER_LIKE_KEYS = [...FOLDER_ID_KEYS, ...FOLDER_NAME_KEYS, 'folder', 'driveFolder'];
 
 function recordField(value: unknown): UnknownRecord | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : null;
@@ -72,6 +75,10 @@ function stringFrom(raw: UnknownRecord, keys: string[]): string | null {
   }
 
   return null;
+}
+
+function hasOwnField(raw: UnknownRecord, keys: string[]): boolean {
+  return keys.some((key) => Object.prototype.hasOwnProperty.call(raw, key));
 }
 
 function isSummaryRecord(raw: UnknownRecord): boolean {
@@ -127,8 +134,8 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
     return null;
   }
 
-  const id = stringFrom(raw, ['id', 'folderId', 'driveFolderId']);
-  const name = stringFrom(raw, ['name', 'folderName']);
+  const id = stringFrom(raw, FOLDER_ID_KEYS);
+  const name = stringFrom(raw, FOLDER_NAME_KEYS);
   if (id == null) {
     return null;
   }
@@ -140,12 +147,17 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
 }
 
 function isMalformedFolderResponse(value: unknown): boolean {
+  const source = recordField(value);
+  if (source != null && hasOwnField(source, FOLDER_LIKE_KEYS)) {
+    return true;
+  }
+
   const raw = unwrapSingularRecord(value, FOLDER_RECORD_KEYS);
   if (raw == null) {
     return false;
   }
 
-  return stringFrom(raw, ['name', 'folderName']) != null;
+  return hasOwnField(raw, FOLDER_LIKE_KEYS);
 }
 
 function normalizeOptionalFolder(value: unknown): DriveFolderSummary | null {
