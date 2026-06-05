@@ -2,6 +2,27 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.4.0 - 2026-06-05
+
+### chat
+
+#### Added
+
+- Added Drive-backed settings sync for language, theme mode, and favorite user ids via `telegram-bot-chat/settings.json`.
+- Added automatic settings load after login, debounced auto-save after preference changes, and a manual Save to Drive action in settings.
+- Added settings sync status, last synced time, and redacted sync error display to the settings view.
+- Added a diagnostics renderer for redacted auth, realtime, room, chat, route, app version, and Telegram environment context.
+
+#### Changed
+
+- Hardened Drive settings file handling with strict endpoint contracts, UTC `updatedAt` comparison, unknown-field preservation, duplicate cleanup, and serialized cloud sync operations.
+- Updated settings storage to keep local changes responsive when cloud sync fails and to ignore stale in-flight sync results after newer local edits or local-data clearing.
+
+#### Fixed
+
+- Prevented Drive file fetches from following token-bearing URLs or including browser credentials.
+- Scoped diagnostics redaction so sensitive tokens and identifiers are removed without over-redacting unrelated text.
+
 ## 0.3.10 - 2026-06-03
 
 ### chat
