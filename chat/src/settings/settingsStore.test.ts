@@ -121,6 +121,23 @@ describe('settingsStore', () => {
     expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual(['user-2']);
   });
 
+  it('keeps legacy storage setter calls local-only without queueing auto-save', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      const store = useSettingsStore();
+
+      store.setLanguage('zh', storage);
+      expect(store.autoSaveTimer).toBeNull();
+      await vi.advanceTimersByTimeAsync(750);
+
+      expect(store.autoSaveTimer).toBeNull();
+      expect(store.syncStatus).toBe('idle');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('uses current i18n locale when no stored language preference exists', () => {
     const storage = createLocalStorageAdapter(new MemoryStorage());
     const store = useSettingsStore();
@@ -396,6 +413,88 @@ describe('settingsStore', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('ignores stale in-flight auto-save results after clearing local data', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      let resolveSave: (result: SettingsSyncResult) => void = () => {};
+      const savePromise = new Promise<SettingsSyncResult>((resolve) => {
+        resolveSave = resolve;
+      });
+      const cloudDocument = createCloudSettingsDocument(
+        {
+          language: 'zh',
+          themeMode: 'light',
+          favoriteUserIds: ['cloud-user'],
+        },
+        '2026-06-05T03:00:00.000Z',
+      );
+      const deps = syncDeps(storage, {
+        save: vi.fn(() => savePromise),
+      });
+      const store = useSettingsStore();
+
+      store.init(deps);
+      store.setThemeMode('dark', deps);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(store.autoSaveInFlight).toBe(true);
+
+      store.clearLocalData(deps);
+      resolveSave({
+        status: 'loaded-cloud',
+        document: cloudDocument,
+        syncedAt: '2026-06-05T04:00:00.000Z',
+      });
+      await savePromise;
+      await Promise.resolve();
+
+      expect(store.syncStatus).toBe('idle');
+      expect(store.lastSyncedAt).toBeNull();
+      expect(store.favoriteUserIds).toEqual([]);
+      expect(store.themeMode).toBe('dark');
+      expect(store.language).toBe('en');
+      expect(store.autoSaveQueued).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores stale syncAfterLogin results after clearing local data', async () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    let resolveSync: (result: SettingsSyncResult) => void = () => {};
+    const syncPromise = new Promise<SettingsSyncResult>((resolve) => {
+      resolveSync = resolve;
+    });
+    const cloudDocument = createCloudSettingsDocument(
+      {
+        language: 'zh',
+        themeMode: 'dark',
+        favoriteUserIds: ['cloud-user'],
+      },
+      '2026-06-05T03:00:00.000Z',
+    );
+    const deps = syncDeps(storage, {
+      syncAfterLogin: vi.fn(() => syncPromise),
+    });
+    const store = useSettingsStore();
+
+    const pendingSync = store.syncAfterLogin(deps);
+    expect(store.syncStatus).toBe('loading');
+    store.clearLocalData(deps);
+    resolveSync({
+      status: 'loaded-cloud',
+      document: cloudDocument,
+      syncedAt: '2026-06-05T04:00:00.000Z',
+    });
+    await pendingSync;
+
+    expect(store.syncStatus).toBe('idle');
+    expect(store.lastSyncedAt).toBeNull();
+    expect(store.favoriteUserIds).toEqual([]);
+    expect(store.language).toBe('en');
+    expect(store.themeMode).toBe('system');
   });
 
   it('logs out through auth store and redirects to login route', async () => {

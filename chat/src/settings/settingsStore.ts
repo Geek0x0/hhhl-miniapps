@@ -29,11 +29,16 @@ export const SETTINGS_FAVORITE_USERS_KEY = 'hhhl-chat:favorite-users';
 const DRAFTS_KEY = 'hhhl-chat:drafts';
 const RECENT_ROOM_KEY = 'hhhl-chat:recent-room';
 const DEFAULT_DEBOUNCE_MS = 750;
+const RESOLVED_DEPENDENCIES: unique symbol = Symbol('settings-store-resolved-dependencies');
 
 type AuthStore = ReturnType<typeof useAuthStore>;
 export type { ThemeMode } from './settingsConfig';
 export type SyncStatus = 'idle' | 'loading' | 'saving' | 'synced' | 'failed';
 type SettingsSyncSnapshot = Parameters<SettingsSyncService['save']>[0];
+type ResolvedSettingsStoreDependencies = SettingsStoreDependencies & {
+  readonly [RESOLVED_DEPENDENCIES]: true;
+  readonly localOnly: boolean;
+};
 
 export interface SettingsStoreDependencies {
   storage: LocalStorageAdapter;
@@ -70,6 +75,7 @@ export interface SettingsState {
   autoSaveTimer: number | null;
   autoSaveInFlight: boolean;
   autoSaveQueued: boolean;
+  syncGeneration: number;
 }
 
 const lightTheme = {
@@ -130,6 +136,23 @@ function isStorageAdapter(value: unknown): value is LocalStorageAdapter {
     && typeof (value as LocalStorageAdapter).remove === 'function';
 }
 
+function isResolvedDependencies(value: unknown): value is ResolvedSettingsStoreDependencies {
+  return value != null
+    && typeof value === 'object'
+    && (value as Partial<ResolvedSettingsStoreDependencies>)[RESOLVED_DEPENDENCIES] === true;
+}
+
+function markResolvedDependencies(
+  dependencies: SettingsStoreDependencies,
+  localOnly: boolean,
+): ResolvedSettingsStoreDependencies {
+  return {
+    ...dependencies,
+    [RESOLVED_DEPENDENCIES]: true,
+    localOnly,
+  };
+}
+
 function createDefaultDependencies(): SettingsStoreDependencies {
   const storage = createLocalStorageAdapter();
   const api = new ApiClient({
@@ -150,27 +173,31 @@ function createDefaultDependencies(): SettingsStoreDependencies {
   };
 }
 
-function resolveDependencies(input?: SettingsStoreInput): SettingsStoreDependencies {
+function resolveDependencies(input?: SettingsStoreInput): ResolvedSettingsStoreDependencies {
+  if (isResolvedDependencies(input)) {
+    return input;
+  }
+
   if (input == null) {
-    return createDefaultDependencies();
+    return markResolvedDependencies(createDefaultDependencies(), false);
   }
 
   if (isStorageAdapter(input)) {
-    return {
+    return markResolvedDependencies({
       storage: input,
       now: () => new Date(),
       debounceMs: DEFAULT_DEBOUNCE_MS,
-    };
+    }, true);
   }
 
   const defaults = createDefaultDependencies();
 
-  return {
+  return markResolvedDependencies({
     storage: input.storage ?? defaults.storage,
     sync: input.sync ?? defaults.sync,
     now: input.now ?? defaults.now,
     debounceMs: input.debounceMs ?? defaults.debounceMs,
-  };
+  }, false);
 }
 
 function isoNow(dependencies: SettingsStoreDependencies): string {
@@ -197,6 +224,7 @@ export const useSettingsStore = defineStore('settings', {
     autoSaveTimer: null,
     autoSaveInFlight: false,
     autoSaveQueued: false,
+    syncGeneration: 0,
   }),
   actions: {
     preferencesSnapshot(): SettingsPreferences {
@@ -335,12 +363,21 @@ export const useSettingsStore = defineStore('settings', {
 
       this.syncStatus = 'loading';
       this.syncError = null;
+      const syncGeneration = this.syncGeneration;
 
       try {
         const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
         const result = await dependencies.sync.syncAfterLogin(snapshot);
+        if (syncGeneration !== this.syncGeneration) {
+          return;
+        }
+
         this.applySyncResult(result, dependencies.storage);
       } catch (error) {
+        if (syncGeneration !== this.syncGeneration) {
+          return;
+        }
+
         this.syncStatus = 'failed';
         this.syncError = errorMessage(error);
       }
@@ -358,12 +395,21 @@ export const useSettingsStore = defineStore('settings', {
 
       this.syncStatus = 'saving';
       this.syncError = null;
+      const syncGeneration = this.syncGeneration;
 
       try {
         const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
         const result = await dependencies.sync.save(snapshot);
+        if (syncGeneration !== this.syncGeneration) {
+          return;
+        }
+
         this.applySyncResult(result, dependencies.storage);
       } catch (error) {
+        if (syncGeneration !== this.syncGeneration) {
+          return;
+        }
+
         this.syncStatus = 'failed';
         this.syncError = errorMessage(error);
       }
@@ -424,6 +470,7 @@ export const useSettingsStore = defineStore('settings', {
       this.syncError = null;
       this.lastSyncedAt = null;
       this.autoSaveQueued = false;
+      this.syncGeneration += 1;
       this.lastAction = 'settings.clearLocalDataDone';
     },
 
