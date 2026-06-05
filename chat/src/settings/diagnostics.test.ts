@@ -155,6 +155,17 @@ describe('diagnostics renderer', () => {
     expect(safe).not.toContain('Secret%20Room');
   });
 
+  it('redacts display identifiers case-insensitively from free-form errors', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { username: 'Alice' },
+      rooms: { activeRoomName: 'Secret Room', error: 'failed for alice in secret room' },
+    });
+
+    expect(safe).toContain('roomsError=failed for [redacted] in [redacted]');
+    expect(safe).not.toContain('alice');
+    expect(safe).not.toContain('secret room');
+  });
+
   it('redacts route-only room IDs from raw diagnostics', () => {
     const { safe } = createDiagnosticsOutput({
       route: { name: 'room-detail', path: '/rooms/room-secret' },
@@ -192,6 +203,20 @@ describe('diagnostics renderer', () => {
     expect(safe).not.toContain('mediaUrl=');
   });
 
+  it('redacts file and media marker variants from raw diagnostics', () => {
+    for (const raw of [
+      'failed /drive/files/secret.png',
+      'failed downloadUrl=https://dc.hhhl.cc/files/secret.png',
+      'failed fileUrl=https://dc.hhhl.cc/files/secret.png',
+      'failed mediaUrl=https://dc.hhhl.cc/media/secret.png',
+    ]) {
+      const { safe } = createDiagnosticsOutput({ raw });
+
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('secret.png');
+    }
+  });
+
   it('redacts message ID lists from raw diagnostics', () => {
     const { safe } = createDiagnosticsOutput({
       raw: '{"messageIds":["msg-1","msg-2"]}',
@@ -206,6 +231,20 @@ describe('diagnostics renderer', () => {
 
     expect(safe).toContain('[raw]\n[redacted]');
     expect(safe).not.toContain('msg-1');
+  });
+
+  it('redacts message ID array marker variants from raw diagnostics', () => {
+    for (const raw of [
+      'failed messageIds[]=msg-1&messageIds[]=msg-2',
+      'failed messageIds%5B%5D=msg-1',
+      'failed messageId=msg-1',
+      'failed messageId%5b%5d=msg-1',
+    ]) {
+      const { safe } = createDiagnosticsOutput({ raw });
+
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('msg-1');
+    }
   });
 
   it('infers hasUser from normalized identifiers', () => {

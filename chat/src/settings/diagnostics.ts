@@ -396,10 +396,8 @@ function looksLikeFileUrlOrMessageIdList(value: string): boolean {
     /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(value) ||
     /(?:\/|%2f)media(?:\/|%2f)/i.test(value) ||
     /(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl)=/i.test(value) ||
-    /messageIds=/i.test(value) ||
-    /messageId(?:\[\]|%5b%5d)=/i.test(value) ||
-    /["']messageIds["']/i.test(value) ||
-    /["']messageId["']/i.test(value)
+    /messageIds?(?:\[\]|%5b%5d)?=/i.test(value) ||
+    /["']messageIds?["']/i.test(value)
   );
 }
 
@@ -410,7 +408,7 @@ function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSn
     identifiers.some((identifier) =>
       knownIdentifierRedactionTerms(identifier).some(
         (term) =>
-          identifier.length < MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH &&
+          identifier.value.length < MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH &&
           knownIdentifierTermRegExp(term).test(value),
       ),
     )
@@ -419,7 +417,7 @@ function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSn
   }
 
   return identifiers
-    .filter((identifier) => identifier.length >= MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH)
+    .filter((identifier) => identifier.value.length >= MIN_PARTIAL_IDENTIFIER_REDACTION_LENGTH)
     .reduce((output, identifier) => {
       return knownIdentifierRedactionTerms(identifier).reduce((termOutput, term) => {
         return termOutput.replace(knownIdentifierTermRegExp(term), REDACTED);
@@ -427,24 +425,31 @@ function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSn
     }, value);
 }
 
+interface KnownIdentifier {
+  value: string;
+  caseInsensitive: boolean;
+}
+
 interface KnownIdentifierRedactionTerm {
   value: string;
   caseInsensitive: boolean;
 }
 
-function knownIdentifierRedactionTerms(identifier: string): KnownIdentifierRedactionTerm[] {
-  const terms: KnownIdentifierRedactionTerm[] = [{ value: identifier, caseInsensitive: false }];
+function knownIdentifierRedactionTerms(identifier: KnownIdentifier): KnownIdentifierRedactionTerm[] {
+  const terms: KnownIdentifierRedactionTerm[] = [
+    { value: identifier.value, caseInsensitive: identifier.caseInsensitive },
+  ];
 
   try {
-    const encoded = encodeURIComponent(identifier);
+    const encoded = encodeURIComponent(identifier.value);
     const formEncoded = encoded.replace(/%20/g, '+');
 
-    if (encoded !== identifier) {
-      terms.push({ value: encoded, caseInsensitive: true });
+    if (encoded !== identifier.value) {
+      terms.push({ value: encoded, caseInsensitive: identifier.caseInsensitive });
     }
 
-    if (formEncoded !== encoded && formEncoded !== identifier) {
-      terms.push({ value: formEncoded, caseInsensitive: true });
+    if (formEncoded !== encoded && formEncoded !== identifier.value) {
+      terms.push({ value: formEncoded, caseInsensitive: identifier.caseInsensitive });
     }
   } catch {
     // A malformed surrogate should not prevent plain identifier redaction.
@@ -472,21 +477,48 @@ function knownIdentifierTermRegExp(term: KnownIdentifierRedactionTerm): RegExp {
   return new RegExp(escapeRegExp(term.value), term.caseInsensitive ? 'gi' : 'g');
 }
 
-function knownIdentifiers(snapshot: DiagnosticsSnapshot): string[] {
+function knownIdentifiers(snapshot: DiagnosticsSnapshot): KnownIdentifier[] {
   const identifiers = [
-    snapshot.auth.userId,
-    snapshot.auth.username,
-    roomIdFromRoutePath(snapshot.route.path),
-    snapshot.realtime.roomId,
-    snapshot.rooms.activeRoomId,
-    snapshot.rooms.activeRoomName,
-    snapshot.rooms.pendingStartRoomId,
-    snapshot.chat.roomId,
+    knownIdentifier(snapshot.auth.userId, false),
+    knownIdentifier(snapshot.auth.username, true),
+    knownIdentifier(roomIdFromRoutePath(snapshot.route.path), false),
+    knownIdentifier(snapshot.realtime.roomId, false),
+    knownIdentifier(snapshot.rooms.activeRoomId, false),
+    knownIdentifier(snapshot.rooms.activeRoomName, true),
+    knownIdentifier(snapshot.rooms.pendingStartRoomId, false),
+    knownIdentifier(snapshot.chat.roomId, false),
   ]
-    .map((identifier) => identifier?.trim())
-    .filter((identifier): identifier is string => identifier != null && identifier.length > 0);
+    .filter((identifier): identifier is KnownIdentifier => identifier != null);
 
-  return [...new Set(identifiers)].sort((left, right) => right.length - left.length);
+  return uniqueKnownIdentifiers(identifiers).sort((left, right) => right.value.length - left.value.length);
+}
+
+function knownIdentifier(value: string | null, caseInsensitive: boolean): KnownIdentifier | null {
+  const normalized = value?.trim();
+
+  if (normalized == null || normalized.length === 0) {
+    return null;
+  }
+
+  return { value: normalized, caseInsensitive };
+}
+
+function uniqueKnownIdentifiers(identifiers: KnownIdentifier[]): KnownIdentifier[] {
+  const seen = new Set<string>();
+
+  return identifiers.filter((identifier) => {
+    const normalizedValue = identifier.caseInsensitive
+      ? identifier.value.toLowerCase()
+      : identifier.value;
+    const key = `${identifier.caseInsensitive}:${normalizedValue}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 function roomIdFromRoutePath(path: string): string | null {
