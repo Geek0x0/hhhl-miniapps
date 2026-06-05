@@ -32,6 +32,7 @@ const RECENT_ROOM_KEY = 'hhhl-chat:recent-room';
 type AuthStore = ReturnType<typeof useAuthStore>;
 export type { ThemeMode } from './settingsConfig';
 export type SyncStatus = 'idle' | 'loading' | 'saving' | 'synced' | 'failed';
+type SettingsSyncSnapshot = Parameters<SettingsSyncService['save']>[0];
 
 export interface SettingsStoreDependencies {
   storage: LocalStorageAdapter;
@@ -207,7 +208,7 @@ export const useSettingsStore = defineStore('settings', {
       return {
         preferences: this.preferencesSnapshot(),
         updatedAt: this.localUpdatedAt ?? new Date().toISOString(),
-        baseDocument: this.baseCloudDocument ?? undefined,
+        baseDocument: this.baseCloudDocument,
       };
     },
 
@@ -330,7 +331,8 @@ export const useSettingsStore = defineStore('settings', {
       this.syncError = null;
 
       try {
-        const result = await dependencies.sync.syncAfterLogin(this.localSnapshot());
+        const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
+        const result = await dependencies.sync.syncAfterLogin(snapshot);
         this.applySyncResult(result, dependencies.storage);
       } catch (error) {
         this.syncStatus = 'failed';
@@ -352,7 +354,8 @@ export const useSettingsStore = defineStore('settings', {
       this.syncError = null;
 
       try {
-        const result = await dependencies.sync.save(this.localSnapshot());
+        const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
+        const result = await dependencies.sync.save(snapshot);
         this.applySyncResult(result, dependencies.storage);
       } catch (error) {
         this.syncStatus = 'failed';
@@ -406,6 +409,7 @@ export const useSettingsStore = defineStore('settings', {
       storage.remove(RECENT_ROOM_KEY);
       storage.remove(SETTINGS_FAVORITE_USERS_KEY);
       this.favoriteUserIds = [];
+      this.syncStatus = 'idle';
       this.lastAction = 'settings.clearLocalDataDone';
     },
 

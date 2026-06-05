@@ -204,7 +204,7 @@ describe('settingsStore', () => {
           favoriteUserIds: [],
         },
         updatedAt: '2026-06-05T01:00:00.000Z',
-        baseDocument: undefined,
+        baseDocument: null,
       });
       expect(store.syncStatus).toBe('synced');
       expect(store.lastSyncedAt).toBe('2026-06-05T02:00:00.000Z');
@@ -284,6 +284,7 @@ describe('settingsStore', () => {
     storage.setJson('hhhl-chat:recent-room', 'room-1');
     storage.setJson(SETTINGS_FAVORITE_USERS_KEY, ['user-2']);
     store.favoriteUserIds = ['user-2'];
+    store.syncStatus = 'failed';
     store.clearLocalData(deps);
 
     expect(storage.getJson('hhhl-chat:drafts', null)).toBeNull();
@@ -291,6 +292,7 @@ describe('settingsStore', () => {
     expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, null)).toBeNull();
     expect(store.favoriteUserIds).toEqual([]);
     expect(store.lastAction).toBe('settings.clearLocalDataDone');
+    expect(store.syncStatus).toBe('idle');
     expect(deps.sync.save).not.toHaveBeenCalled();
     expect(deps.sync.syncAfterLogin).not.toHaveBeenCalled();
   });
