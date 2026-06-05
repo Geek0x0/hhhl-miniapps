@@ -384,6 +384,29 @@
   word-break: break-word;
 }
 
+.diagnostics-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.diagnostics-section__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.diagnostics-section__header h3 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.diagnostics-detail-gate {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .settings-field {
   display: grid;
   gap: 8px;
