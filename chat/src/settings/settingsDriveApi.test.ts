@@ -343,6 +343,26 @@ describe('settingsDriveApi', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('rejects non-HTTPS and credentialed file URLs before fetching', async () => {
+    const fetchImpl = vi.fn(async () => Response.json({ ok: true }));
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(api.fetchJsonFile('blob:https://dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
+    await expect(api.fetchJsonFile('https://user:pass@dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('rejects redirected file response URLs outside the Drive origin', async () => {
     const response = Response.json({ ok: true });
     Object.defineProperty(response, 'url', { value: 'https://evil.example/files/settings.json' });
@@ -355,6 +375,22 @@ describe('settingsDriveApi', () => {
       uploadFile: vi.fn() as never,
       tokenProvider: () => 'secret-token',
       fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('rejects blob file response URLs inside the Drive origin', async () => {
+    const response = Response.json({ ok: true });
+    Object.defineProperty(response, 'url', { value: 'blob:https://dc.hhhl.cc/files/settings.json' });
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn(async () => response) as never,
     });
 
     await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({

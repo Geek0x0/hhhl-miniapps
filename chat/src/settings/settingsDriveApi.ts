@@ -283,7 +283,13 @@ function allowedFileUrl(fileUrl: string): string {
     throw new ApiError('DRIVE_FILE_URL_NOT_ALLOWED', 'Drive file URL is not allowed');
   }
 
-  if (url.origin !== DC_HHHL_ORIGIN || hasSensitiveSearchParam(url)) {
+  if (
+    url.protocol !== 'https:'
+    || url.origin !== DC_HHHL_ORIGIN
+    || url.username !== ''
+    || url.password !== ''
+    || hasSensitiveSearchParam(url)
+  ) {
     throw new ApiError('DRIVE_FILE_URL_NOT_ALLOWED', 'Drive file URL is not allowed');
   }
 
