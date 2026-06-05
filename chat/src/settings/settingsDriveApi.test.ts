@@ -252,6 +252,37 @@ describe('settingsDriveApi', () => {
     await expect(api.findFiles('settings.json', 'folder-1')).resolves.toEqual([]);
   });
 
+  it('omits nullable Drive file URL fields instead of rejecting the file response', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async (endpoint: string) => {
+        if (endpoint === 'drive/files/find') {
+          return [{ id: 'file-1', name: 'settings.json', url: null, thumbnailUrl: null }];
+        }
+        if (endpoint === 'drive/files/show') {
+          return { id: 'file-1', name: 'settings.json', url: null, thumbnailUrl: null };
+        }
+        return null;
+      }) as never,
+      uploadFile: vi.fn(async () => ({
+        id: 'file-2',
+        name: 'settings.json',
+        url: null,
+        thumbnailUrl: null,
+      })) as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFiles('settings.json', 'folder-1')).resolves.toEqual([
+      { id: 'file-1', name: 'settings.json' },
+    ]);
+    await expect(api.showFile('file-1')).resolves.toEqual({ id: 'file-1', name: 'settings.json' });
+    await expect(api.createJsonFile('folder-1', 'settings.json', { ok: true })).resolves.toEqual({
+      id: 'file-2',
+      name: 'settings.json',
+    });
+  });
+
   it('creates JSON config files with token, folderId, force flag, and JSON blob', async () => {
     const uploadFile = vi.fn(async (formData: FormData) => {
       expect(formData.get('i')).toBe('secret-token');

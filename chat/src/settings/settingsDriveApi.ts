@@ -174,29 +174,29 @@ function compactDriveFile(file: DriveFile): SettingsDriveFile {
 }
 
 function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null | undefined {
-  let url: string | null = null;
   for (const key of keys) {
     if (!Object.prototype.hasOwnProperty.call(raw, key)) {
       continue;
     }
 
-    url = stringField(raw[key]);
+    const rawValue = raw[key];
+    if (rawValue == null || (typeof rawValue === 'string' && rawValue.trim() === '')) {
+      continue;
+    }
+
+    const url = stringField(rawValue);
     if (url == null) {
       return undefined;
     }
 
-    break;
+    try {
+      return new URL(url, DC_HHHL_ORIGIN).toString();
+    } catch {
+      return undefined;
+    }
   }
 
-  if (url == null) {
-    return null;
-  }
-
-  try {
-    return new URL(url, DC_HHHL_ORIGIN).toString();
-  } catch {
-    return undefined;
-  }
+  return null;
 }
 
 function normalizeFile(value: unknown): SettingsDriveFile | null {

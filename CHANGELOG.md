@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.4.3 - 2026-06-05
+
+### chat
+
+#### Fixed
+
+- Fixed Save to Drive rejecting Drive file responses with nullable URL fields, so JSON settings files without thumbnails or public URLs no longer show `Invalid Drive file response`.
+
 ## 0.4.2 - 2026-06-05
 
 ### chat
