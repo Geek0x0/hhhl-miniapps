@@ -230,6 +230,10 @@ function normalizeFile(value: unknown): SettingsDriveFile | null {
 }
 
 function fileArrayFrom(value: unknown): unknown[] | null {
+  if (value == null) {
+    return [];
+  }
+
   if (Array.isArray(value)) {
     return value;
   }

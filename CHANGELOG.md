@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.4.2 - 2026-06-05
+
+### chat
+
+#### Fixed
+
+- Fixed Save to Drive treating empty Drive file lookup responses as invalid responses, so first-time settings sync can create `settings.json` instead of showing `Invalid Drive file response`.
+- Fixed the settings footer action buttons on narrow mobile screens by laying them out in a stable two-column grid.
+
 ## 0.4.1 - 2026-06-05
 
 ### chat

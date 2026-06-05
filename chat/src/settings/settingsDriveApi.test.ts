@@ -241,6 +241,17 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('treats empty Drive file find responses as no matching files', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async () => null) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFiles('settings.json', 'folder-1')).resolves.toEqual([]);
+  });
+
   it('creates JSON config files with token, folderId, force flag, and JSON blob', async () => {
     const uploadFile = vi.fn(async (formData: FormData) => {
       expect(formData.get('i')).toBe('secret-token');

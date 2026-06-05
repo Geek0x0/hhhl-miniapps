@@ -87,7 +87,7 @@
           {{ i18n.t('settings.syncError', { error: settings.syncError }) }}
         </p>
       </div>
-      <div class="app-actions">
+      <div class="app-actions settings-actions">
         <button
           class="app-button app-button-secondary"
           type="button"

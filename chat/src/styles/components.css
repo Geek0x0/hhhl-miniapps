@@ -65,6 +65,14 @@
   margin-top: 20px;
 }
 
+.settings-actions {
+  align-items: stretch;
+}
+
+.settings-actions .app-button {
+  min-width: 0;
+}
+
 .app-button {
   min-height: 42px;
   padding: 0 16px;
@@ -1217,6 +1225,19 @@
 
   .segmented-control {
     grid-template-columns: 1fr;
+  }
+
+  .settings-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-actions .app-button {
+    width: 100%;
+    padding-inline: 10px;
+    line-height: 1.2;
+    overflow-wrap: break-word;
+    white-space: normal;
   }
 }
 

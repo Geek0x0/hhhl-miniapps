@@ -182,6 +182,18 @@ describe('SettingsView', () => {
     expect(screen.getByRole('button', { name: 'Save to Drive' })).toBeDisabled();
   });
 
+  it('groups footer actions in a settings action layout', () => {
+    render(SettingsView);
+
+    const saveButton = screen.getByRole('button', { name: 'Save to Drive' });
+    const actions = saveButton.closest('.settings-actions');
+
+    expect(actions).not.toBeNull();
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Clear local data' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Diagnostics' }));
+    expect(actions).toContainElement(screen.getByRole('button', { name: 'Log out' }));
+  });
+
   it('collects rich diagnostics context when diagnostics open', async () => {
     mocks.route.name = 'room';
     mocks.route.path = '/rooms/room-route';
