@@ -94,6 +94,20 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('rejects folder responses without real names', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async () => ({ id: 'folder-1' })) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.createFolder('telegram-bot-chat')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FOLDER_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
   it('distinguishes missing folders from malformed folder lookup responses', async () => {
     const api = createSettingsDriveApi({
       callEndpoint: vi.fn(async (_endpoint: string, params?: { name?: string }) => {
@@ -226,6 +240,32 @@ describe('settingsDriveApi', () => {
       fetchImpl: vi.fn() as never,
     });
 
+    await expect(api.createJsonFile('folder-1', 'settings.json', { ok: true })).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('rejects Drive file responses without real names', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async (endpoint: string) => {
+        if (endpoint === 'drive/files/find') return [{ id: 'file-1' }];
+        if (endpoint === 'drive/files/show') return { id: 'file-1' };
+        return null;
+      }) as never,
+      uploadFile: vi.fn(async () => ({ id: 'file-1' })) as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFiles('settings.json', 'folder-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(api.showFile('file-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
     await expect(api.createJsonFile('folder-1', 'settings.json', { ok: true })).rejects.toMatchObject({
       name: 'ApiError',
       code: 'DRIVE_FILE_INVALID',

@@ -46,6 +46,8 @@ const FOLDER_RECORD_KEYS = ['folder', 'driveFolder', 'item', 'data', 'result', '
 const FILE_RECORD_KEYS = ['file', 'driveFile', 'item', 'data', 'result', 'body', 'payload', 'response', 'value'];
 const FILE_URL_KEYS = ['webpublicUrl', 'webUrl', 'url', 'src', 'downloadUrl', 'downloadURL'];
 const FILE_THUMBNAIL_URL_KEYS = ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL'];
+const FILE_ID_KEYS = ['id', 'fileId', 'driveFileId', 'attachmentId'];
+const FILE_NAME_KEYS = ['name', 'fileName', 'filename', 'originalName', 'title'];
 const FOLDER_ID_KEYS = ['id', 'folderId', 'driveFolderId'];
 const FOLDER_NAME_KEYS = ['name', 'folderName'];
 
@@ -131,13 +133,13 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
 
   const id = stringFrom(raw, FOLDER_ID_KEYS);
   const name = stringFrom(raw, FOLDER_NAME_KEYS);
-  if (id == null) {
+  if (id == null || name == null) {
     return null;
   }
 
   return {
     id,
-    name: name ?? id,
+    name,
   };
 }
 
@@ -186,7 +188,9 @@ function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null | undef
 
 function normalizeFile(value: unknown): SettingsDriveFile | null {
   const raw = unwrapSingularRecord(value, FILE_RECORD_KEYS);
-  if (raw == null || stringFrom(raw, ['id', 'fileId', 'driveFileId', 'attachmentId']) == null) {
+  const id = raw == null ? null : stringFrom(raw, FILE_ID_KEYS);
+  const name = raw == null ? null : stringFrom(raw, FILE_NAME_KEYS);
+  if (raw == null || id == null || name == null) {
     return null;
   }
 
@@ -196,6 +200,8 @@ function normalizeFile(value: unknown): SettingsDriveFile | null {
   }
 
   const normalized = compactDriveFile(file);
+  normalized.id = id;
+  normalized.name = name;
   if (raw != null) {
     const url = driveUrlFrom(raw, FILE_URL_KEYS);
     const thumbnailUrl = driveUrlFrom(raw, FILE_THUMBNAIL_URL_KEYS);
