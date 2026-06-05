@@ -29,6 +29,34 @@ describe('redactSensitiveText', () => {
       '{"token":"[redacted]"}',
     ].join(' '));
   });
+
+  it('redacts shared token field variants and bearer tokens', () => {
+    const raw = [
+      'Token=case-token',
+      'access_token=access-token',
+      'refresh_token=refresh-token',
+      'id_token=id-token',
+      'authToken=auth-token',
+      'botToken=bot-token',
+      'botToken: object-token',
+      'token: log-token',
+      'Authorization: Bearer header-token',
+      'Bearer plain-token',
+    ].join(' ');
+
+    expect(redactSensitiveText(raw)).toBe([
+      'Token=[redacted]',
+      'access_token=[redacted]',
+      'refresh_token=[redacted]',
+      'id_token=[redacted]',
+      'authToken=[redacted]',
+      'botToken=[redacted]',
+      'botToken: [redacted]',
+      'token: [redacted]',
+      'Authorization: Bearer [redacted]',
+      'Bearer [redacted]',
+    ].join(' '));
+  });
 });
 
 describe('createLogger', () => {

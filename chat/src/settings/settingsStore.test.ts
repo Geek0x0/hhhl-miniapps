@@ -458,6 +458,29 @@ describe('settingsStore', () => {
     }
   });
 
+  it('redacts bearer secrets from sync save errors', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      const deps = syncDeps(storage, {
+        save: vi.fn(async () => {
+          throw new Error('Authorization: Bearer secret-token');
+        }),
+      });
+      const store = useSettingsStore();
+
+      store.init(deps);
+      store.setThemeMode('dark', deps);
+      await store.saveToCloud(deps);
+
+      expect(store.syncStatus).toBe('failed');
+      expect(store.syncError).toBe('Authorization: Bearer [redacted]');
+      expect(store.syncError).not.toContain('secret-token');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not delete or save cloud config when clearing local data', () => {
     const storage = createLocalStorageAdapter(new MemoryStorage());
     const deps = syncDeps(storage);

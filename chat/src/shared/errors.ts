@@ -39,10 +39,15 @@ export class StorageError extends Error {
   }
 }
 
+const TOKEN_FIELD_PATTERN =
+  /\b((?:access_token|refresh_token|id_token|authToken|botToken|token)\s*[=:]\s*["']?)[^\s&"',;)}\]]+(["']?)/gi;
+const BEARER_TOKEN_PATTERN = /\b(Bearer\s+)[^\s"',;)}\]]{3,}/gi;
+
 export function redactSensitiveText(value: string): string {
   return value
     .replace(/([?&]i=)[^\s&]+/g, '$1[redacted]')
-    .replace(/\b(token=)[^\s&]+/g, '$1[redacted]')
     .replace(/("i"\s*:\s*")[^"]+("?)/g, '$1[redacted]$2')
-    .replace(/("token"\s*:\s*")[^"]+("?)/g, '$1[redacted]$2');
+    .replace(/("token"\s*:\s*")[^"]+("?)/g, '$1[redacted]$2')
+    .replace(TOKEN_FIELD_PATTERN, '$1[redacted]$2')
+    .replace(BEARER_TOKEN_PATTERN, '$1[redacted]');
 }
