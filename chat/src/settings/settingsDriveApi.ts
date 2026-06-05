@@ -171,9 +171,17 @@ function compactDriveFile(file: DriveFile): SettingsDriveFile {
   return normalized;
 }
 
-function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null {
+function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null | undefined {
   const url = stringFrom(raw, keys);
-  return url == null ? null : new URL(url, DC_HHHL_ORIGIN).toString();
+  if (url == null) {
+    return null;
+  }
+
+  try {
+    return new URL(url, DC_HHHL_ORIGIN).toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeFile(value: unknown): SettingsDriveFile | null {
@@ -191,6 +199,9 @@ function normalizeFile(value: unknown): SettingsDriveFile | null {
   if (raw != null) {
     const url = driveUrlFrom(raw, FILE_URL_KEYS);
     const thumbnailUrl = driveUrlFrom(raw, FILE_THUMBNAIL_URL_KEYS);
+    if (url === undefined || thumbnailUrl === undefined) {
+      return null;
+    }
 
     if (url != null) normalized.url = url;
     if (thumbnailUrl != null) normalized.thumbnailUrl = thumbnailUrl;
@@ -333,11 +344,11 @@ export function createSettingsDriveApi(options: SettingsDriveApiOptions): Settin
         throw networkErrorFrom(error);
       }
 
+      validateResponseFileUrl(response);
+
       if (!response.ok) {
         throw new ApiError(`HTTP_${response.status}`, response.statusText, response.status);
       }
-
-      validateResponseFileUrl(response);
 
       try {
         return await response.json() as T;

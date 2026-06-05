@@ -164,6 +164,32 @@ describe('settingsDriveApi', () => {
     });
   });
 
+  it('rejects malformed Drive file URL fields', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async (endpoint: string) => {
+        if (endpoint === 'drive/files/find') {
+          return [{ id: 'file-1', name: 'settings.json', url: 'http://[bad-url' }];
+        }
+        if (endpoint === 'drive/files/show') {
+          return { id: 'file-1', name: 'settings.json', url: 'http://[bad-url' };
+        }
+        return null;
+      }) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFiles('settings.json', 'folder-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(api.showFile('file-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
   it('creates JSON config files with token, folderId, force flag, and JSON blob', async () => {
     const uploadFile = vi.fn(async (formData: FormData) => {
       expect(formData.get('i')).toBe('secret-token');
@@ -289,6 +315,22 @@ describe('settingsDriveApi', () => {
       uploadFile: vi.fn() as never,
       tokenProvider: () => 'secret-token',
       fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_URL_NOT_ALLOWED',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('validates redirected file response URLs before HTTP status errors', async () => {
+    const response = new Response('{}', { status: 404, statusText: 'Not Found' });
+    Object.defineProperty(response, 'url', { value: 'https://evil.example/settings.json' });
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn(async () => response) as never,
     });
 
     await expect(api.fetchJsonFile('https://dc.hhhl.cc/files/settings.json')).rejects.toMatchObject({
