@@ -98,6 +98,12 @@ describe('settingsConfig', () => {
       updatedAt: '2026-06-05T01:02:03.000Z',
       preferences: { language: 'en', themeMode: 'system', favoriteUserIds: 'user-1' },
     }))).toMatchObject({ ok: false, code: 'INVALID_PREFERENCES' });
+    expect(parseCloudSettingsJson(JSON.stringify({
+      schemaVersion: 1,
+      app: 'hhhl-chat',
+      updatedAt: '2026-06-05T01:02:03.000Z',
+      preferences: { language: 'en', themeMode: 'system', favoriteUserIds: ['user-1', 123] },
+    }))).toMatchObject({ ok: false, code: 'INVALID_PREFERENCES' });
   });
 
   it('compares updatedAt values by instant', () => {
@@ -105,6 +111,19 @@ describe('settingsConfig', () => {
     expect(compareUpdatedAt('2026-06-05T01:00:01.000Z', '2026-06-05T01:00:00.000Z')).toBe(1);
     expect(compareUpdatedAt('2026-06-05T00:59:59.000Z', '2026-06-05T01:00:00.000Z')).toBe(-1);
     expect(() => compareUpdatedAt('bad-date', '2026-06-05T01:00:00.000Z')).toThrow('Invalid updatedAt timestamp');
+  });
+
+  it('rejects invalid runtime preferences when creating a cloud settings document', () => {
+    expect(() => createCloudSettingsDocument({
+      language: 'de',
+      themeMode: 'system',
+      favoriteUserIds: [],
+    } as never, '2026-06-05T01:02:03.000Z')).toThrow('Invalid settings preferences');
+    expect(() => createCloudSettingsDocument({
+      language: 'en',
+      themeMode: 'neon',
+      favoriteUserIds: [],
+    } as never, '2026-06-05T01:02:03.000Z')).toThrow('Invalid settings preferences');
   });
 
   it('preserves unknown compatible fields when building from a base document', () => {
@@ -116,6 +135,7 @@ describe('settingsConfig', () => {
         language: 'en' as const,
         themeMode: 'system' as const,
         favoriteUserIds: [],
+        extraPreference: { keep: true },
       },
       extraField: { keep: true },
     };
@@ -123,14 +143,16 @@ describe('settingsConfig', () => {
     const document = createCloudSettingsDocument({
       language: 'zh',
       themeMode: 'dark',
-      favoriteUserIds: ['user-1'],
+      favoriteUserIds: [' user-1 ', 'user-1', ''],
     }, '2026-06-05T02:00:00.000Z', base);
 
     expect(document.extraField).toEqual({ keep: true });
+    expect(document.preferences.extraPreference).toEqual({ keep: true });
     expect(document.preferences).toEqual({
       language: 'zh',
       themeMode: 'dark',
       favoriteUserIds: ['user-1'],
+      extraPreference: { keep: true },
     });
   });
 });

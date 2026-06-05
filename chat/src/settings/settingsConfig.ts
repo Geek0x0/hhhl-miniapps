@@ -10,6 +10,7 @@ export interface SettingsPreferences {
   language: Locale;
   themeMode: ThemeMode;
   favoriteUserIds: string[];
+  [key: string]: unknown;
 }
 
 export interface CloudSettingsDocument {
@@ -24,8 +25,20 @@ export type ParseCloudSettingsResult =
   | { ok: true; document: CloudSettingsDocument }
   | { ok: false; code: 'INVALID_JSON' | 'INVALID_SHAPE' | 'UNSUPPORTED_SCHEMA' | 'INVALID_APP' | 'INVALID_UPDATED_AT' | 'INVALID_PREFERENCES'; message: string };
 
+const DOCUMENT_FIELDS = ['schemaVersion', 'app', 'updatedAt', 'preferences'];
+const PREFERENCE_FIELDS = ['language', 'themeMode', 'favoriteUserIds'];
+
 function recordFrom(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function preserveUnknownFields(value: unknown, knownFields: string[]): Record<string, unknown> {
+  const raw = recordFrom(value);
+  if (raw == null) {
+    return {};
+  }
+
+  return Object.fromEntries(Object.entries(raw).filter(([key]) => !knownFields.includes(key)));
 }
 
 export function isThemeMode(value: unknown): value is ThemeMode {
@@ -37,8 +50,11 @@ export function normalizeFavoriteUserIds(value: unknown): string[] | null {
     return null;
   }
 
+  if (value.some((item) => typeof item !== 'string')) {
+    return null;
+  }
+
   return [...new Set(value
-    .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
     .filter((item) => item !== ''))];
 }
@@ -67,7 +83,7 @@ export function compareUpdatedAt(left: string, right: string): -1 | 0 | 1 {
   return leftTime > rightTime ? 1 : -1;
 }
 
-function parsePreferences(value: unknown): SettingsPreferences | null {
+function normalizePreferences(value: unknown, preserveUnknownFrom: unknown = value): SettingsPreferences | null {
   const raw = recordFrom(value);
   if (raw == null) {
     return null;
@@ -82,6 +98,7 @@ function parsePreferences(value: unknown): SettingsPreferences | null {
   }
 
   return {
+    ...preserveUnknownFields(preserveUnknownFrom, PREFERENCE_FIELDS),
     language,
     themeMode,
     favoriteUserIds,
@@ -113,7 +130,7 @@ export function parseCloudSettingsJson(value: string): ParseCloudSettingsResult 
     return { ok: false, code: 'INVALID_UPDATED_AT', message: 'Invalid settings updatedAt timestamp' };
   }
 
-  const preferences = parsePreferences(raw.preferences);
+  const preferences = normalizePreferences(raw.preferences);
   if (preferences == null) {
     return { ok: false, code: 'INVALID_PREFERENCES', message: 'Invalid settings preferences' };
   }
@@ -139,19 +156,20 @@ export function createCloudSettingsDocument(
     throw new Error('Invalid updatedAt timestamp');
   }
 
+  const normalizedPreferences = normalizePreferences(preferences, base?.preferences ?? null);
+  if (normalizedPreferences == null) {
+    throw new Error('Invalid settings preferences');
+  }
+
   const preserved = base == null
     ? {}
-    : Object.fromEntries(Object.entries(base).filter(([key]) => !['schemaVersion', 'app', 'updatedAt', 'preferences'].includes(key)));
+    : preserveUnknownFields(base, DOCUMENT_FIELDS);
 
   return {
     ...preserved,
     schemaVersion: CLOUD_SETTINGS_SCHEMA_VERSION,
     app: CLOUD_SETTINGS_APP,
     updatedAt,
-    preferences: {
-      language: preferences.language,
-      themeMode: preferences.themeMode,
-      favoriteUserIds: normalizeFavoriteUserIds(preferences.favoriteUserIds) ?? [],
-    },
+    preferences: normalizedPreferences,
   };
 }
