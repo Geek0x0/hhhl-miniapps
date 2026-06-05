@@ -388,17 +388,37 @@ function sanitizeFreeformValue(value: string, snapshot: DiagnosticsSnapshot): st
 }
 
 function looksLikeTelegramInitData(value: string): boolean {
-  return /(?:^|[?&#])(?:query_id|auth_date|hash|signature|user)=/i.test(value);
+  return markerDetectionValues(value).some(
+    (candidate) =>
+      /(?:^|[?&#])(?:query_id|auth_date|hash|signature|user)=/i.test(candidate) ||
+      /(?:^|[?&#\s])initData=/i.test(candidate),
+  );
 }
 
 function looksLikeFileUrlOrMessageIdList(value: string): boolean {
-  return (
-    /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(value) ||
-    /(?:\/|%2f)media(?:\/|%2f)/i.test(value) ||
-    /(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl)=/i.test(value) ||
-    /messageIds?(?:\[\]|%5b%5d)?=/i.test(value) ||
-    /["']messageIds?["']/i.test(value)
+  return markerDetectionValues(value).some(
+    (candidate) =>
+      /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(candidate) ||
+      /(?:\/|%2f)media(?:\/|%2f)/i.test(candidate) ||
+      /(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl)=/i.test(candidate) ||
+      /messageIds?(?:\[\]|%5b%5d)?=/i.test(candidate) ||
+      /\bmessageIds?\s*:/i.test(candidate) ||
+      /["']messageIds?["']/i.test(candidate),
   );
+}
+
+function markerDetectionValues(value: string): string[] {
+  const decoded = decodeMarkerValueOnce(value);
+
+  return decoded === value ? [value] : [value, decoded];
+}
+
+function decodeMarkerValueOnce(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSnapshot): string {

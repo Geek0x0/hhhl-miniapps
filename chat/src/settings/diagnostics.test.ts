@@ -141,6 +141,17 @@ describe('diagnostics renderer', () => {
     expect(detailed).not.toContain('hash=secret');
   });
 
+  it('redacts encoded Telegram initData-like raw diagnostics', () => {
+    const { safe, detailed } = createDiagnosticsOutput({
+      raw: 'initData=query_id%3Dabc%26user%3D%257B%2522id%2522%253A1%257D%26auth_date%3D1%26hash%3Dsecret',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(detailed).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('query_id');
+    expect(detailed).not.toContain('hash%3Dsecret');
+  });
+
   it('redacts URL-encoded identifiers from free-form errors', () => {
     const { safe } = createDiagnosticsOutput({
       auth: { username: 'alice@example' },
@@ -209,6 +220,8 @@ describe('diagnostics renderer', () => {
       'failed downloadUrl=https://dc.hhhl.cc/files/secret.png',
       'failed fileUrl=https://dc.hhhl.cc/files/secret.png',
       'failed mediaUrl=https://dc.hhhl.cc/media/secret.png',
+      'failed previewUrl=https://cdn.example/secret.png',
+      'failed webUrl=https://cdn.example/secret.png',
     ]) {
       const { safe } = createDiagnosticsOutput({ raw });
 
@@ -231,6 +244,14 @@ describe('diagnostics renderer', () => {
 
     expect(safe).toContain('[raw]\n[redacted]');
     expect(safe).not.toContain('msg-1');
+  });
+
+  it('redacts object-log message id fields in raw diagnostics', () => {
+    for (const raw of ['failed messageIds: ["msg-1"]', 'failed messageId: "msg-1"']) {
+      const { safe } = createDiagnosticsOutput({ raw });
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('msg-1');
+    }
   });
 
   it('redacts message ID array marker variants from raw diagnostics', () => {
