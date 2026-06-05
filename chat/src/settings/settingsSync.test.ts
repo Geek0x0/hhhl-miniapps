@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/shared/errors';
+import { ApiError, NetworkError } from '@/shared/errors';
 import { createCloudSettingsDocument, type SettingsPreferences } from './settingsConfig';
 import type { DriveFolderSummary, SettingsDriveApi, SettingsDriveFile } from './settingsDriveApi';
 import {
@@ -196,6 +196,80 @@ describe('settingsSync', () => {
     const service = createService(drive);
 
     await expect(service.syncAfterLogin(snapshot())).rejects.toThrow('No valid cloud settings document found');
+    expect(drive.deleteFile).not.toHaveBeenCalled();
+    expect(drive.createJsonFile).not.toHaveBeenCalled();
+  });
+
+  it('propagates duplicate fetch NetworkError without deleting or creating', async () => {
+    const networkError = new NetworkError('NETWORK_ERROR', 'Network unavailable');
+    const drive = createFakeDrive({
+      findFiles: vi.fn(async () => [file('network-file'), file('valid-file')]),
+      fetchJsonFile: fetchJsonFileMock((url) => {
+        if (url.includes('network-file')) {
+          throw networkError;
+        }
+
+        return document(cloudPreferences, CLOUD_OLDER_UPDATED_AT);
+      }),
+    });
+    const service = createService(drive);
+
+    await expect(service.save(snapshot())).rejects.toBe(networkError);
+    expect(drive.deleteFile).not.toHaveBeenCalled();
+    expect(drive.createJsonFile).not.toHaveBeenCalled();
+  });
+
+  it('propagates duplicate fetch HTTP errors without deleting or creating', async () => {
+    const httpError = new ApiError('HTTP_404', 'Not Found', 404);
+    const drive = createFakeDrive({
+      findFiles: vi.fn(async () => [file('missing-file'), file('valid-file')]),
+      fetchJsonFile: fetchJsonFileMock((url) => {
+        if (url.includes('missing-file')) {
+          throw httpError;
+        }
+
+        return document(cloudPreferences, CLOUD_OLDER_UPDATED_AT);
+      }),
+    });
+    const service = createService(drive);
+
+    await expect(service.save(snapshot())).rejects.toBe(httpError);
+    expect(drive.deleteFile).not.toHaveBeenCalled();
+    expect(drive.createJsonFile).not.toHaveBeenCalled();
+  });
+
+  it('fails on mixed valid and invalid duplicate configs without deleting or creating', async () => {
+    const drive = createFakeDrive({
+      findFiles: vi.fn(async () => [file('invalid-file'), file('valid-file')]),
+      fetchJsonFile: fetchJsonFileMock((url) => (
+        url.includes('invalid-file')
+          ? { bad: true }
+          : document(cloudPreferences, CLOUD_OLDER_UPDATED_AT)
+      )),
+    });
+    const service = createService(drive);
+
+    await expect(service.save(snapshot())).rejects.toThrow('No valid cloud settings document found');
+    expect(drive.deleteFile).not.toHaveBeenCalled();
+    expect(drive.createJsonFile).not.toHaveBeenCalled();
+  });
+
+  it('returns unchanged for one exact file with matching updatedAt', async () => {
+    const cloudDocument = document(cloudPreferences, LOCAL_UPDATED_AT);
+    const drive = createFakeDrive({
+      findFiles: vi.fn(async () => [file('cloud-file')]),
+      fetchJsonFile: fetchJsonFileMock(() => cloudDocument),
+    });
+    const service = createService(drive);
+
+    const result = await service.syncAfterLogin(snapshot());
+
+    expect(result).toEqual({
+      status: 'unchanged',
+      document: cloudDocument,
+      fileId: 'cloud-file',
+      syncedAt: SYNCED_AT,
+    });
     expect(drive.deleteFile).not.toHaveBeenCalled();
     expect(drive.createJsonFile).not.toHaveBeenCalled();
   });

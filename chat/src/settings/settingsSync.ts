@@ -1,4 +1,3 @@
-import { ApiError } from '@/shared/errors';
 import {
   compareUpdatedAt,
   createCloudSettingsDocument,
@@ -46,7 +45,11 @@ interface CloudSettingsRead {
   selected: CloudSettingsCandidate | null;
 }
 
-function parseFetchedDocument(value: unknown): CloudSettingsDocument | null {
+function invalidCloudSettingsError(): Error {
+  return new Error('No valid cloud settings document found');
+}
+
+function parseFetchedDocument(value: unknown): CloudSettingsDocument {
   let json: string | undefined;
 
   if (typeof value === 'string') {
@@ -61,15 +64,15 @@ function parseFetchedDocument(value: unknown): CloudSettingsDocument | null {
   }
 
   if (json == null) {
-    return null;
+    throw invalidCloudSettingsError();
   }
 
   const parsed = parseCloudSettingsJson(json);
-  return parsed.ok ? parsed.document : null;
-}
+  if (!parsed.ok) {
+    throw invalidCloudSettingsError();
+  }
 
-function isFatalCandidateError(error: unknown): boolean {
-  return error instanceof ApiError && error.code === 'DRIVE_FILE_URL_NOT_ALLOWED';
+  return parsed.document;
 }
 
 function newestCandidate(left: CloudSettingsCandidate, right: CloudSettingsCandidate): CloudSettingsCandidate {
@@ -96,28 +99,19 @@ export function createSettingsSyncService(options: SettingsSyncServiceOptions): 
     const validCandidates: CloudSettingsCandidate[] = [];
 
     for (const file of exactFiles) {
-      try {
-        const shownFile = await drive.showFile(file.id);
-        if (shownFile.url == null) {
-          continue;
-        }
-
-        const fetched = await drive.fetchJsonFile<unknown>(shownFile.url);
-        const document = parseFetchedDocument(fetched);
-        if (document == null) {
-          continue;
-        }
-
-        validCandidates.push({ file, document });
-      } catch (error) {
-        if (isFatalCandidateError(error)) {
-          throw error;
-        }
+      const shownFile = await drive.showFile(file.id);
+      if (shownFile.url == null) {
+        throw invalidCloudSettingsError();
       }
+
+      const fetched = await drive.fetchJsonFile<unknown>(shownFile.url);
+      const document = parseFetchedDocument(fetched);
+
+      validCandidates.push({ file, document });
     }
 
     if (validCandidates.length === 0) {
-      throw new Error('No valid cloud settings document found');
+      throw invalidCloudSettingsError();
     }
 
     return {
