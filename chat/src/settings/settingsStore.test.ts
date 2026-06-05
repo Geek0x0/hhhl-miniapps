@@ -173,20 +173,109 @@ describe('settingsStore', () => {
     expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual([]);
   });
 
-  it('redacts token-like strings from diagnostics', () => {
+  it('collects safe and detailed diagnostics while keeping the compatibility diagnostics field safe', () => {
     const store = useSettingsStore();
 
     store.collectDiagnostics({
-      instanceUrl: 'https://dc.hhhl.cc',
-      realtimeStatus: 'degraded',
-      storageStatus: 'available',
-      raw: 'token=secret &i=secret2 {"token":"secret3"}',
+      environment: {
+        appVersion: '0.4.0',
+        mode: 'test',
+        isDev: false,
+        instanceUrl: 'https://dc.hhhl.cc',
+        telegramPresent: true,
+        telegramPlatform: 'ios',
+      },
+      auth: {
+        status: 'authorized',
+        hasUser: true,
+        userId: 'user-secret',
+        username: 'alice',
+      },
+      route: {
+        name: 'room-detail',
+        path: '/rooms/room-secret',
+      },
+      realtime: {
+        status: 'degraded',
+        roomId: 'room-secret',
+      },
+      storage: {
+        status: 'available',
+      },
+      rooms: {
+        loading: false,
+        roomCount: 2,
+        invitationCount: 1,
+        activeRoomId: 'room-secret',
+        activeRoomName: 'Secret Room',
+        pendingStartRoomId: 'room-pending',
+        memberCount: 5,
+        outboxInvitationCount: 3,
+        error: 'room-secret failed &i=secret-room-token',
+      },
+      chat: {
+        loading: false,
+        roomId: 'room-secret',
+        timelineCount: 9,
+        outgoingCount: 2,
+        failedOutgoingCount: 1,
+        searchResultCount: 4,
+        keySearchResultCount: 1,
+        replyTargetPresent: true,
+        quoteTargetPresent: false,
+        error: 'token=secret-chat-token',
+      },
+      raw: 'token=secret &i=secret2 {"token":"secret3"} user-secret alice room-secret Secret Room',
     });
 
-    expect(store.diagnostics).toContain('token=[redacted]');
-    expect(store.diagnostics).toContain('&i=[redacted]');
-    expect(store.diagnostics).toContain('"token":"[redacted]"');
-    expect(store.diagnostics).not.toContain('secret3');
+    expect(store.safeDiagnostics).toContain('appVersion=0.4.0');
+    expect(store.safeDiagnostics).toContain('authStatus=authorized');
+    expect(store.safeDiagnostics).toContain('roomCount=2');
+    expect(store.safeDiagnostics).toContain('timelineCount=9');
+    expect(store.safeDiagnostics).toContain('token=[redacted]');
+    expect(store.safeDiagnostics).toContain('&i=[redacted]');
+    expect(store.safeDiagnostics).toContain('"token":"[redacted]"');
+    expect(store.safeDiagnostics).not.toContain('user-secret');
+    expect(store.safeDiagnostics).not.toContain('alice');
+    expect(store.safeDiagnostics).not.toContain('room-secret');
+    expect(store.safeDiagnostics).not.toContain('Secret Room');
+    expect(store.detailedDiagnostics).toContain('userId=user-secret');
+    expect(store.detailedDiagnostics).toContain('username=alice');
+    expect(store.detailedDiagnostics).toContain('activeRoomId=room-secret');
+    expect(store.detailedDiagnostics).toContain('activeRoomName=Secret Room');
+    expect(store.detailedDiagnostics).not.toContain('secret3');
+    expect(store.diagnostics).toBe(store.safeDiagnostics);
+    expect(store.diagnosticsDetailConfirmed).toBe(false);
+  });
+
+  it('resets diagnostics detail confirmation when diagnostics refresh or the panel closes', () => {
+    const store = useSettingsStore();
+
+    store.collectDiagnostics({ storage: { status: 'available' } });
+    store.confirmDiagnosticsDetail();
+    expect(store.diagnosticsDetailConfirmed).toBe(true);
+
+    store.collectDiagnostics({ storage: { status: 'available' } });
+    expect(store.diagnosticsDetailConfirmed).toBe(false);
+
+    store.confirmDiagnosticsDetail();
+    store.debugOpen = true;
+    store.toggleDebug();
+    expect(store.debugOpen).toBe(false);
+    expect(store.diagnosticsDetailConfirmed).toBe(false);
+  });
+
+  it('does not save settings sync state from diagnostics actions', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const deps = syncDeps(storage);
+    const store = useSettingsStore();
+
+    store.collectDiagnostics({ storage: { status: 'available' } });
+    store.confirmDiagnosticsDetail();
+    store.resetDiagnosticsDetail();
+
+    expect(deps.sync.save).not.toHaveBeenCalled();
+    expect(deps.sync.syncAfterLogin).not.toHaveBeenCalled();
   });
 
   it('clears local app data without leaving drafts or recent rooms', () => {

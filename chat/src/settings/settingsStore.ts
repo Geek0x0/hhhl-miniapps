@@ -22,6 +22,7 @@ import {
   type SettingsSyncResult,
   type SettingsSyncService,
 } from './settingsSync';
+import { createDiagnosticsOutput, type DiagnosticsInput } from './diagnostics';
 
 export const SETTINGS_LANGUAGE_KEY = 'hhhl-chat:locale';
 export const SETTINGS_THEME_MODE_KEY = 'hhhl-chat:theme-mode';
@@ -49,13 +50,6 @@ export interface SettingsStoreDependencies {
 
 type SettingsStoreInput = LocalStorageAdapter | Partial<SettingsStoreDependencies>;
 
-export interface DiagnosticsInput {
-  instanceUrl?: string;
-  realtimeStatus?: string;
-  storageStatus?: string;
-  raw?: string;
-}
-
 export interface RouterLike {
   replace: (path: string) => unknown;
 }
@@ -66,6 +60,9 @@ export interface SettingsState {
   favoriteUserIds: string[];
   debugOpen: boolean;
   diagnostics: string;
+  safeDiagnostics: string;
+  detailedDiagnostics: string;
+  diagnosticsDetailConfirmed: boolean;
   lastAction: 'settings.clearLocalDataDone' | null;
   syncStatus: SyncStatus;
   syncError: string | null;
@@ -244,6 +241,9 @@ export const useSettingsStore = defineStore('settings', {
     favoriteUserIds: [],
     debugOpen: false,
     diagnostics: '',
+    safeDiagnostics: '',
+    detailedDiagnostics: '',
+    diagnosticsDetailConfirmed: false,
     lastAction: null,
     syncStatus: 'idle',
     syncError: null,
@@ -343,15 +343,40 @@ export const useSettingsStore = defineStore('settings', {
 
     toggleDebug() {
       this.debugOpen = !this.debugOpen;
+      if (!this.debugOpen) {
+        this.resetDiagnosticsDetail();
+      }
+    },
+
+    confirmDiagnosticsDetail() {
+      this.diagnosticsDetailConfirmed = true;
+    },
+
+    resetDiagnosticsDetail() {
+      this.diagnosticsDetailConfirmed = false;
     },
 
     collectDiagnostics(input: DiagnosticsInput = {}) {
-      this.diagnostics = redactSensitiveText([
-        `instance=${input.instanceUrl ?? DC_HHHL_ORIGIN}`,
-        `realtime=${input.realtimeStatus ?? 'unknown'}`,
-        `storage=${input.storageStatus ?? storageStatus(createLocalStorageAdapter())}`,
-        input.raw ?? '',
-      ].join('\n'));
+      const output = createDiagnosticsOutput({
+        ...input,
+        environment: {
+          ...input.environment,
+          instanceUrl: input.environment?.instanceUrl ?? input.instanceUrl ?? DC_HHHL_ORIGIN,
+        },
+        realtime: {
+          ...input.realtime,
+          status: input.realtime?.status ?? input.realtimeStatus,
+        },
+        storage: {
+          ...input.storage,
+          status: input.storage?.status ?? input.storageStatus ?? storageStatus(createLocalStorageAdapter()),
+        },
+      });
+
+      this.safeDiagnostics = output.safe;
+      this.detailedDiagnostics = output.detailed;
+      this.diagnostics = output.safe;
+      this.resetDiagnosticsDetail();
     },
 
     applyCloudDocument(document: CloudSettingsDocument, storage: LocalStorageAdapter) {
