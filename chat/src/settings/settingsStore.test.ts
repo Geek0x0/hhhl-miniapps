@@ -497,6 +497,124 @@ describe('settingsStore', () => {
     expect(store.themeMode).toBe('system');
   });
 
+  it('ignores stale syncAfterLogin results after local preference changes', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      let resolveSync: (result: SettingsSyncResult) => void = () => {};
+      const syncPromise = new Promise<SettingsSyncResult>((resolve) => {
+        resolveSync = resolve;
+      });
+      const cloudDocument = createCloudSettingsDocument(
+        {
+          language: 'en',
+          themeMode: 'dark',
+          favoriteUserIds: ['cloud-user'],
+        },
+        '2026-06-05T03:00:00.000Z',
+      );
+      const deps = syncDeps(storage, {
+        syncAfterLogin: vi.fn(() => syncPromise),
+      });
+      const store = useSettingsStore();
+
+      store.init(deps);
+      const pendingSync = store.syncAfterLogin(deps);
+      store.setLanguage('zh', deps);
+      resolveSync({
+        status: 'loaded-cloud',
+        document: cloudDocument,
+        syncedAt: '2026-06-05T04:00:00.000Z',
+      });
+      await pendingSync;
+
+      expect(store.language).toBe('zh');
+      expect(store.themeMode).toBe('system');
+      expect(store.favoriteUserIds).toEqual([]);
+      expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
+      expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(deps.sync.save).toHaveBeenCalledTimes(1);
+      expect(deps.sync.save).toHaveBeenCalledWith({
+        preferences: {
+          language: 'zh',
+          themeMode: 'system',
+          favoriteUserIds: [],
+        },
+        updatedAt: '2026-06-05T01:00:00.000Z',
+        baseDocument: null,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('serializes manual saves behind an in-flight auto-save', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      let resolveFirstSave: (result: SettingsSyncResult) => void = () => {};
+      const firstSavePromise = new Promise<SettingsSyncResult>((resolve) => {
+        resolveFirstSave = resolve;
+      });
+      const save = vi.fn((snapshot): Promise<SettingsSyncResult> => {
+        const result = {
+          status: 'saved-local',
+          document: createCloudSettingsDocument(snapshot.preferences, snapshot.updatedAt, snapshot.baseDocument ?? null),
+          syncedAt: '2026-06-05T02:00:00.000Z',
+        } satisfies SettingsSyncResult;
+
+        return save.mock.calls.length === 1 ? firstSavePromise : Promise.resolve(result);
+      });
+      const deps = syncDeps(storage, { save });
+      const store = useSettingsStore();
+
+      store.init(deps);
+      store.setLanguage('zh', deps);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(save).toHaveBeenCalledTimes(1);
+      const manualSave = store.saveToCloud(deps);
+
+      expect(save).toHaveBeenCalledTimes(1);
+      resolveFirstSave({
+        status: 'saved-local',
+        document: createCloudSettingsDocument(
+          {
+            language: 'zh',
+            themeMode: 'system',
+            favoriteUserIds: [],
+          },
+          '2026-06-05T01:00:00.000Z',
+        ),
+        syncedAt: '2026-06-05T02:00:00.000Z',
+      });
+      await manualSave;
+
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(save).toHaveBeenLastCalledWith({
+        preferences: {
+          language: 'zh',
+          themeMode: 'system',
+          favoriteUserIds: [],
+        },
+        updatedAt: '2026-06-05T01:00:00.000Z',
+        baseDocument: expect.objectContaining({
+          preferences: {
+            language: 'zh',
+            themeMode: 'system',
+            favoriteUserIds: [],
+          },
+          updatedAt: '2026-06-05T01:00:00.000Z',
+        }),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('logs out through auth store and redirects to login route', async () => {
     const storage = createLocalStorageAdapter(new MemoryStorage());
     const deps = authDeps(storage);

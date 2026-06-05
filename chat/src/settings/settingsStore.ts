@@ -208,6 +208,35 @@ function errorMessage(error: unknown): string {
   return redactSensitiveText(error instanceof Error ? error.message : String(error));
 }
 
+const syncOperationQueues = new WeakMap<object, Promise<void>>();
+
+function enqueueSyncOperation<T>(store: object, operation: () => Promise<T>): Promise<T> {
+  const previous = syncOperationQueues.get(store);
+  const run = previous == null
+    ? runSyncOperation(operation)
+    : previous.then(() => runSyncOperation(operation));
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  syncOperationQueues.set(store, tail);
+
+  return run.finally(() => {
+    if (syncOperationQueues.get(store) === tail) {
+      syncOperationQueues.delete(store);
+    }
+  });
+}
+
+function runSyncOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return operation();
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
 export const useSettingsStore = defineStore('settings', {
   state: (): SettingsState => ({
     language: 'en',
@@ -253,6 +282,7 @@ export const useSettingsStore = defineStore('settings', {
     },
 
     touchLocal(dependencies: SettingsStoreDependencies) {
+      this.syncGeneration += 1;
       this.localUpdatedAt = isoNow(dependencies);
       dependencies.storage.setJson(SETTINGS_UPDATED_AT_KEY, this.localUpdatedAt);
     },
@@ -364,23 +394,28 @@ export const useSettingsStore = defineStore('settings', {
       this.syncStatus = 'loading';
       this.syncError = null;
       const syncGeneration = this.syncGeneration;
+      const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
 
-      try {
-        const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
-        const result = await dependencies.sync.syncAfterLogin(snapshot);
-        if (syncGeneration !== this.syncGeneration) {
-          return;
+      await enqueueSyncOperation(this, async () => {
+        this.syncStatus = 'loading';
+        this.syncError = null;
+
+        try {
+          const result = await dependencies.sync!.syncAfterLogin(snapshot);
+          if (syncGeneration !== this.syncGeneration) {
+            return;
+          }
+
+          this.applySyncResult(result, dependencies.storage);
+        } catch (error) {
+          if (syncGeneration !== this.syncGeneration) {
+            return;
+          }
+
+          this.syncStatus = 'failed';
+          this.syncError = errorMessage(error);
         }
-
-        this.applySyncResult(result, dependencies.storage);
-      } catch (error) {
-        if (syncGeneration !== this.syncGeneration) {
-          return;
-        }
-
-        this.syncStatus = 'failed';
-        this.syncError = errorMessage(error);
-      }
+      });
     },
 
     async saveToCloud(input?: SettingsStoreInput) {
@@ -395,24 +430,29 @@ export const useSettingsStore = defineStore('settings', {
 
       this.syncStatus = 'saving';
       this.syncError = null;
-      const syncGeneration = this.syncGeneration;
 
-      try {
+      await enqueueSyncOperation(this, async () => {
+        this.syncStatus = 'saving';
+        this.syncError = null;
+        const syncGeneration = this.syncGeneration;
         const snapshot = this.localSnapshot() as unknown as SettingsSyncSnapshot;
-        const result = await dependencies.sync.save(snapshot);
-        if (syncGeneration !== this.syncGeneration) {
-          return;
-        }
 
-        this.applySyncResult(result, dependencies.storage);
-      } catch (error) {
-        if (syncGeneration !== this.syncGeneration) {
-          return;
-        }
+        try {
+          const result = await dependencies.sync!.save(snapshot);
+          if (syncGeneration !== this.syncGeneration) {
+            return;
+          }
 
-        this.syncStatus = 'failed';
-        this.syncError = errorMessage(error);
-      }
+          this.applySyncResult(result, dependencies.storage);
+        } catch (error) {
+          if (syncGeneration !== this.syncGeneration) {
+            return;
+          }
+
+          this.syncStatus = 'failed';
+          this.syncError = errorMessage(error);
+        }
+      });
     },
 
     queueAutoSave(input?: SettingsStoreInput) {
