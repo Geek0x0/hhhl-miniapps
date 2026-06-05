@@ -194,6 +194,10 @@ function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null {
 
 function normalizeFile(value: unknown): SettingsDriveFile | null {
   const raw = unwrapSingularRecord(value, FILE_RECORD_KEYS);
+  if (raw == null || stringFrom(raw, ['id', 'fileId', 'driveFileId', 'attachmentId']) == null) {
+    return null;
+  }
+
   const file = normalizeDriveFile(raw);
   if (file == null) {
     return null;

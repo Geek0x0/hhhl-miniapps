@@ -134,6 +134,20 @@ describe('settingsDriveApi', () => {
     });
   });
 
+  it('rejects invalid JSON config upload responses', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn(async () => ({ name: 'settings.json' })) as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.createJsonFile('folder-1', 'settings.json', { ok: true })).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
   it('fetches JSON only from allowed dc.hhhl.cc file URLs without appending a token', async () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       expect(String(input)).toBe('https://dc.hhhl.cc/files/settings.json?download=1');
