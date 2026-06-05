@@ -331,15 +331,15 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
 export function renderDetailedDiagnostics(snapshot: DiagnosticsSnapshot): string {
   const details = redactSensitiveText([
     '[details]',
-    `userId=${diagnosticValue(snapshot.auth.userId)}`,
-    `username=${diagnosticValue(snapshot.auth.username)}`,
-    `realtimeRoomId=${diagnosticValue(snapshot.realtime.roomId)}`,
-    `activeRoomId=${diagnosticValue(snapshot.rooms.activeRoomId)}`,
-    `activeRoomName=${diagnosticValue(snapshot.rooms.activeRoomName)}`,
-    `pendingStartRoomId=${diagnosticValue(snapshot.rooms.pendingStartRoomId)}`,
-    `chatRoomId=${diagnosticValue(snapshot.chat.roomId)}`,
-    `memberCount=${diagnosticValue(snapshot.rooms.memberCount)}`,
-    `outboxInvitationCount=${diagnosticValue(snapshot.rooms.outboxInvitationCount)}`,
+    `userId=${detailDiagnosticValue(snapshot.auth.userId)}`,
+    `username=${detailDiagnosticValue(snapshot.auth.username)}`,
+    `realtimeRoomId=${detailDiagnosticValue(snapshot.realtime.roomId)}`,
+    `activeRoomId=${detailDiagnosticValue(snapshot.rooms.activeRoomId)}`,
+    `activeRoomName=${detailDiagnosticValue(snapshot.rooms.activeRoomName)}`,
+    `pendingStartRoomId=${detailDiagnosticValue(snapshot.rooms.pendingStartRoomId)}`,
+    `chatRoomId=${detailDiagnosticValue(snapshot.chat.roomId)}`,
+    `memberCount=${detailDiagnosticValue(snapshot.rooms.memberCount)}`,
+    `outboxInvitationCount=${detailDiagnosticValue(snapshot.rooms.outboxInvitationCount)}`,
     `replyTargetPresent=${snapshot.chat.replyTargetPresent}`,
     `quoteTargetPresent=${snapshot.chat.quoteTargetPresent}`,
     `failedOutgoingCount=${snapshot.chat.failedOutgoingCount}`,
@@ -371,6 +371,20 @@ function diagnosticValue(value: string | number | null): string {
   return value == null ? NONE : String(value);
 }
 
+function detailDiagnosticValue(value: string | number | null): string {
+  const rendered = diagnosticValue(value);
+
+  if (rendered === NONE) {
+    return rendered;
+  }
+
+  if (containsForbiddenDiagnosticMarker(rendered)) {
+    return REDACTED;
+  }
+
+  return redactSensitiveText(rendered);
+}
+
 function freeFormDiagnosticValue(value: string | null, snapshot: DiagnosticsSnapshot): string {
   if (value == null) {
     return NONE;
@@ -382,19 +396,25 @@ function freeFormDiagnosticValue(value: string | null, snapshot: DiagnosticsSnap
 function sanitizeFreeformValue(value: string, snapshot: DiagnosticsSnapshot): string {
   const tokenRedacted = redactSensitiveText(value);
 
-  if (looksLikeTelegramInitData(tokenRedacted)) {
+  if (containsForbiddenDiagnosticMarker(tokenRedacted)) {
     return REDACTED;
   }
 
-  if (looksLikeTokenLikeFreeform(tokenRedacted)) {
+  const identifierRedacted = redactKnownIdentifiersInFreeform(tokenRedacted, snapshot);
+
+  if (decodedPercentValueContainsKnownIdentifier(identifierRedacted, snapshot)) {
     return REDACTED;
   }
 
-  if (looksLikeFileUrlOrMessageIdList(tokenRedacted)) {
-    return REDACTED;
-  }
+  return identifierRedacted;
+}
 
-  return redactKnownIdentifiersInFreeform(tokenRedacted, snapshot);
+function containsForbiddenDiagnosticMarker(value: string): boolean {
+  return (
+    looksLikeTelegramInitData(value) ||
+    looksLikeTokenLikeFreeform(value) ||
+    looksLikeFileUrlOrMessageIdList(value)
+  );
 }
 
 function looksLikeTelegramInitData(value: string): boolean {
@@ -426,17 +446,15 @@ function looksLikeFileUrlOrMessageIdList(value: string): boolean {
 }
 
 function markerDetectionValues(value: string): string[] {
-  const decoded = decodeMarkerValueOnce(value);
+  const decoded = decodeValidPercentEscapes(value);
 
   return decoded === value ? [value] : [value, decoded];
 }
 
-function decodeMarkerValueOnce(value: string): string {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
+function decodeValidPercentEscapes(value: string): string {
+  return value.replace(/%([0-9A-Fa-f]{2})/g, (_, hex: string) =>
+    String.fromCharCode(Number.parseInt(hex, 16)),
+  );
 }
 
 function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSnapshot): string {
@@ -461,6 +479,21 @@ function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSn
         return termOutput.replace(knownIdentifierTermRegExp(term), REDACTED);
       }, output);
     }, value);
+}
+
+function decodedPercentValueContainsKnownIdentifier(value: string, snapshot: DiagnosticsSnapshot): boolean {
+  const decoded = decodeValidPercentEscapes(value);
+
+  if (decoded === value) {
+    return false;
+  }
+
+  return knownIdentifiers(snapshot).some((identifier) =>
+    knownIdentifierTermRegExp({
+      value: identifier.value,
+      caseInsensitive: identifier.caseInsensitive,
+    }).test(decoded),
+  );
 }
 
 interface KnownIdentifier {

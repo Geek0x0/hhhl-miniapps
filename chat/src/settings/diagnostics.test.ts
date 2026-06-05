@@ -130,6 +130,27 @@ describe('diagnostics renderer', () => {
     expect(detailed).not.toContain('json-token');
   });
 
+  it('redacts forbidden patterns embedded in detailed identifier fields', () => {
+    const { detailed } = createDiagnosticsOutput({
+      rooms: {
+        activeRoomId: 'room-secret',
+        activeRoomName: 'thumbnailUrl=https://cdn.example/private.png',
+        pendingStartRoomId: 'Authorization: Bearer secret-token',
+      },
+      chat: {
+        roomId: 'messageIds: ["msg-1"]',
+      },
+    });
+
+    expect(detailed).toContain('activeRoomId=room-secret');
+    expect(detailed).toContain('activeRoomName=[redacted]');
+    expect(detailed).toContain('pendingStartRoomId=[redacted]');
+    expect(detailed).toContain('chatRoomId=[redacted]');
+    expect(detailed).not.toContain('private.png');
+    expect(detailed).not.toContain('secret-token');
+    expect(detailed).not.toContain('msg-1');
+  });
+
   it('redacts raw Telegram initData-like values', () => {
     const { safe, detailed } = createDiagnosticsOutput({
       raw: 'query_id=abc&user=%7B%22id%22%3A1%7D&auth_date=1&hash=secret&signature=sig',
@@ -164,6 +185,17 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('roomsError=failed for [redacted] in [redacted]');
     expect(safe).not.toContain('alice%40example');
     expect(safe).not.toContain('Secret%20Room');
+  });
+
+  it('redacts over-encoded known identifiers in free-form diagnostics', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { username: 'alice' },
+      rooms: { activeRoomId: 'room-secret', error: 'failed al%69ce room%2Dsecret' },
+    });
+
+    expect(safe).toContain('roomsError=[redacted]');
+    expect(safe).not.toContain('al%69ce');
+    expect(safe).not.toContain('room%2Dsecret');
   });
 
   it('redacts lowercase percent-encoded known identifiers in free-form diagnostics', () => {
@@ -285,6 +317,12 @@ describe('diagnostics renderer', () => {
       expect(safe).toContain('[raw]\n[redacted]');
       expect(safe).not.toContain('secret-token');
     }
+  });
+
+  it('redacts encoded token markers even after malformed percent text', () => {
+    const { safe } = createDiagnosticsOutput({ raw: 'bad% token%3Dsecret-token' });
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('secret-token');
   });
 
   it('redacts message ID lists from raw diagnostics', () => {
