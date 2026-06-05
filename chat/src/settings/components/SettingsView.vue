@@ -128,26 +128,36 @@
 
     <DiagnosticsPanel
       v-if="settings.debugOpen"
-      :diagnostics="settings.diagnostics"
+      :safe-diagnostics="settings.safeDiagnostics"
+      :detailed-diagnostics="settings.detailedDiagnostics"
+      :detail-confirmed="settings.diagnosticsDetailConfirmed"
+      @confirm-detail="settings.confirmDiagnosticsDetail"
     />
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, Monitor, Moon, Sun } from '@lucide/vue';
 import { createAuthDependencies, useAuthStore } from '@/auth/authStore';
+import { useChatStore } from '@/chat/chatStore';
 import { i18n, type MessageKey } from '@/i18n';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
+import { useRoomStore } from '@/rooms/roomStore';
+import { getTelegramLaunchContext, isTelegramEnvironment } from '@/telegram/telegram';
 import { useSettingsStore, type ThemeMode } from '../settingsStore';
 import DiagnosticsPanel from './DiagnosticsPanel.vue';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 const settings = useSettingsStore();
 const realtimeStore = useRealtimeStore();
+const roomStore = useRoomStore();
+const chatStore = useChatStore();
+const telegramLaunchContext = getTelegramLaunchContext();
 const appVersion = __APP_VERSION__;
 const themeOptions: Array<{ value: ThemeMode; label: MessageKey; icon: typeof Monitor }> = [
   { value: 'system', label: 'settings.themeSystem', icon: Monitor },
@@ -174,9 +184,95 @@ const syncBusy = computed(() => settings.syncStatus === 'loading' || settings.sy
 
 onMounted(() => settings.init());
 
+function routeName(): string | null {
+  if (typeof route.name === 'string') {
+    return route.name;
+  }
+  return route.name == null ? null : String(route.name);
+}
+
+function currentRoomId(): string | null {
+  return roomStore.activeRoomId ?? chatStore.roomId ?? realtimeStore.roomId ?? null;
+}
+
+function currentRoomName(): string | null {
+  const roomId = currentRoomId();
+  if (roomId == null) {
+    return null;
+  }
+  return roomStore.rooms.find((entry) => entry.room.id === roomId)?.room.name ?? roomStore.deepLinkedRoom?.name ?? null;
+}
+
+function currentMemberCount(): number {
+  const roomId = currentRoomId();
+  if (roomId == null) {
+    return 0;
+  }
+  return roomStore.membersByRoomId[roomId]?.length ?? 0;
+}
+
+function failedOutgoingCount(): number {
+  return chatStore.outgoing.filter((item) => item.status === 'failed').length;
+}
+
+function collectSettingsDiagnostics(): void {
+  settings.collectDiagnostics({
+    environment: {
+      appVersion,
+      mode: import.meta.env.MODE,
+      isDev: import.meta.env.DEV,
+      instanceUrl: DC_HHHL_ORIGIN,
+      telegramPresent: isTelegramEnvironment(),
+      telegramPlatform: telegramLaunchContext.platform,
+    },
+    auth: {
+      status: auth.status,
+      hasUser: auth.user != null,
+      userId: auth.user?.id ?? null,
+      username: auth.user?.username ?? auth.user?.name ?? null,
+      error: auth.error,
+    },
+    route: {
+      name: routeName(),
+      path: route.path,
+    },
+    realtime: {
+      status: realtimeStore.status,
+      roomId: realtimeStore.roomId,
+    },
+    rooms: {
+      loading: roomStore.loading,
+      roomCount: roomStore.rooms.length,
+      invitationCount: roomStore.invitations.length,
+      activeRoomId: currentRoomId(),
+      activeRoomName: currentRoomName(),
+      pendingStartRoomId: roomStore.pendingStartRoomId,
+      memberCount: currentMemberCount(),
+      outboxInvitationCount: roomStore.outboxInvitations.length,
+      error: roomStore.error,
+    },
+    chat: {
+      loading: chatStore.loading,
+      roomId: chatStore.roomId,
+      timelineCount: chatStore.timeline.length,
+      outgoingCount: chatStore.outgoing.length,
+      failedOutgoingCount: failedOutgoingCount(),
+      searchResultCount: chatStore.searchResults.length,
+      keySearchResultCount: chatStore.keySearchResults.length,
+      replyTargetPresent: chatStore.replyTarget != null,
+      quoteTargetPresent: chatStore.quoteTarget != null,
+      error: chatStore.error,
+      searchError: chatStore.searchError,
+      keySearchError: chatStore.keySearchError,
+    },
+  });
+}
+
 function toggleDiagnostics(): void {
   settings.toggleDebug();
-  settings.collectDiagnostics({ instanceUrl: DC_HHHL_ORIGIN, realtimeStatus: realtimeStore.status });
+  if (settings.debugOpen) {
+    collectSettingsDiagnostics();
+  }
 }
 
 async function saveToDrive(): Promise<void> {
