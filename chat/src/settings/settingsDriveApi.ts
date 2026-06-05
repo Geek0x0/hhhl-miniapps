@@ -174,7 +174,20 @@ function compactDriveFile(file: DriveFile): SettingsDriveFile {
 }
 
 function driveUrlFrom(raw: UnknownRecord, keys: string[]): string | null | undefined {
-  const url = stringFrom(raw, keys);
+  let url: string | null = null;
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) {
+      continue;
+    }
+
+    url = stringField(raw[key]);
+    if (url == null) {
+      return undefined;
+    }
+
+    break;
+  }
+
   if (url == null) {
     return null;
   }
@@ -351,7 +364,7 @@ export function createSettingsDriveApi(options: SettingsDriveApiOptions): Settin
       const url = allowedFileUrl(fileUrl);
       let response: Response;
       try {
-        response = await fetchImpl(url, { redirect: 'error' });
+        response = await fetchImpl(url, { redirect: 'error', credentials: 'omit' });
       } catch (error) {
         throw networkErrorFrom(error);
       }

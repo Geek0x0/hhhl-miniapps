@@ -204,6 +204,32 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('rejects non-string Drive file URL fields', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async (endpoint: string) => {
+        if (endpoint === 'drive/files/find') {
+          return [{ id: 'file-1', name: 'settings.json', url: 123 }];
+        }
+        if (endpoint === 'drive/files/show') {
+          return { id: 'file-1', name: 'settings.json', thumbnailUrl: 123 };
+        }
+        return null;
+      }) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFiles('settings.json', 'folder-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(api.showFile('file-1')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FILE_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
   it('creates JSON config files with token, folderId, force flag, and JSON blob', async () => {
     const uploadFile = vi.fn(async (formData: FormData) => {
       expect(formData.get('i')).toBe('secret-token');
@@ -306,21 +332,23 @@ describe('settingsDriveApi', () => {
   });
 
   it('fetches JSON only from allowed dc.hhhl.cc file URLs without appending a token', async () => {
+    const tokenProvider = vi.fn(() => 'secret-token');
     const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       expect(String(input)).toBe('https://dc.hhhl.cc/files/settings.json?download=1');
       expect(String(input)).not.toContain('secret-token');
-      expect(init).toMatchObject({ redirect: 'error' });
+      expect(init).toMatchObject({ redirect: 'error', credentials: 'omit' });
       return Response.json({ ok: true });
     });
     const api = createSettingsDriveApi({
       callEndpoint: vi.fn() as never,
       uploadFile: vi.fn() as never,
-      tokenProvider: () => 'secret-token',
+      tokenProvider,
       fetchImpl: fetchImpl as typeof fetch,
     });
 
     await expect(api.fetchJsonFile('/files/settings.json?download=1')).resolves.toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(tokenProvider).not.toHaveBeenCalled();
   });
 
   it('rejects token-bearing file URLs before fetching', async () => {
