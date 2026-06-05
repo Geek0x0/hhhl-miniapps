@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import type { LocalStorageAdapter } from '@/shared/storage';
@@ -89,6 +89,11 @@ describe('settingsStore', () => {
     document.documentElement.removeAttribute('style');
   });
 
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
   it('stores language preference and keeps debug panel closed by default', () => {
     const storage = createLocalStorageAdapter(new MemoryStorage());
     const store = useSettingsStore();
@@ -101,6 +106,19 @@ describe('settingsStore', () => {
     expect(store.language).toBe('zh');
     expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
     expect(i18n.locale.value).toBe('zh');
+  });
+
+  it('preserves unrelated stored settings when setting language before init', () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const store = useSettingsStore();
+
+    storage.setJson(SETTINGS_THEME_MODE_KEY, 'dark');
+    storage.setJson(SETTINGS_FAVORITE_USERS_KEY, ['user-2']);
+    store.setLanguage('zh', storage);
+
+    expect(storage.getJson(SETTINGS_LANGUAGE_KEY, null)).toBe('zh');
+    expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBe('dark');
+    expect(storage.getJson(SETTINGS_FAVORITE_USERS_KEY, [])).toEqual(['user-2']);
   });
 
   it('uses current i18n locale when no stored language preference exists', () => {
@@ -309,24 +327,29 @@ describe('settingsStore', () => {
   });
 
   it('keeps local UI state when sync save fails and redacts token secrets', async () => {
-    const storage = createLocalStorageAdapter(new MemoryStorage());
-    const deps = syncDeps(storage, {
-      save: vi.fn(async () => {
-        throw new Error('request failed token=secret-token');
-      }),
-    });
-    const store = useSettingsStore();
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      const deps = syncDeps(storage, {
+        save: vi.fn(async () => {
+          throw new Error('request failed token=secret-token');
+        }),
+      });
+      const store = useSettingsStore();
 
-    store.init(deps);
-    store.setThemeMode('dark', deps);
-    await store.saveToCloud(deps);
+      store.init(deps);
+      store.setThemeMode('dark', deps);
+      await store.saveToCloud(deps);
 
-    expect(store.themeMode).toBe('dark');
-    expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBe('dark');
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(store.syncStatus).toBe('failed');
-    expect(store.syncError).toBe('request failed token=[redacted]');
-    expect(store.syncError).not.toContain('secret-token');
+      expect(store.themeMode).toBe('dark');
+      expect(storage.getJson(SETTINGS_THEME_MODE_KEY, null)).toBe('dark');
+      expect(document.documentElement.dataset.theme).toBe('dark');
+      expect(store.syncStatus).toBe('failed');
+      expect(store.syncError).toBe('request failed token=[redacted]');
+      expect(store.syncError).not.toContain('secret-token');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not delete or save cloud config when clearing local data', () => {
@@ -339,6 +362,8 @@ describe('settingsStore', () => {
     storage.setJson(SETTINGS_FAVORITE_USERS_KEY, ['user-2']);
     store.favoriteUserIds = ['user-2'];
     store.syncStatus = 'failed';
+    store.syncError = 'previous failure';
+    store.lastSyncedAt = '2026-06-05T02:00:00.000Z';
     store.clearLocalData(deps);
 
     expect(storage.getJson('hhhl-chat:drafts', null)).toBeNull();
@@ -347,8 +372,30 @@ describe('settingsStore', () => {
     expect(store.favoriteUserIds).toEqual([]);
     expect(store.lastAction).toBe('settings.clearLocalDataDone');
     expect(store.syncStatus).toBe('idle');
+    expect(store.syncError).toBeNull();
+    expect(store.lastSyncedAt).toBeNull();
     expect(deps.sync.save).not.toHaveBeenCalled();
     expect(deps.sync.syncAfterLogin).not.toHaveBeenCalled();
+  });
+
+  it('cancels pending auto-save when clearing local data', async () => {
+    vi.useFakeTimers();
+    try {
+      const storage = createLocalStorageAdapter(new MemoryStorage());
+      const deps = syncDeps(storage);
+      const store = useSettingsStore();
+
+      store.init(deps);
+      store.setLanguage('zh', deps);
+      store.clearLocalData(deps);
+      await vi.advanceTimersByTimeAsync(10);
+
+      expect(deps.sync.save).not.toHaveBeenCalled();
+      expect(store.autoSaveTimer).toBeNull();
+      expect(store.autoSaveQueued).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('logs out through auth store and redirects to login route', async () => {

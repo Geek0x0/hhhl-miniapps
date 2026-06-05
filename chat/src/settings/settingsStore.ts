@@ -226,7 +226,7 @@ export const useSettingsStore = defineStore('settings', {
 
     touchLocal(dependencies: SettingsStoreDependencies) {
       this.localUpdatedAt = isoNow(dependencies);
-      this.persistPreferences(dependencies.storage);
+      dependencies.storage.setJson(SETTINGS_UPDATED_AT_KEY, this.localUpdatedAt);
     },
 
     init(input?: SettingsStoreInput) {
@@ -251,6 +251,7 @@ export const useSettingsStore = defineStore('settings', {
       this.language = locale;
       i18n.setLocale(locale);
       this.touchLocal(dependencies);
+      dependencies.storage.setJson(SETTINGS_LANGUAGE_KEY, locale);
       this.queueAutoSave(dependencies);
     },
 
@@ -259,6 +260,7 @@ export const useSettingsStore = defineStore('settings', {
       this.themeMode = mode;
       applyThemeMode(mode);
       this.touchLocal(dependencies);
+      dependencies.storage.setJson(SETTINGS_THEME_MODE_KEY, mode);
       this.queueAutoSave(dependencies);
     },
 
@@ -277,6 +279,7 @@ export const useSettingsStore = defineStore('settings', {
         ? this.favoriteUserIds.filter((id) => id !== normalizedId)
         : [...this.favoriteUserIds, normalizedId];
       this.touchLocal(dependencies);
+      dependencies.storage.setJson(SETTINGS_FAVORITE_USERS_KEY, this.favoriteUserIds);
       this.queueAutoSave(dependencies);
     },
 
@@ -408,11 +411,19 @@ export const useSettingsStore = defineStore('settings', {
     clearLocalData(input?: SettingsStoreInput) {
       const dependencies = resolveDependencies(input);
       const { storage } = dependencies;
+      if (this.autoSaveTimer != null) {
+        window.clearTimeout(this.autoSaveTimer);
+        this.autoSaveTimer = null;
+      }
+
       storage.remove(DRAFTS_KEY);
       storage.remove(RECENT_ROOM_KEY);
       storage.remove(SETTINGS_FAVORITE_USERS_KEY);
       this.favoriteUserIds = [];
       this.syncStatus = 'idle';
+      this.syncError = null;
+      this.lastSyncedAt = null;
+      this.autoSaveQueued = false;
       this.lastAction = 'settings.clearLocalDataDone';
     },
 
