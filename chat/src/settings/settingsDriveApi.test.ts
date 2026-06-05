@@ -94,6 +94,30 @@ describe('settingsDriveApi', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('distinguishes missing folders from malformed folder lookup responses', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn(async (_endpoint: string, params?: { name?: string }) => {
+        if (params?.name === 'missing') return null;
+        if (params?.name === 'bad-direct') return { name: 'telegram-bot-chat' };
+        if (params?.name === 'bad-nested') return { folder: { name: 'telegram-bot-chat' } };
+        return null;
+      }) as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.findFolder('missing')).resolves.toBeNull();
+    await expect(api.findFolder('bad-direct')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FOLDER_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(api.findFolder('bad-nested')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FOLDER_INVALID',
+    } satisfies Partial<ApiError>);
+  });
+
   it('normalizes path-relative file URLs against the Drive origin', async () => {
     const api = createSettingsDriveApi({
       callEndpoint: vi.fn(async (endpoint: string) => {
@@ -173,6 +197,25 @@ describe('settingsDriveApi', () => {
     await expect(api.createJsonFile('folder-1', 'settings.json', { value: BigInt(1) })).rejects.toMatchObject({
       name: 'ApiError',
       code: 'DRIVE_JSON_NOT_SERIALIZABLE',
+    } satisfies Partial<ApiError>);
+  });
+
+  it('redacts ApiError messages thrown during JSON serialization', async () => {
+    const api = createSettingsDriveApi({
+      callEndpoint: vi.fn() as never,
+      uploadFile: vi.fn() as never,
+      tokenProvider: () => 'secret-token',
+      fetchImpl: vi.fn() as never,
+    });
+
+    await expect(api.createJsonFile('folder-1', 'settings.json', {
+      toJSON() {
+        throw new ApiError('OTHER', 'token=secret-token');
+      },
+    })).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_JSON_NOT_SERIALIZABLE',
+      message: 'token=[redacted]',
     } satisfies Partial<ApiError>);
   });
 

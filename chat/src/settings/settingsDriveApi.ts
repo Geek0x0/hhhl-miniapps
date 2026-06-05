@@ -139,6 +139,28 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
   };
 }
 
+function isMalformedFolderResponse(value: unknown): boolean {
+  const raw = unwrapSingularRecord(value, FOLDER_RECORD_KEYS);
+  if (raw == null) {
+    return false;
+  }
+
+  return stringFrom(raw, ['name', 'folderName']) != null;
+}
+
+function normalizeOptionalFolder(value: unknown): DriveFolderSummary | null {
+  const folder = normalizeFolder(value);
+  if (folder != null || value == null) {
+    return folder;
+  }
+
+  if (isMalformedFolderResponse(value)) {
+    throw new ApiError('DRIVE_FOLDER_INVALID', 'Invalid Drive folder response');
+  }
+
+  return null;
+}
+
 function compactDriveFile(file: DriveFile): SettingsDriveFile {
   const normalized: SettingsDriveFile = {
     id: file.id,
@@ -287,16 +309,13 @@ function serializeJson(value: unknown): string {
   try {
     const json = JSON.stringify(value);
     if (json == null) {
-      throw new ApiError('DRIVE_JSON_NOT_SERIALIZABLE', 'Settings JSON is not serializable');
+      throw new Error('Settings JSON is not serializable');
     }
 
     return json;
   } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError('DRIVE_JSON_NOT_SERIALIZABLE', 'Settings JSON is not serializable');
+    const message = redactSensitiveText(error instanceof Error ? error.message : String(error));
+    throw new ApiError('DRIVE_JSON_NOT_SERIALIZABLE', message);
   }
 }
 
@@ -305,7 +324,7 @@ export function createSettingsDriveApi(options: SettingsDriveApiOptions): Settin
 
   return {
     findFolder: (name, parentId) =>
-      options.callEndpoint<unknown>('drive/folders/find', folderParams(name, parentId)).then(normalizeFolder),
+      options.callEndpoint<unknown>('drive/folders/find', folderParams(name, parentId)).then(normalizeOptionalFolder),
     createFolder: (name, parentId) =>
       options.callEndpoint<unknown>('drive/folders/create', folderParams(name, parentId)).then(requireFolder),
     findFiles: (name, folderId) =>
