@@ -48,7 +48,6 @@ const FILE_URL_KEYS = ['webpublicUrl', 'webUrl', 'url', 'src', 'downloadUrl', 'd
 const FILE_THUMBNAIL_URL_KEYS = ['thumbnailUrl', 'thumbnailURL', 'thumbnail', 'previewUrl', 'previewURL'];
 const FOLDER_ID_KEYS = ['id', 'folderId', 'driveFolderId'];
 const FOLDER_NAME_KEYS = ['name', 'folderName'];
-const FOLDER_LIKE_KEYS = [...FOLDER_ID_KEYS, ...FOLDER_NAME_KEYS, 'folder', 'driveFolder'];
 
 function recordField(value: unknown): UnknownRecord | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : null;
@@ -75,10 +74,6 @@ function stringFrom(raw: UnknownRecord, keys: string[]): string | null {
   }
 
   return null;
-}
-
-function hasOwnField(raw: UnknownRecord, keys: string[]): boolean {
-  return keys.some((key) => Object.prototype.hasOwnProperty.call(raw, key));
 }
 
 function isSummaryRecord(raw: UnknownRecord): boolean {
@@ -146,31 +141,17 @@ function normalizeFolder(value: unknown): DriveFolderSummary | null {
   };
 }
 
-function isMalformedFolderResponse(value: unknown): boolean {
-  const source = recordField(value);
-  if (source != null && hasOwnField(source, FOLDER_LIKE_KEYS)) {
-    return true;
-  }
-
-  const raw = unwrapSingularRecord(value, FOLDER_RECORD_KEYS);
-  if (raw == null) {
-    return false;
-  }
-
-  return hasOwnField(raw, FOLDER_LIKE_KEYS);
-}
-
 function normalizeOptionalFolder(value: unknown): DriveFolderSummary | null {
-  const folder = normalizeFolder(value);
-  if (folder != null || value == null) {
-    return folder;
+  if (value == null) {
+    return null;
   }
 
-  if (isMalformedFolderResponse(value)) {
+  const folder = normalizeFolder(value);
+  if (folder == null) {
     throw new ApiError('DRIVE_FOLDER_INVALID', 'Invalid Drive folder response');
   }
 
-  return null;
+  return folder;
 }
 
 function compactDriveFile(file: DriveFile): SettingsDriveFile {

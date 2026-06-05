@@ -101,6 +101,8 @@ describe('settingsDriveApi', () => {
         if (params?.name === 'bad-direct') return { name: 'telegram-bot-chat' };
         if (params?.name === 'bad-nested') return { folder: { name: 'telegram-bot-chat' } };
         if (params?.name === 'bad-empty-nested') return { folder: {} };
+        if (params?.name === 'bad-data-empty-nested') return { data: { folder: {} } };
+        if (params?.name === 'bad-result-empty-nested') return { result: { folder: {} } };
         if (params?.name === 'bad-blank-id') return { folderId: '' };
         return null;
       }) as never,
@@ -119,6 +121,14 @@ describe('settingsDriveApi', () => {
       code: 'DRIVE_FOLDER_INVALID',
     } satisfies Partial<ApiError>);
     await expect(api.findFolder('bad-empty-nested')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FOLDER_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(api.findFolder('bad-data-empty-nested')).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'DRIVE_FOLDER_INVALID',
+    } satisfies Partial<ApiError>);
+    await expect(api.findFolder('bad-result-empty-nested')).rejects.toMatchObject({
       name: 'ApiError',
       code: 'DRIVE_FOLDER_INVALID',
     } satisfies Partial<ApiError>);
