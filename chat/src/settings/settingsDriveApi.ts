@@ -1,7 +1,7 @@
 import type { EndpointCaller, TokenProvider } from '@/api/endpointTypes';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
 import { normalizeDriveFile } from '@/shared/driveFile';
-import { ApiError } from '@/shared/errors';
+import { ApiError, NetworkError, redactSensitiveText } from '@/shared/errors';
 import type { DriveFile } from '@/shared/types';
 
 export interface DriveFolderSummary {
@@ -31,8 +31,8 @@ export interface SettingsDriveApiOptions extends SettingsDriveApiClient {
 }
 
 export interface SettingsDriveApi {
-  findFolder(name: string): Promise<DriveFolderSummary | null>;
-  createFolder(name: string): Promise<DriveFolderSummary>;
+  findFolder(name: string, parentId?: string): Promise<DriveFolderSummary | null>;
+  createFolder(name: string, parentId?: string): Promise<DriveFolderSummary>;
   findFiles(name: string, folderId: string): Promise<SettingsDriveFile[]>;
   showFile(fileId: string): Promise<SettingsDriveFile>;
   fetchJsonFile<T = unknown>(fileUrl: string): Promise<T>;
@@ -201,7 +201,7 @@ function normalizeFiles(value: unknown): SettingsDriveFile[] {
 function requireFolder(value: unknown): DriveFolderSummary {
   const folder = normalizeFolder(value);
   if (folder == null) {
-    throw new ApiError('DRIVE_FOLDER_RESPONSE_INVALID', 'Invalid Drive folder response');
+    throw new ApiError('DRIVE_FOLDER_INVALID', 'Invalid Drive folder response');
   }
 
   return folder;
@@ -210,7 +210,7 @@ function requireFolder(value: unknown): DriveFolderSummary {
 function requireFile(value: unknown): SettingsDriveFile {
   const file = normalizeFile(value);
   if (file == null) {
-    throw new ApiError('DRIVE_FILE_RESPONSE_INVALID', 'Invalid Drive file response');
+    throw new ApiError('DRIVE_FILE_INVALID', 'Invalid Drive file response');
   }
 
   return file;
@@ -235,25 +235,44 @@ function allowedFileUrl(fileUrl: string): string {
   return url.toString();
 }
 
+function folderParams(name: string, parentId?: string): { name: string; parentId?: string } {
+  return parentId === undefined ? { name } : { name, parentId };
+}
+
+function networkErrorFrom(error: unknown): NetworkError {
+  return new NetworkError('NETWORK_ERROR', redactSensitiveText(error instanceof Error ? error.message : String(error)));
+}
+
 export function createSettingsDriveApi(options: SettingsDriveApiOptions): SettingsDriveApi {
   const fetchImpl = options.fetchImpl ?? createDefaultFetch();
 
   return {
-    findFolder: (name) =>
-      options.callEndpoint<unknown>('drive/folders/find', { name }).then(normalizeFolder),
-    createFolder: (name) =>
-      options.callEndpoint<unknown>('drive/folders/create', { name }).then(requireFolder),
+    findFolder: (name, parentId) =>
+      options.callEndpoint<unknown>('drive/folders/find', folderParams(name, parentId)).then(normalizeFolder),
+    createFolder: (name, parentId) =>
+      options.callEndpoint<unknown>('drive/folders/create', folderParams(name, parentId)).then(requireFolder),
     findFiles: (name, folderId) =>
       options.callEndpoint<unknown>('drive/files/find', { name, folderId }).then(normalizeFiles),
     showFile: (fileId) =>
       options.callEndpoint<unknown>('drive/files/show', { fileId }).then(requireFile),
     fetchJsonFile: async <T = unknown>(fileUrl: string) => {
-      const response = await fetchImpl(allowedFileUrl(fileUrl));
+      const url = allowedFileUrl(fileUrl);
+      let response: Response;
+      try {
+        response = await fetchImpl(url);
+      } catch (error) {
+        throw networkErrorFrom(error);
+      }
+
       if (!response.ok) {
         throw new ApiError(`HTTP_${response.status}`, response.statusText, response.status);
       }
 
-      return await response.json() as T;
+      try {
+        return await response.json() as T;
+      } catch (error) {
+        throw networkErrorFrom(error);
+      }
     },
     createJsonFile: async (folderId, name, value) => {
       const json = JSON.stringify(value);
