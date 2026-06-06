@@ -108,4 +108,20 @@ describe('realtimeStore', () => {
 
     expect(polling.recordSocketFailure).toHaveBeenCalledOnce();
   });
+
+  it('starts degraded polling once and stops polling when realtime reconnects', () => {
+    const realtime = createRealtime();
+    const polling = createPolling();
+    const store = useRealtimeStore();
+
+    store.startRoom('room-1', { realtime, polling, lastSeenId: () => 'm1', appendMessages: vi.fn() });
+    store.markDegraded();
+    store.markDegraded();
+    store.markConnected();
+
+    expect(polling.start).toHaveBeenCalledOnce();
+    expect(polling.start).toHaveBeenCalledWith('room-1', 'm1');
+    expect(polling.stop).toHaveBeenCalledOnce();
+    expect(store.status).toBe('connected');
+  });
 });

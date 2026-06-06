@@ -33,6 +33,7 @@ export interface RealtimeClient {
   subscribeRoom: (roomId: string) => void;
   unsubscribeRoom: (roomId: string) => void;
   onEvent: (callback: (event: RealtimeEvent) => void) => () => void;
+  onOpen: (callback: () => void) => () => void;
   onSocketFailure: (callback: () => void) => () => void;
   disconnect: () => void;
 }
@@ -79,6 +80,7 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   const WebSocketImpl = (options.WebSocketImpl ?? WebSocket) as WebSocketConstructorLike;
   const logger = options.logger ?? createLogger(console);
   const listeners = new Set<(event: RealtimeEvent) => void>();
+  const openListeners = new Set<() => void>();
   const socketFailureListeners = new Set<() => void>();
   const subscribedRooms = new Set<string>();
   let socket: WebSocketLike | null = null;
@@ -122,6 +124,9 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
       pendingSends = [];
       nextSocket.onopen = () => {
         socketOpen = true;
+        for (const listener of openListeners) {
+          listener();
+        }
         nextSocket.send(JSON.stringify(getRuntimeContracts().streamConnectMessage));
         for (const message of pendingSends) {
           nextSocket.send(message);
@@ -172,6 +177,10 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     onEvent: (callback) => {
       listeners.add(callback);
       return () => listeners.delete(callback);
+    },
+    onOpen: (callback) => {
+      openListeners.add(callback);
+      return () => openListeners.delete(callback);
     },
     onSocketFailure: (callback) => {
       socketFailureListeners.add(callback);

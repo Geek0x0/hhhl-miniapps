@@ -186,7 +186,6 @@ const allKnownMembers = computed(() => {
 
   return [...usersById.values()];
 });
-let newerPollTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 
 function createUserApiClient() {
   const storage = createLocalStorageAdapter();
@@ -453,43 +452,41 @@ function startRealtime(): void {
   });
 }
 
-function stopNewerPolling(): void {
-  if (newerPollTimer != null) {
-    globalThis.clearInterval(newerPollTimer);
-    newerPollTimer = null;
+async function catchUpVisibleRoom(): Promise<void> {
+  if (roomId.value === '' || globalThis.document.visibilityState !== 'visible') {
+    return;
   }
+
+  await chatStore.loadNewer();
 }
 
-function startNewerPolling(): void {
-  stopNewerPolling();
-  void chatStore.loadNewer();
-  newerPollTimer = globalThis.setInterval(() => {
-    void chatStore.loadNewer();
-  }, 3000);
+function handleVisibilityChange(): void {
+  if (globalThis.document.visibilityState === 'visible') {
+    void catchUpVisibleRoom();
+  }
 }
 
 async function loadRoom(): Promise<void> {
   if (roomId.value !== '') {
     realtimeStore.stopRoom();
-    stopNewerPolling();
     await roomStore.ensureRoomVisible(roomId.value);
     await chatStore.loadInitial(roomId.value);
     restoreComposerDraft();
     void ensureAllMembersLoaded();
     startRealtime();
-    startNewerPolling();
   }
 }
 
 onMounted(() => {
   void loadRoom();
   globalThis.document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+  globalThis.document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 watch(roomId, loadRoom);
 watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.message.text ?? ''}`).join('|'), ensureMentionUsersLoaded);
 onBeforeUnmount(() => {
-  stopNewerPolling();
   realtimeStore.stopRoom();
   globalThis.document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+  globalThis.document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 </script>

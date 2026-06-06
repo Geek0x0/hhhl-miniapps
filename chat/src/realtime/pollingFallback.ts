@@ -66,13 +66,17 @@ export function createPollingFallback(options: PollingFallbackOptions): PollingF
 
   return {
     start: (nextRoomId, nextLastSeenId) => {
+      clearTimer();
       roomId = nextRoomId;
       lastSeenId = nextLastSeenId ?? null;
+      intervalMs = baseIntervalMs;
       schedule();
     },
     stop: () => {
       clearTimer();
       roomId = null;
+      socketFailures = 0;
+      intervalMs = baseIntervalMs;
     },
     recordSocketFailure: () => {
       socketFailures += 1;

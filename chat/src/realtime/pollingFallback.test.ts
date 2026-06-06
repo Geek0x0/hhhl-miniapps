@@ -44,4 +44,15 @@ describe('pollingFallback', () => {
     expect(roomTimeline).toHaveBeenCalledTimes(2);
     expect(polling.currentIntervalMs()).toBe(4000);
   });
+
+  it('restarting the same room replaces the previous timer instead of duplicating polling', async () => {
+    const roomTimeline = vi.fn(async () => []);
+    const polling = createPollingFallback({ roomTimeline, intervalMs: 1000 });
+
+    polling.start('room-1', 'm1');
+    polling.start('room-1', 'm1');
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(roomTimeline).toHaveBeenCalledTimes(1);
+  });
 });

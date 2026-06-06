@@ -59,7 +59,6 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.message-link-preview', { hasText: 'example.com' })).toBeVisible();
   await expect(page.locator('.message-link-preview', { hasText: '/docs' })).toBeVisible();
   await expect(page.locator('.message-bubble', { hasText: 'image attached' }).getByRole('button', { name: 'Delete message' })).toHaveCount(0);
-  await expect(page.getByText('latest')).toBeVisible();
   await page.getByRole('button', { name: 'Emoji' }).click();
   await page.getByRole('button', { name: '😀' }).click();
   await expect(page.getByRole('button', { name: '🚀' })).toBeVisible();

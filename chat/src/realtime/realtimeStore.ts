@@ -10,6 +10,7 @@ export interface RealtimeClientLike {
   unsubscribeRoom: (roomId: string) => void;
   disconnect: () => void;
   onEvent: (callback: (event: RealtimeEvent) => void) => () => void;
+  onOpen?: (callback: () => void) => () => void;
   onSocketFailure?: (callback: () => void) => () => void;
 }
 
@@ -35,6 +36,7 @@ export interface RealtimeState {
 
 let dependencies: StartRoomDependencies | null = null;
 let unsubscribeEvents: (() => void) | null = null;
+let unsubscribeOpen: (() => void) | null = null;
 let unsubscribeSocketFailure: (() => void) | null = null;
 
 export const useRealtimeStore = defineStore('realtime', {
@@ -61,6 +63,9 @@ export const useRealtimeStore = defineStore('realtime', {
           nextDependencies.applyReaction?.(event.messageId, event.reaction);
         }
       });
+      unsubscribeOpen = nextDependencies.realtime.onOpen?.(() => {
+        this.markConnected();
+      }) ?? null;
       unsubscribeSocketFailure = nextDependencies.realtime.onSocketFailure?.(() => {
         nextDependencies.polling.recordSocketFailure();
       }) ?? null;
@@ -69,12 +74,23 @@ export const useRealtimeStore = defineStore('realtime', {
     },
 
     markDegraded() {
-      if (dependencies == null || this.roomId == null) {
+      if (dependencies == null || this.roomId == null || this.status === 'degraded') {
         return;
       }
 
       this.status = 'degraded';
       dependencies.polling.start(this.roomId, dependencies.lastSeenId() ?? null);
+    },
+
+    markConnected() {
+      if (dependencies == null || this.roomId == null) {
+        return;
+      }
+
+      if (this.status === 'degraded') {
+        dependencies.polling.stop();
+      }
+      this.status = 'connected';
     },
 
     stopRoom() {
@@ -84,8 +100,10 @@ export const useRealtimeStore = defineStore('realtime', {
         dependencies.polling.stop();
       }
       unsubscribeEvents?.();
+      unsubscribeOpen?.();
       unsubscribeSocketFailure?.();
       unsubscribeEvents = null;
+      unsubscribeOpen = null;
       unsubscribeSocketFailure = null;
       dependencies = null;
       this.roomId = null;

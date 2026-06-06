@@ -165,4 +165,16 @@ describe('RealtimeClient', () => {
 
     expect(onSocketFailure).toHaveBeenCalledTimes(1);
   });
+
+  it('notifies listeners when the socket opens', () => {
+    FakeWebSocket.instances = [];
+    const opened = vi.fn();
+    const client = createRealtimeClient({ tokenProvider: () => 'secret-token', WebSocketImpl: FakeWebSocket });
+
+    client.onOpen(opened);
+    client.connect();
+    FakeWebSocket.instances[0]?.onopen?.();
+
+    expect(opened).toHaveBeenCalledOnce();
+  });
 });
