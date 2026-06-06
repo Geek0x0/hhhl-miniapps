@@ -8,7 +8,7 @@
       v-if="loading && favoriteMembers.length === 0"
       class="app-copy"
     >
-      {{ i18n.t('common.loading') }}
+      {{ i18n.t('chat.loadingFavorites', { count: unresolvedFavoriteCount }) }}
     </p>
     <p
       v-else-if="favoriteMembers.length === 0"
@@ -74,6 +74,9 @@ const props = defineProps<{
 }>();
 
 const favoriteMembers = computed(() => props.members.filter((member) => props.favoriteUserIds.includes(member.id)));
+const unresolvedFavoriteCount = computed(() => props.favoriteUserIds.filter(
+  (userId) => !props.members.some((member) => member.id === userId),
+).length);
 
 function displayAvatarUrl(member: UserSummary): string | null {
   return avatarDisplayUrl(member.avatarUrl, member.avatarFallbackUrl);

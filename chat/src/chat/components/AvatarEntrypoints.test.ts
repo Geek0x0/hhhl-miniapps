@@ -46,6 +46,18 @@ describe('avatar entrypoints', () => {
     expect(container.querySelector<HTMLImageElement>('.member-row__avatar')?.getAttribute('referrerpolicy')).toBe('no-referrer');
   });
 
+  it('shows unresolved favorite count while favorite users are loading', () => {
+    const { getByText } = render(FavoritePanel, {
+      props: {
+        members: [],
+        favoriteUserIds: ['user-1', 'user-2'],
+        loading: true,
+      },
+    });
+
+    expect(getByText('Loading 2 favorite members...')).toBeInTheDocument();
+  });
+
   it('keeps mention suggestion avatars on no-referrer', async () => {
     const { container, getByPlaceholderText } = render(MessageComposer, {
       props: {

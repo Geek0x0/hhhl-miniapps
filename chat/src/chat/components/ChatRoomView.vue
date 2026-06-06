@@ -36,7 +36,7 @@
         :loading="roomStore.membersLoadingByRoomId[roomId] === true"
         :has-more="roomStore.membersHasMoreByRoomId[roomId] !== false"
         @load-more="roomStore.loadMoreMembers(roomId)"
-        @toggle-favorite="settingsStore.toggleFavoriteUser"
+        @toggle-favorite="toggleFavoriteUser"
       />
       <FavoritePanel
         v-if="activePanel === 'favorites'"
@@ -62,6 +62,13 @@
     >
       {{ chatStore.error }}
     </p>
+    <p
+      v-if="feedbackMessage != null"
+      class="key-copy-toast"
+      role="status"
+    >
+      {{ feedbackMessage }}
+    </p>
     <MessageTimeline
       ref="timelineComponent"
       :entries="chatStore.timeline"
@@ -77,7 +84,7 @@
       @delete="chatStore.deleteMessage"
       @retry="chatStore.retryMessage"
       @remove="chatStore.removeFailedMessage"
-      @toggle-favorite="settingsStore.toggleFavoriteUser"
+      @toggle-favorite="toggleFavoriteUser"
       @mention-user="handleMentionUser"
     />
     <MessageComposer
@@ -111,6 +118,7 @@ import { useRoomStore } from '@/rooms/roomStore';
 import { useSettingsStore } from '@/settings/settingsStore';
 import type { UserSummary } from '@/shared/types';
 import { createUserApi } from '@/users/userApi';
+import { i18n } from '@/i18n';
 import RoomManagementPanel from '@/rooms/components/RoomManagementPanel.vue';
 import ChatHeader from './ChatHeader.vue';
 import FavoritePanel from './FavoritePanel.vue';
@@ -130,6 +138,7 @@ const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const localStorageAdapter = createLocalStorageAdapter();
 const composerDraft = ref('');
+const feedbackMessage = ref<string | null>(null);
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
@@ -142,6 +151,7 @@ const composerComponent = ref<{ appendMention: (username: string) => void } | nu
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 const draftRevisionsByRoomId = new Map<string, number>();
+let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
   if (current == null) {
@@ -281,6 +291,23 @@ function handleMentionUser(username: string): void {
   if (composerComponent.value != null) {
     composerComponent.value.appendMention(username);
   }
+}
+
+function showFeedback(message: string): void {
+  feedbackMessage.value = message;
+  if (feedbackTimer != null) {
+    globalThis.clearTimeout(feedbackTimer);
+  }
+  feedbackTimer = globalThis.setTimeout(() => {
+    feedbackMessage.value = null;
+    feedbackTimer = null;
+  }, 1600);
+}
+
+function toggleFavoriteUser(userId: string): void {
+  const wasFavorite = settingsStore.favoriteUserIds.includes(userId);
+  settingsStore.toggleFavoriteUser(userId);
+  showFeedback(i18n.t(wasFavorite ? 'chat.favoriteRemoved' : 'chat.favoriteAdded'));
 }
 
 function restoreComposerDraft(): void {
@@ -496,5 +523,8 @@ onBeforeUnmount(() => {
   realtimeStore.stopRoom();
   globalThis.document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.removeEventListener('visibilitychange', handleVisibilityChange);
+  if (feedbackTimer != null) {
+    globalThis.clearTimeout(feedbackTimer);
+  }
 });
 </script>
