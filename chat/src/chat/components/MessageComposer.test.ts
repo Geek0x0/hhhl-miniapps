@@ -44,6 +44,22 @@ describe('MessageComposer', () => {
     expect(input.value).toBe('restored room draft');
   });
 
+  it('does not emit draft changes for parent-driven draft restores', async () => {
+    const { emitted, getByPlaceholderText, rerender } = renderComposer({ draftText: 'saved draft' });
+    const input = getByPlaceholderText('Message') as HTMLTextAreaElement;
+
+    await rerender({ draftText: 'restored room draft' });
+
+    await waitFor(() => {
+      expect(input.value).toBe('restored room draft');
+    });
+    expect(emitted('draft-change')).toBeUndefined();
+
+    await fireEvent.update(input, 'user draft');
+
+    expect(emitted('draft-change')?.at(-1)).toEqual(['user draft']);
+  });
+
   it('keeps failed uploads in the composer and allows retry', async () => {
     const sendFileRequest = vi
       .fn()

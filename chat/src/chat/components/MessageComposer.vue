@@ -157,6 +157,7 @@ const uploadError = ref<string | null>(null);
 const showEmojiPicker = ref(false);
 const avatarFailedIds = reactive(new Set<string>());
 const inFlightUploadIds = reactive(new Set<string>());
+let applyingDraftTextProp = false;
 const emojis = [
   '😀', '😃', '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤔', '😮', '😢', '😡', '👍', '👎', '👏', '🙏',
   '💪', '✅', '❌', '🔥', '🎉', '🚀', '❤️', '💯', '✨', '⭐', '👀', '📌', '🔑', '💬', '☕', '🍻', '🎯', '🧠',
@@ -171,11 +172,17 @@ const mentionSuggestions = computed(() => activeMention.value == null ? [] : men
 watch(() => props.draftText, (next) => {
   const value = next ?? '';
   if (value !== text.value) {
+    applyingDraftTextProp = true;
     text.value = value;
   }
 });
 
 watch(text, (next) => {
+  if (applyingDraftTextProp) {
+    applyingDraftTextProp = false;
+    return;
+  }
+
   emit('draft-change', next);
 });
 

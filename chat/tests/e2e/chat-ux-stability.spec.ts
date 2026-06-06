@@ -72,6 +72,39 @@ test('same-text newer draft survives an older pending send success', async ({ pa
   await expect(page.getByPlaceholder('Message')).toHaveValue('repeated local draft');
 });
 
+test('restored draft during pending send does not prevent success cleanup', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page, { delayCreateMessageMs: 1000 });
+  await authorizeSession(page);
+
+  await page.goto('/rooms/amlc1bekzi');
+  await page.getByPlaceholder('Message').fill('restored pending draft');
+
+  const sendResponsePromise = page.waitForResponse((response) => response.url().includes('/api/chat/messages/create-to-room'));
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByPlaceholder('Message')).toHaveValue('');
+
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/rooms/room-b');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page).toHaveURL(/\/rooms\/room-b$/);
+  await expect(page.getByPlaceholder('Message')).toHaveValue('');
+
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/rooms/amlc1bekzi');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page).toHaveURL(/\/rooms\/amlc1bekzi$/);
+  await expect(page.getByPlaceholder('Message')).toHaveValue('restored pending draft');
+
+  await sendResponsePromise;
+
+  await expect(page.getByPlaceholder('Message')).toHaveValue('');
+  await page.reload();
+  await expect(page.getByPlaceholder('Message')).toHaveValue('');
+});
+
 test('failed pending send does not overwrite another room draft', async ({ page }) => {
   await installTelegramMock(page);
   await mockApi(page, { delayCreateMessageMs: 500, failFirstCreateMessage: true });
