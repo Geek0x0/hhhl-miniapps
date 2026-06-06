@@ -460,4 +460,92 @@ describe('chatStore', () => {
 
     expect(store.searchError).toBe('permission denied');
   });
+
+  it('returns structured text send results for success and failure', async () => {
+    const successApi = createApi();
+    const failingApi = createApi({
+      createToRoom: vi.fn(async () => {
+        throw new Error('send failed');
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', successApi);
+
+    const success = await store.sendText('hello', successApi, {
+      idFactory: () => 'local-success',
+      now: () => '2026-01-01T00:00:03.000Z',
+    });
+    const failure = await store.sendText('bye', failingApi, {
+      idFactory: () => 'local-failure',
+      now: () => '2026-01-01T00:00:04.000Z',
+    });
+
+    expect(success).toEqual({ ok: true, localId: 'local-success', serverId: 'm3' });
+    expect(failure).toEqual({ ok: false, localId: 'local-failure', stage: 'send', error: 'send failed' });
+  });
+
+  it('returns upload-stage and send-stage file results separately', async () => {
+    const uploadFailure = vi.fn(async () => {
+      throw new Error('upload failed');
+    });
+    const sendFailureApi = createApi({
+      createToRoom: vi.fn(async () => {
+        throw new Error('send failed');
+      }),
+    });
+    const uploadSuccess = vi.fn(async (_file: File, onProgress?: (progress: number) => void) => {
+      onProgress?.(0.5);
+      return { id: 'file-1', name: 'hello.txt' };
+    });
+    const progress = vi.fn();
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+
+    const uploadResult = await store.sendFile(
+      new File(['hello'], 'hello.txt', { type: 'text/plain' }),
+      { uploadFile: uploadFailure },
+      createApi(),
+      { idFactory: () => 'local-upload', now: () => '2026-01-01T00:00:03.000Z' },
+      progress,
+    );
+    const sendResult = await store.sendFile(
+      new File(['hello'], 'hello.txt', { type: 'text/plain' }),
+      { uploadFile: uploadSuccess },
+      sendFailureApi,
+      { idFactory: () => 'local-send', now: () => '2026-01-01T00:00:04.000Z' },
+      progress,
+    );
+
+    expect(uploadResult).toEqual({ ok: false, stage: 'upload', error: 'upload failed' });
+    expect(sendResult).toEqual({ ok: false, localId: 'local-send', stage: 'send', error: 'send failed' });
+    expect(progress).toHaveBeenCalledWith(0.5);
+  });
+
+  it('ignores stale initial and newer responses after the active room changes', async () => {
+    let resolveRoom1: (messages: ChatMessage[]) => void = () => {
+      throw new Error('room-1 resolver was not set');
+    };
+    const room1Response = new Promise<ChatMessage[]>((resolve) => {
+      resolveRoom1 = resolve;
+    });
+    const api = createApi({
+      roomTimeline: vi.fn(async (roomId) => {
+        if (roomId === 'room-1') {
+          return room1Response;
+        }
+        return [{ ...message('m8'), roomId: 'room-2' }];
+      }),
+    });
+    const store = useChatStore();
+
+    const firstLoad = store.loadInitial('room-1', api);
+    await store.loadInitial('room-2', api);
+    resolveRoom1([{ ...message('m1'), roomId: 'room-1' }]);
+    await firstLoad;
+
+    expect(store.roomId).toBe('room-2');
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+  });
 });
