@@ -55,6 +55,23 @@ test('newer draft survives an older pending send success', async ({ page }) => {
   await expect(page.getByPlaceholder('Message')).toHaveValue('newer local draft');
 });
 
+test('same-text newer draft survives an older pending send success', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page, { delayCreateMessageMs: 500 });
+  await authorizeSession(page);
+
+  await page.goto('/rooms/amlc1bekzi');
+  await page.getByPlaceholder('Message').fill('repeated local draft');
+
+  const sendResponsePromise = page.waitForResponse((response) => response.url().includes('/api/chat/messages/create-to-room'));
+  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByPlaceholder('Message').fill('repeated local draft');
+  await sendResponsePromise;
+  await page.reload();
+
+  await expect(page.getByPlaceholder('Message')).toHaveValue('repeated local draft');
+});
+
 test('failed pending send does not overwrite another room draft', async ({ page }) => {
   await installTelegramMock(page);
   await mockApi(page, { delayCreateMessageMs: 500, failFirstCreateMessage: true });
@@ -107,11 +124,15 @@ test('upload failures stay retryable in the composer', async ({ page }) => {
     response.url().includes('/api/drive/files/create') && response.status() === 200);
   const fileMessagePromise = page.waitForRequest((request) =>
     request.url().includes('/api/chat/messages/create-to-room') && request.postData()?.includes('uploaded-file-1') === true);
+  const fileMessageResponsePromise = page.waitForResponse((response) =>
+    response.url().includes('/api/chat/messages/create-to-room') && response.status() === 200);
   await page.getByRole('button', { name: 'Retry upload' }).click();
   await retryUploadPromise;
   const fileMessageRequest = await fileMessagePromise;
+  await fileMessageResponsePromise;
 
   expect(uploadRequestCount).toBe(2);
   expect(fileMessageRequest.postDataJSON()).toMatchObject({ toRoomId: 'amlc1bekzi', fileId: 'uploaded-file-1' });
   await expect(page.getByText('upload failed once')).toHaveCount(0);
+  await expect(page.locator('.message-bubble--own', { hasText: 'hello.txt' })).toBeVisible();
 });

@@ -137,6 +137,7 @@ const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean 
 const composerComponent = ref<{ appendMention: (username: string) => void } | null>(null);
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
+const draftRevisionsByRoomId = new Map<string, number>();
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
   if (current == null) {
@@ -291,12 +292,14 @@ function handleDraftChange(text: string): void {
 
   composerDraft.value = text;
   if (roomId.value !== '') {
+    incrementDraftRevision(roomId.value);
     saveRoomDraft(localStorageAdapter, roomId.value, text);
   }
 }
 
 async function handleSendText(text: string): Promise<void> {
   const submittedRoomId = roomId.value;
+  const submittedRevision = draftRevision(submittedRoomId);
   if (submittedRoomId !== '') {
     saveRoomDraft(localStorageAdapter, submittedRoomId, text);
     suppressNextEmptyDraft(submittedRoomId);
@@ -308,16 +311,16 @@ async function handleSendText(text: string): Promise<void> {
     return;
   }
 
-  const currentDraft = readRoomDraft(localStorageAdapter, submittedRoomId);
+  const ownsSubmittedDraft = draftRevision(submittedRoomId) === submittedRevision;
   if (result.ok) {
-    if (currentDraft === text) {
+    if (ownsSubmittedDraft) {
       clearRoomDraft(localStorageAdapter, submittedRoomId);
       if (roomId.value === submittedRoomId) {
         composerDraft.value = '';
       }
     }
   } else {
-    if (currentDraft === text) {
+    if (ownsSubmittedDraft) {
       saveRoomDraft(localStorageAdapter, submittedRoomId, text);
       if (roomId.value === submittedRoomId) {
         composerDraft.value = text;
@@ -358,6 +361,14 @@ function consumeSuppressedEmptyDraft(roomId: string): boolean {
     suppressedEmptyDraftsByRoomId.set(roomId, count - 1);
   }
   return true;
+}
+
+function draftRevision(roomId: string): number {
+  return roomId === '' ? 0 : draftRevisionsByRoomId.get(roomId) ?? 0;
+}
+
+function incrementDraftRevision(roomId: string): void {
+  draftRevisionsByRoomId.set(roomId, draftRevision(roomId) + 1);
 }
 
 async function showMembers(): Promise<void> {
