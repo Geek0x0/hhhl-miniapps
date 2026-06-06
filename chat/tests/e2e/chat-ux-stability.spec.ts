@@ -176,9 +176,67 @@ test('room management opens from the room header more menu', async ({ page }) =>
   await authorizeSession(page);
 
   await page.goto('/rooms/amlc1bekzi');
-  await page.getByRole('button', { name: 'More room actions' }).click();
+  const moreButton = page.getByRole('button', { name: 'More room actions' });
+  await moreButton.click();
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'true');
   await page.getByRole('menuitem', { name: 'Manage room' }).click();
 
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.side-panel', { hasText: 'Manage room' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Leave room' })).toBeVisible();
+});
+
+test('room header more menu closes and supports keyboard navigation', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page);
+  await authorizeSession(page);
+
+  await page.goto('/rooms/amlc1bekzi');
+  const moreButton = page.getByRole('button', { name: 'More room actions' });
+  const menu = page.getByRole('menu');
+
+  await moreButton.click();
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu).toHaveCount(0);
+
+  await moreButton.click();
+  await page.getByRole('button', { name: 'Members' }).click();
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu).toHaveCount(0);
+
+  await moreButton.click();
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(moreButton).toBeFocused();
+
+  await moreButton.click();
+  await page.locator('.message-timeline').click({ position: { x: 20, y: 20 } });
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+
+  await moreButton.press('ArrowUp');
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('menuitem', { name: 'Manage room' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(moreButton).toBeFocused();
+
+  await moreButton.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'Favorites' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('menuitem', { name: 'Search keys' })).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('menuitem', { name: 'Favorites' })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(page.getByRole('menuitem', { name: 'Manage room' })).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(page.getByRole('menuitem', { name: 'Favorites' })).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('menuitem', { name: 'Manage room' })).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.side-panel', { hasText: 'Manage room' })).toBeVisible();
 });
