@@ -2,6 +2,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import MessageComposer from './MessageComposer.vue';
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {
+    throw new Error('deferred promise was not initialized');
+  };
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
 function renderComposer(props: Partial<InstanceType<typeof MessageComposer>['$props']> = {}) {
   return render(MessageComposer, {
     props: {
@@ -46,7 +56,7 @@ describe('MessageComposer', () => {
     await fireEvent.change(fileInput as HTMLInputElement, { target: { files: [file] } });
     await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
-    expect(await screen.findByText('upload failed')).toBeInTheDocument();
+    expect(await screen.findByText('Upload failed: upload failed')).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole('button', { name: 'Retry upload' }));
 
@@ -54,6 +64,45 @@ describe('MessageComposer', () => {
       expect(sendFileRequest).toHaveBeenCalledTimes(2);
     });
     expect(screen.queryByText('upload failed')).not.toBeInTheDocument();
+  });
+
+  it('does not duplicate in-flight upload requests from repeated send or retry clicks', async () => {
+    const firstUpload = deferred<
+      { ok: false; stage: 'upload'; error: string }
+    >();
+    const retryUpload = deferred<
+      { ok: true; localId: string; serverId: string }
+    >();
+    const sendFileRequest = vi
+      .fn()
+      .mockReturnValueOnce(firstUpload.promise)
+      .mockReturnValueOnce(retryUpload.promise);
+    renderComposer({ sendFileRequest });
+    const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
+    await fireEvent.change(fileInput as HTMLInputElement, { target: { files: [file] } });
+    const sendButton = screen.getByRole('button', { name: 'Send' });
+
+    await fireEvent.click(sendButton);
+    await fireEvent.click(sendButton);
+
+    expect(sendFileRequest).toHaveBeenCalledTimes(1);
+
+    firstUpload.resolve({ ok: false, stage: 'upload', error: 'upload failed' });
+    expect(await screen.findByText('Upload failed: upload failed')).toBeInTheDocument();
+
+    const retryButton = screen.getByRole('button', { name: 'Retry upload' });
+    await fireEvent.click(retryButton);
+    await fireEvent.click(retryButton);
+    await fireEvent.click(sendButton);
+
+    expect(sendFileRequest).toHaveBeenCalledTimes(2);
+
+    retryUpload.resolve({ ok: true, localId: 'local-file', serverId: 'm9' });
+    await waitFor(() => {
+      expect(screen.queryByText('Upload failed: upload failed')).not.toBeInTheDocument();
+    });
   });
 
   it('shows a file size validation error before sending', async () => {

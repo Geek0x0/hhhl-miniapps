@@ -40,9 +40,12 @@ export async function installTelegramMock(page: Page, startParam?: string, langu
 export interface MockApiOptions {
   failJoinRoomId?: string;
   failSearchContext?: boolean;
+  failFirstUpload?: boolean;
 }
 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
+  let uploadAttempts = 0;
+
   await page.route('**/*', async (route) => {
     if (route.request().url().startsWith('https://telegram.org/js/telegram-web-app.js')) {
       await route.fulfill({ contentType: 'application/javascript', body: '' });
@@ -72,6 +75,17 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-allow-headers': 'content-type',
     };
+
+    if (endpoint === 'drive/files/create') {
+      uploadAttempts += 1;
+      if (options.failFirstUpload === true && uploadAttempts === 1) {
+        await route.fulfill({ status: 500, headers, json: { error: { code: 'UPLOAD_FAILED', message: 'upload failed once' } } });
+        return;
+      }
+
+      await route.fulfill({ headers, json: { id: 'uploaded-file-1', name: 'hello.txt', type: 'text/plain', url: '/files/hello.txt' } });
+      return;
+    }
 
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers });

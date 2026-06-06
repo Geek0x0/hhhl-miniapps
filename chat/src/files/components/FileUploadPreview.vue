@@ -11,7 +11,7 @@
       v-if="item.status === 'failed' && item.error != null"
       class="file-upload-preview__error"
     >
-      {{ item.error }}
+      {{ i18n.t('files.uploadFailed', { error: item.error }) }}
     </span>
     <button
       v-if="item.status === 'failed'"

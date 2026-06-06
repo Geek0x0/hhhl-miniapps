@@ -82,8 +82,10 @@
       :reply-target="chatStore.replyTarget"
       :quote-target="chatStore.quoteTarget"
       :mention-members="allKnownMembers"
-      @send="chatStore.sendText"
-      @send-file="chatStore.sendFile"
+      :draft-text="composerDraft"
+      :send-file-request="handleSendFile"
+      @send="handleSendText"
+      @draft-change="handleDraftChange"
       @clear-context="chatStore.clearComposerContext()"
     />
   </main>
@@ -97,6 +99,7 @@ import { useAuthStore } from '@/auth/authStore';
 import { API_BASE_URL } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import { createChatApi } from '@/chat/chatApi';
+import { clearRoomDraft, readRoomDraft, saveRoomDraft } from '@/chat/drafts';
 import { createPollingFallback } from '@/realtime/pollingFallback';
 import { createRealtimeClient } from '@/realtime/realtimeClient';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
@@ -121,6 +124,8 @@ const roomStore = useRoomStore();
 const realtimeStore = useRealtimeStore();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const localStorageAdapter = createLocalStorageAdapter();
+const composerDraft = ref('');
 const roomId = computed(() => String(route.params.roomId ?? ''));
 const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
@@ -273,6 +278,36 @@ function handleMentionUser(username: string): void {
   }
 }
 
+function restoreComposerDraft(): void {
+  composerDraft.value = roomId.value === '' ? '' : readRoomDraft(localStorageAdapter, roomId.value);
+}
+
+function handleDraftChange(text: string): void {
+  composerDraft.value = text;
+  if (roomId.value !== '') {
+    saveRoomDraft(localStorageAdapter, roomId.value, text);
+  }
+}
+
+async function handleSendText(text: string): Promise<void> {
+  const result = await chatStore.sendText(text);
+  if (result.ok) {
+    clearRoomDraft(localStorageAdapter, roomId.value);
+    composerDraft.value = '';
+  } else {
+    saveRoomDraft(localStorageAdapter, roomId.value, text);
+    composerDraft.value = text;
+  }
+}
+
+async function handleSendFile(file: globalThis.File, onProgress: (progress: number) => void) {
+  const result = await chatStore.sendFile(file, onProgress);
+  if (!result.ok && result.stage === 'upload') {
+    chatStore.error = null;
+  }
+  return result;
+}
+
 async function showMembers(): Promise<void> {
   activePanel.value = activePanel.value === 'members' ? null : 'members';
   if (activePanel.value === 'members') {
@@ -371,6 +406,7 @@ async function loadRoom(): Promise<void> {
     stopNewerPolling();
     await roomStore.ensureRoomVisible(roomId.value);
     await chatStore.loadInitial(roomId.value);
+    restoreComposerDraft();
     void ensureAllMembersLoaded();
     startRealtime();
     startNewerPolling();

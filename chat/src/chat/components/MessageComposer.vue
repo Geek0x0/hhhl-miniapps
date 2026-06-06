@@ -156,6 +156,7 @@ const uploads = ref<UploadItem[]>([]);
 const uploadError = ref<string | null>(null);
 const showEmojiPicker = ref(false);
 const avatarFailedIds = reactive(new Set<string>());
+const inFlightUploadIds = reactive(new Set<string>());
 const emojis = [
   '😀', '😃', '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤔', '😮', '😢', '😡', '👍', '👎', '👏', '🙏',
   '💪', '✅', '❌', '🔥', '🎉', '🚀', '❤️', '💯', '✨', '⭐', '👀', '📌', '🔑', '💬', '☕', '🍻', '🎯', '🧠',
@@ -214,28 +215,35 @@ function removeUploadItem(id: string): void {
   if (item != null) {
     revokePreview(item);
   }
+  inFlightUploadIds.delete(id);
   uploads.value = removeUpload(uploads.value, id);
 }
 
 async function sendUploadItem(item: UploadItem): Promise<void> {
-  if (props.sendFileRequest == null) {
+  if (props.sendFileRequest == null || inFlightUploadIds.has(item.id)) {
     return;
   }
 
+  inFlightUploadIds.add(item.id);
   uploads.value = retryUpload(uploads.value, item.id);
-  const result = await props.sendFileRequest(item.file, (progress) => setUploadProgress(item.id, progress));
 
-  if (result.ok) {
-    removeUploadItem(item.id);
-    return;
+  try {
+    const result = await props.sendFileRequest(item.file, (progress) => setUploadProgress(item.id, progress));
+
+    if (result.ok) {
+      removeUploadItem(item.id);
+      return;
+    }
+
+    if (result.stage === 'send') {
+      removeUploadItem(item.id);
+      return;
+    }
+
+    uploads.value = failUpload(uploads.value, item.id, result.error);
+  } finally {
+    inFlightUploadIds.delete(item.id);
   }
-
-  if (result.stage === 'send') {
-    removeUploadItem(item.id);
-    return;
-  }
-
-  uploads.value = failUpload(uploads.value, item.id, result.error);
 }
 
 async function retryUploadItem(id: string): Promise<void> {
