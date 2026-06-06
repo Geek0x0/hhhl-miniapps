@@ -57,7 +57,8 @@ export function getTelegramWebApp(): TelegramWebApp | undefined {
 }
 
 export function hasTelegramHashParams(hash: string = window.location.hash): boolean {
-  return hash.includes('tgWebAppVersion') || hash.includes('tgWebAppPlatform') || hash.includes('tgWebAppData');
+  const params = new URLSearchParams(hash.slice(hash.indexOf('#') + 1));
+  return params.has('tgWebAppVersion') || params.has('tgWebAppPlatform') || params.has('tgWebAppData');
 }
 
 export function isTelegramEnvironment(): boolean {

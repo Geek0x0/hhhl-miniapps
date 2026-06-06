@@ -12,9 +12,15 @@ import {
 } from './telegram';
 
 describe('telegram adapter', () => {
+  const originalLocation = window.location;
+
   afterEach(() => {
     uninstallMockTelegram();
     vi.restoreAllMocks();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
   it('detects absence of Telegram WebApp', () => {
