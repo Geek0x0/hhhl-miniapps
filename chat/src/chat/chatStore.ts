@@ -552,13 +552,18 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
+      const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       this.searchLoading = true;
       this.searchError = null;
 
       try {
         const searchKey = createSearchKey(query, params.userId);
         const isContinuation = this.searchKey === searchKey && params.untilId != null;
-        const results = await api.search({ ...params, query, roomId: this.roomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
+        const results = await api.search({ ...params, query, roomId: requestedRoomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
+        if (this.roomId !== requestedRoomId || this.roomGeneration !== requestedGeneration) {
+          return;
+        }
         const incomingIds = new Set(isContinuation ? results.map((message) => message.id) : []);
         const nextResults = isContinuation ? [...this.searchResults.filter((message) => !incomingIds.has(message.id)), ...results] : results;
         this.searchQuery = query;
@@ -566,9 +571,13 @@ export const useChatStore = defineStore('chat', {
         this.searchResults = nextResults;
         this.searchHasMore = results.length >= (params.limit ?? DEFAULT_PAGE_SIZE);
       } catch (error) {
-        this.searchError = messageFromError(error);
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.searchError = messageFromError(error);
+        }
       } finally {
-        this.searchLoading = false;
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.searchLoading = false;
+        }
       }
     },
 

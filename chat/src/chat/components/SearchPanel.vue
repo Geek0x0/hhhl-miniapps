@@ -65,7 +65,7 @@
       </li>
     </ul>
     <button
-      v-if="hasMore"
+      v-if="canLoadMore"
       class="app-button app-button-secondary"
       type="button"
       :disabled="loading"
@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { i18n } from '@/i18n';
 import { formatMessageTimestamp } from '@/shared/time';
 import type { ChatMessage } from '@/shared/types';
@@ -99,6 +99,8 @@ defineEmits<{
 }>();
 
 const query = ref(props.query ?? '');
+const submittedQuery = computed(() => props.query ?? '');
+const canLoadMore = computed(() => props.hasMore && query.value.trim() === submittedQuery.value);
 
 watch(() => props.query, (next) => {
   query.value = next ?? '';
@@ -121,6 +123,6 @@ function previewText(message: ChatMessage): string {
 }
 
 function highlightedParts(message: ChatMessage) {
-  return splitSearchHighlight(previewText(message), query.value);
+  return splitSearchHighlight(previewText(message), submittedQuery.value);
 }
 </script>

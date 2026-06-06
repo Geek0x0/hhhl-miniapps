@@ -350,6 +350,43 @@ describe('chatStore', () => {
     expect(store.searchResults.at(-1)?.id).toBe('m3');
   });
 
+  it('ignores stale search results after switching away and back while search is pending', async () => {
+    let resolveSearch: (messages: ChatMessage[]) => void = () => {
+      throw new Error('search resolver was not set');
+    };
+    const searchResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveSearch = resolve;
+    });
+    const searchApi = createApi({
+      search: vi.fn(async () => searchResponse),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const room1AgainApi = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m9'), roomId: 'room-1' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const search = store.searchMessages({ query: 'hello' }, searchApi);
+    expect(store.searchLoading).toBe(true);
+
+    await store.loadInitial('room-2', room2Api);
+    await store.loadInitial('room-1', room1AgainApi);
+    resolveSearch([{ ...message('m1'), roomId: 'room-1', text: 'stale hello' }]);
+    await search;
+
+    expect(searchApi.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', limit: 30 });
+    expect(store.roomId).toBe('room-1');
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m9']);
+    expect(store.searchQuery).toBeNull();
+    expect(store.searchResults).toEqual([]);
+    expect(store.searchHasMore).toBe(false);
+    expect(store.searchError).toBeNull();
+    expect(store.searchLoading).toBe(false);
+  });
+
   it('loads message context before jumping to a search result outside the current timeline', async () => {
     const context = vi.fn(async () => [message('m0', '2025-12-31T23:59:59.000Z'), message('m9', '2026-01-01T00:00:09.000Z')]);
     const api = { ...createApi(), context } as ChatApiLike & { context: (messageId: string) => Promise<ChatMessage[]> };
