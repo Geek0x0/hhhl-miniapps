@@ -9,10 +9,13 @@ function message(id: string, roomId = 'room-1'): ChatMessage {
 
 function createRealtime(): RealtimeClientLike & {
   emit: (event: Parameters<Parameters<RealtimeClientLike['onEvent']>[0]>[0]) => void;
+  emitOpen: () => void;
   emitSocketFailure: () => void;
+  openListenerCount: () => number;
 } {
   let handler: Parameters<RealtimeClientLike['onEvent']>[0] = () => undefined;
   let failureHandler: () => void = () => undefined;
+  const openHandlers = new Set<() => void>();
 
   return {
     connect: vi.fn(),
@@ -23,12 +26,24 @@ function createRealtime(): RealtimeClientLike & {
       handler = callback;
       return () => undefined;
     }),
+    onOpen: vi.fn((callback) => {
+      openHandlers.add(callback);
+      return () => {
+        openHandlers.delete(callback);
+      };
+    }),
     onSocketFailure: vi.fn((callback) => {
       failureHandler = callback;
       return () => undefined;
     }),
     emit: (event) => handler(event),
+    emitOpen: () => {
+      for (const openHandler of openHandlers) {
+        openHandler();
+      }
+    },
     emitSocketFailure: () => failureHandler(),
+    openListenerCount: () => openHandlers.size,
   };
 }
 
@@ -109,7 +124,7 @@ describe('realtimeStore', () => {
     expect(polling.recordSocketFailure).toHaveBeenCalledOnce();
   });
 
-  it('starts degraded polling once and stops polling when realtime reconnects', () => {
+  it('starts degraded polling once and stops polling when realtime opens again', () => {
     const realtime = createRealtime();
     const polling = createPolling();
     const store = useRealtimeStore();
@@ -117,11 +132,24 @@ describe('realtimeStore', () => {
     store.startRoom('room-1', { realtime, polling, lastSeenId: () => 'm1', appendMessages: vi.fn() });
     store.markDegraded();
     store.markDegraded();
-    store.markConnected();
+    realtime.emitOpen();
 
     expect(polling.start).toHaveBeenCalledOnce();
     expect(polling.start).toHaveBeenCalledWith('room-1', 'm1');
     expect(polling.stop).toHaveBeenCalledOnce();
     expect(store.status).toBe('connected');
+  });
+
+  it('unregisters the realtime open listener when stopping the room', () => {
+    const realtime = createRealtime();
+    const polling = createPolling();
+    const store = useRealtimeStore();
+
+    store.startRoom('room-1', { realtime, polling, lastSeenId: () => 'm1', appendMessages: vi.fn() });
+    expect(realtime.openListenerCount()).toBe(1);
+
+    store.stopRoom();
+
+    expect(realtime.openListenerCount()).toBe(0);
   });
 });

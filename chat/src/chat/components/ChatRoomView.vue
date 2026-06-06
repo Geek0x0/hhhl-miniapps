@@ -453,7 +453,12 @@ function startRealtime(): void {
 }
 
 async function catchUpVisibleRoom(): Promise<void> {
-  if (roomId.value === '' || globalThis.document.visibilityState !== 'visible') {
+  if (
+    roomId.value === '' ||
+    chatStore.roomId !== roomId.value ||
+    chatStore.loading ||
+    globalThis.document.visibilityState !== 'visible'
+  ) {
     return;
   }
 

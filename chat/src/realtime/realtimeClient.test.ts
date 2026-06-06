@@ -177,4 +177,17 @@ describe('RealtimeClient', () => {
 
     expect(opened).toHaveBeenCalledOnce();
   });
+
+  it('does not notify unregistered socket open listeners', () => {
+    FakeWebSocket.instances = [];
+    const opened = vi.fn();
+    const client = createRealtimeClient({ tokenProvider: () => 'secret-token', WebSocketImpl: FakeWebSocket });
+    const unsubscribe = client.onOpen(opened);
+
+    unsubscribe();
+    client.connect();
+    FakeWebSocket.instances[0]?.onopen?.();
+
+    expect(opened).not.toHaveBeenCalled();
+  });
 });
