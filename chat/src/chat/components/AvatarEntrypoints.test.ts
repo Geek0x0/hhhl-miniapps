@@ -58,6 +58,19 @@ describe('avatar entrypoints', () => {
     expect(getByText('Loading 2 favorite members...')).toBeInTheDocument();
   });
 
+  it('shows unresolved favorite count while partial favorite users are loading', () => {
+    const { getByText } = render(FavoritePanel, {
+      props: {
+        members: [{ id: 'user-1', username: 'alice', name: 'Alice', avatarUrl: proxyAvatar }],
+        favoriteUserIds: ['user-1', 'user-2'],
+        loading: true,
+      },
+    });
+
+    expect(getByText('Alice')).toBeInTheDocument();
+    expect(getByText('Loading 1 favorite members...')).toBeInTheDocument();
+  });
+
   it('keeps mention suggestion avatars on no-referrer', async () => {
     const { container, getByPlaceholderText } = render(MessageComposer, {
       props: {

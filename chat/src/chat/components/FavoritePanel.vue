@@ -55,7 +55,7 @@
       v-if="loading && favoriteMembers.length > 0"
       class="side-panel__loading"
     >
-      {{ i18n.t('common.loading') }}
+      {{ i18n.t('chat.loadingFavorites', { count: unresolvedFavoriteCount }) }}
     </p>
   </section>
 </template>
