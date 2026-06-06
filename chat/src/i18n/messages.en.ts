@@ -77,6 +77,8 @@ const messages = {
   'files.imagePreview': 'Image preview',
   'files.uploading': 'Uploading {name}',
   'files.retryUpload': 'Retry upload',
+  'files.tooLarge': 'File is larger than 25 MB.',
+  'files.uploadFailed': 'Upload failed: {error}',
   'realtime.connected': 'Realtime connected',
   'realtime.polling': 'Realtime connection is limited. Refresh mode is active.',
   'settings.title': 'Settings',

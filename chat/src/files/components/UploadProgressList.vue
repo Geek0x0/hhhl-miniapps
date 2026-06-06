@@ -8,6 +8,7 @@
       :key="item.id"
       :item="item"
       @remove="$emit('remove', $event)"
+      @retry="$emit('retry', $event)"
     />
     <div
       v-for="item in activeItems"
@@ -35,6 +36,7 @@ const props = defineProps<{
 
 defineEmits<{
   remove: [id: string];
+  retry: [id: string];
 }>();
 
 const activeItems = computed(() => props.items.filter((item) => item.status === 'uploading'));

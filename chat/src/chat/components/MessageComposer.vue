@@ -16,7 +16,15 @@
     <UploadProgressList
       :items="uploads"
       @remove="removeUploadItem"
+      @retry="retryUploadItem"
     />
+    <p
+      v-if="uploadError != null"
+      class="chat-error"
+      role="alert"
+    >
+      {{ uploadError }}
+    </p>
     <div class="message-composer__row">
       <FilePickerButton @select="addFiles" />
       <button
@@ -101,32 +109,51 @@
 
 <script setup lang="ts">
 /* global ClipboardEvent, File, URL */
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Send, Smile } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import FilePickerButton from '@/files/components/FilePickerButton.vue';
 import UploadProgressList from '@/files/components/UploadProgressList.vue';
-import { addUpload, removeUpload, validateUploadFile, type UploadItem } from '@/files/uploadQueue';
+import {
+  addUpload,
+  failUpload,
+  removeUpload,
+  retryUpload,
+  updateUploadProgress,
+  validateUploadFile,
+  type UploadItem,
+} from '@/files/uploadQueue';
 import { avatarDisplayUrl, avatarFallbackUrl } from '@/shared/avatarUrl';
 import type { ChatMessage, UserSummary } from '@/shared/types';
 import { createUuid } from '@/shared/uuid';
 import { mentionCandidates } from '../mentions';
 import ReplyPreview from './ReplyPreview.vue';
 
+type FileSendRequest = (
+  file: File,
+  onProgress: (progress: number) => void,
+) => Promise<
+  | { ok: true; localId: string; serverId: string }
+  | { ok: false; localId?: string; stage: 'upload' | 'send'; error: string }
+>;
+
 const props = defineProps<{
   replyTarget: ChatMessage | null;
   quoteTarget: ChatMessage | null;
   mentionMembers: UserSummary[];
+  draftText?: string;
+  sendFileRequest?: FileSendRequest;
 }>();
 
 const emit = defineEmits<{
   send: [text: string];
-  sendFile: [file: File];
   clearContext: [];
+  'draft-change': [text: string];
 }>();
 
-const text = ref('');
+const text = ref(props.draftText ?? '');
 const uploads = ref<UploadItem[]>([]);
+const uploadError = ref<string | null>(null);
 const showEmojiPicker = ref(false);
 const avatarFailedIds = reactive(new Set<string>());
 const emojis = [
@@ -140,6 +167,27 @@ const activeMention = computed(() => {
 });
 const mentionSuggestions = computed(() => activeMention.value == null ? [] : mentionCandidates(props.mentionMembers, activeMention.value));
 
+watch(() => props.draftText, (next) => {
+  const value = next ?? '';
+  if (value !== text.value) {
+    text.value = value;
+  }
+});
+
+watch(text, (next) => {
+  emit('draft-change', next);
+});
+
+function revokePreview(item: UploadItem): void {
+  if (item.previewUrl != null) {
+    URL.revokeObjectURL(item.previewUrl);
+  }
+}
+
+function setUploadProgress(id: string, progress: number): void {
+  uploads.value = updateUploadProgress(uploads.value, id, progress);
+}
+
 function uploadId(): string {
   return `upload-${createUuid()}`;
 }
@@ -149,8 +197,11 @@ function previewUrl(file: File): string | undefined {
 }
 
 function addFiles(files: File[]): void {
+  uploadError.value = null;
   for (const file of files) {
-    if (!validateUploadFile(file).ok) {
+    const validation = validateUploadFile(file);
+    if (!validation.ok) {
+      uploadError.value = i18n.t('files.tooLarge');
       continue;
     }
 
@@ -160,11 +211,45 @@ function addFiles(files: File[]): void {
 
 function removeUploadItem(id: string): void {
   const item = uploads.value.find((upload) => upload.id === id);
-  if (item?.previewUrl != null) {
-    URL.revokeObjectURL(item.previewUrl);
+  if (item != null) {
+    revokePreview(item);
   }
   uploads.value = removeUpload(uploads.value, id);
 }
+
+async function sendUploadItem(item: UploadItem): Promise<void> {
+  if (props.sendFileRequest == null) {
+    return;
+  }
+
+  uploads.value = retryUpload(uploads.value, item.id);
+  const result = await props.sendFileRequest(item.file, (progress) => setUploadProgress(item.id, progress));
+
+  if (result.ok) {
+    removeUploadItem(item.id);
+    return;
+  }
+
+  if (result.stage === 'send') {
+    removeUploadItem(item.id);
+    return;
+  }
+
+  uploads.value = failUpload(uploads.value, item.id, result.error);
+}
+
+async function retryUploadItem(id: string): Promise<void> {
+  const item = uploads.value.find((upload) => upload.id === id);
+  if (item != null) {
+    await sendUploadItem(item);
+  }
+}
+
+onBeforeUnmount(() => {
+  for (const item of uploads.value) {
+    revokePreview(item);
+  }
+});
 
 function handlePaste(event: ClipboardEvent): void {
   const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith('image/'));
@@ -215,7 +300,7 @@ function memberInitial(member: UserSummary): string {
   return (member.name ?? member.username).trim().slice(0, 1).toUpperCase() || '?';
 }
 
-function submit(): void {
+async function submit(): Promise<void> {
   const value = text.value.trim();
 
   if (value !== '') {
@@ -223,13 +308,11 @@ function submit(): void {
     text.value = '';
   }
 
-  for (const item of uploads.value) {
-    emit('sendFile', item.file);
-    if (item.previewUrl != null) {
-      URL.revokeObjectURL(item.previewUrl);
+  for (const item of [...uploads.value]) {
+    if (item.status !== 'uploading') {
+      await sendUploadItem(item);
     }
   }
-  uploads.value = [];
 }
 
 function appendMention(username: string): void {

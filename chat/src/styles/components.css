@@ -1175,6 +1175,13 @@
   white-space: nowrap;
 }
 
+.file-upload-preview__error {
+  min-width: 0;
+  color: #d84f4f;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
 .upload-progress-list__row progress {
   width: 120px;
   accent-color: var(--tg-button);

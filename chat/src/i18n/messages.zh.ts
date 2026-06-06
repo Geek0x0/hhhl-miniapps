@@ -77,6 +77,8 @@ const messages = {
   'files.imagePreview': '图片预览',
   'files.uploading': '正在上传 {name}',
   'files.retryUpload': '重试上传',
+  'files.tooLarge': '文件超过 25 MB。',
+  'files.uploadFailed': '上传失败：{error}',
   'realtime.connected': '实时连接已建立',
   'realtime.polling': '实时连接受限，正在使用刷新模式。',
   'settings.title': '设置',
