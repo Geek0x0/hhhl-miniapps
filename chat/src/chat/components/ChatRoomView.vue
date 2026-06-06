@@ -136,6 +136,7 @@ const resolvingMentionUsernames = ref(new Set<string>());
 const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
 const composerComponent = ref<{ appendMention: (username: string) => void } | null>(null);
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
+const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
   if (current == null) {
@@ -283,6 +284,11 @@ function restoreComposerDraft(): void {
 }
 
 function handleDraftChange(text: string): void {
+  if (roomId.value !== '' && text === '' && consumeSuppressedEmptyDraft(roomId.value)) {
+    composerDraft.value = '';
+    return;
+  }
+
   composerDraft.value = text;
   if (roomId.value !== '') {
     saveRoomDraft(localStorageAdapter, roomId.value, text);
@@ -290,22 +296,68 @@ function handleDraftChange(text: string): void {
 }
 
 async function handleSendText(text: string): Promise<void> {
+  const submittedRoomId = roomId.value;
+  if (submittedRoomId !== '') {
+    saveRoomDraft(localStorageAdapter, submittedRoomId, text);
+    suppressNextEmptyDraft(submittedRoomId);
+  }
+
   const result = await chatStore.sendText(text);
+  await nextTick();
+  if (submittedRoomId === '') {
+    return;
+  }
+
+  const currentDraft = readRoomDraft(localStorageAdapter, submittedRoomId);
   if (result.ok) {
-    clearRoomDraft(localStorageAdapter, roomId.value);
-    composerDraft.value = '';
+    if (currentDraft === text) {
+      clearRoomDraft(localStorageAdapter, submittedRoomId);
+      if (roomId.value === submittedRoomId) {
+        composerDraft.value = '';
+      }
+    }
   } else {
-    saveRoomDraft(localStorageAdapter, roomId.value, text);
-    composerDraft.value = text;
+    if (currentDraft === text) {
+      saveRoomDraft(localStorageAdapter, submittedRoomId, text);
+      if (roomId.value === submittedRoomId) {
+        composerDraft.value = text;
+      }
+    }
   }
 }
 
 async function handleSendFile(file: globalThis.File, onProgress: (progress: number) => void) {
+  const submittedRoomId = roomId.value;
+  const submittedGeneration = chatStore.roomGeneration;
   const result = await chatStore.sendFile(file, onProgress);
-  if (!result.ok && result.stage === 'upload') {
+  if (
+    !result.ok &&
+    result.stage === 'upload' &&
+    roomId.value === submittedRoomId &&
+    chatStore.roomGeneration === submittedGeneration &&
+    chatStore.error === result.error
+  ) {
     chatStore.error = null;
   }
   return result;
+}
+
+function suppressNextEmptyDraft(roomId: string): void {
+  suppressedEmptyDraftsByRoomId.set(roomId, (suppressedEmptyDraftsByRoomId.get(roomId) ?? 0) + 1);
+}
+
+function consumeSuppressedEmptyDraft(roomId: string): boolean {
+  const count = suppressedEmptyDraftsByRoomId.get(roomId) ?? 0;
+  if (count <= 0) {
+    return false;
+  }
+
+  if (count === 1) {
+    suppressedEmptyDraftsByRoomId.delete(roomId);
+  } else {
+    suppressedEmptyDraftsByRoomId.set(roomId, count - 1);
+  }
+  return true;
 }
 
 async function showMembers(): Promise<void> {

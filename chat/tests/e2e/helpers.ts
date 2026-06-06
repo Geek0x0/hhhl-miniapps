@@ -41,10 +41,19 @@ export interface MockApiOptions {
   failJoinRoomId?: string;
   failSearchContext?: boolean;
   failFirstUpload?: boolean;
+  failFirstCreateMessage?: boolean;
+  delayCreateMessageMs?: number;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export async function mockApi(page: Page, options: MockApiOptions = {}): Promise<void> {
   let uploadAttempts = 0;
+  let createMessageAttempts = 0;
 
   await page.route('**/*', async (route) => {
     if (route.request().url().startsWith('https://telegram.org/js/telegram-web-app.js')) {
@@ -168,6 +177,15 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
     }
 
     if (endpoint === 'chat/messages/create-to-room') {
+      createMessageAttempts += 1;
+      if (options.delayCreateMessageMs != null) {
+        await delay(options.delayCreateMessageMs);
+      }
+      if (options.failFirstCreateMessage === true && createMessageAttempts === 1) {
+        await route.fulfill({ status: 500, headers, json: { error: { code: 'SEND_FAILED', message: 'send failed once' } } });
+        return;
+      }
+
       await route.fulfill({ headers, json: { id: `created-${String(body.text ?? body.fileId ?? 'message')}`, roomId: 'amlc1bekzi', createdAt: '2026-01-01T00:00:04.000Z', text: body.text ?? null, user: { id: 'user-1', username: 'alice', name: 'Alice' } } });
       return;
     }
