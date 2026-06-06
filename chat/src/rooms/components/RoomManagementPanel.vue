@@ -35,14 +35,14 @@
       <button
         class="app-button app-button-secondary"
         type="button"
-        @click="$emit('leave')"
+        @click="confirmLeave"
       >
         {{ i18n.t('rooms.leave') }}
       </button>
       <button
         class="app-button app-button-secondary"
         type="button"
-        @click="$emit('delete')"
+        @click="confirmDelete"
       >
         {{ i18n.t('common.delete') }}
       </button>
@@ -73,7 +73,7 @@ const props = defineProps<{
   error: string | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   update: [params: RoomUpdateParams];
   mute: [];
   leave: [];
@@ -83,4 +83,16 @@ defineEmits<{
 
 const name = ref(props.roomId);
 const description = ref('');
+
+function confirmLeave(): void {
+  if (globalThis.confirm(i18n.t('rooms.confirmLeave'))) {
+    emit('leave');
+  }
+}
+
+function confirmDelete(): void {
+  if (globalThis.confirm(i18n.t('rooms.confirmDelete'))) {
+    emit('delete');
+  }
+}
 </script>

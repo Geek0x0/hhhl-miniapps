@@ -35,7 +35,7 @@
       class="chat-icon-button"
       type="button"
       :aria-label="i18n.t('chat.deleteMessage')"
-      @click="$emit('delete', message.id)"
+      @click="confirmDelete"
     >
       <Trash2 :size="16" />
     </button>
@@ -119,6 +119,12 @@ async function togglePicker(): Promise<void> {
 function handleReaction(reaction: string): void {
   emit('react', props.message.id, reaction);
   showPicker.value = false;
+}
+
+function confirmDelete(): void {
+  if (globalThis.confirm(i18n.t('chat.confirmDeleteMessage'))) {
+    emit('delete', props.message.id);
+  }
 }
 
 function handleClickOutside(event: globalThis.MouseEvent): void {

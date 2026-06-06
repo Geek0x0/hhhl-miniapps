@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/vue';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import MessageActions from './MessageActions.vue';
 
 const message = {
@@ -12,6 +12,7 @@ const message = {
 
 describe('MessageActions', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     document.body.innerHTML = '';
   });
 
@@ -30,5 +31,22 @@ describe('MessageActions', () => {
 
     expect(popover).toContainElement(picker);
     expect(container.querySelector('.message-actions')).not.toContainElement(picker);
+  });
+
+  it('confirms before emitting delete', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const { emitted } = render(MessageActions, {
+      props: {
+        message,
+        canDelete: true,
+      },
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete message' }));
+    expect(emitted('delete')).toBeUndefined();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete message' }));
+    expect(emitted('delete')).toEqual([['m1']]);
+    expect(confirm).toHaveBeenCalledWith('Delete this message?');
   });
 });
