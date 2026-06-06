@@ -39,8 +39,12 @@ export type SendFileResult =
   | { ok: true; localId: string; serverId: string }
   | { ok: false; localId?: string; stage: 'upload' | 'send'; error: string };
 
+type UploadProgressCallback = (progress: number) => void;
+type SendFileUploadArg = FileUploadLike | UploadProgressCallback;
+
 export interface ChatState {
   roomId: string | null;
+  roomGeneration: number;
   loading: boolean;
   olderLoading: boolean;
   newerLoading: boolean;
@@ -99,6 +103,10 @@ function defaultIdFactory(): string {
 
 function messageFromError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isProgressCallback(value: SendFileUploadArg): value is UploadProgressCallback {
+  return typeof value === 'function';
 }
 
 function firstServerMessageId(timeline: TimelineEntry[]): string | undefined {
@@ -243,6 +251,7 @@ async function verifyKeySearchMessages(messages: ChatMessage[], api: ChatApiLike
 export const useChatStore = defineStore('chat', {
   state: (): ChatState => ({
     roomId: null,
+    roomGeneration: 0,
     loading: false,
     olderLoading: false,
     newerLoading: false,
@@ -284,15 +293,17 @@ export const useChatStore = defineStore('chat', {
 
     async loadInitial(roomId: string, api: ChatApiLike = createDefaultChatApi()) {
       const requestedRoomId = roomId;
+      const requestedGeneration = this.roomGeneration + 1;
       const roomChanged = this.roomId !== requestedRoomId;
+      this.roomGeneration = requestedGeneration;
       this.loading = true;
       this.error = null;
+      this.olderLoading = false;
+      this.newerLoading = false;
 
       if (roomChanged) {
         this.timeline = [];
         this.outgoing = [];
-        this.olderLoading = false;
-        this.newerLoading = false;
         this.hasMoreOlder = true;
         this.clearComposerContext();
         this.clearSearch();
@@ -303,17 +314,17 @@ export const useChatStore = defineStore('chat', {
 
       try {
         const messages = await api.roomTimeline(requestedRoomId, { limit: DEFAULT_PAGE_SIZE });
-        if (this.roomId !== requestedRoomId) {
+        if (this.roomId !== requestedRoomId || this.roomGeneration !== requestedGeneration) {
           return;
         }
         this.timeline = mergeTimeline([], messages);
         this.hasMoreOlder = messages.length > 0;
       } catch (error) {
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.error = messageFromError(error);
         }
       } finally {
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.loading = false;
         }
       }
@@ -325,6 +336,7 @@ export const useChatStore = defineStore('chat', {
       }
 
       const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       this.olderLoading = true;
       this.error = null;
 
@@ -332,16 +344,16 @@ export const useChatStore = defineStore('chat', {
         const untilId = firstServerMessageId(this.timeline);
         const params = untilId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, untilId };
         const messages = await api.roomTimeline(requestedRoomId, params);
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.timeline = mergeTimeline(this.timeline, messages);
           this.hasMoreOlder = messages.length >= DEFAULT_PAGE_SIZE;
         }
       } catch (error) {
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.error = messageFromError(error);
         }
       } finally {
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.olderLoading = false;
         }
       }
@@ -353,21 +365,22 @@ export const useChatStore = defineStore('chat', {
       }
 
       const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       this.newerLoading = true;
 
       try {
         const sinceId = lastServerMessageId(this.timeline);
         const params = sinceId == null ? { limit: DEFAULT_PAGE_SIZE } : { limit: DEFAULT_PAGE_SIZE, sinceId };
         const messages = await api.roomTimeline(requestedRoomId, params);
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.timeline = mergeTimeline(this.timeline, messages);
         }
       } catch (error) {
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.error = messageFromError(error);
         }
       } finally {
-        if (this.roomId === requestedRoomId) {
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.newerLoading = false;
         }
       }
@@ -380,6 +393,7 @@ export const useChatStore = defineStore('chat', {
 
       const localId = (options.idFactory ?? defaultIdFactory)();
       const capturedRoomId = this.roomId;
+      const capturedGeneration = this.roomGeneration;
       const capturedReply = this.replyTarget;
       const capturedQuote = this.quoteTarget;
       const pending = createPendingMessage({
@@ -399,7 +413,7 @@ export const useChatStore = defineStore('chat', {
 
       try {
         const serverMessage = withComposerContext(await api.createToRoom(pending.payload), capturedReply, capturedQuote);
-        if (this.roomId !== capturedRoomId) {
+        if (this.roomId !== capturedRoomId || this.roomGeneration !== capturedGeneration) {
           return { ok: true, localId, serverId: serverMessage.id };
         }
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
@@ -407,7 +421,7 @@ export const useChatStore = defineStore('chat', {
         return { ok: true, localId, serverId: serverMessage.id };
       } catch (error) {
         const message = messageFromError(error);
-        if (this.roomId === capturedRoomId) {
+        if (this.roomId === capturedRoomId && this.roomGeneration === capturedGeneration) {
           this.outgoing = failPendingMessage(this.outgoing, localId, message);
           this.timeline = this.timeline.map((entry) => entry.kind === 'pending' && entry.localId === localId ? { ...entry, status: 'failed', error: message } : entry);
           this.error = message;
@@ -418,7 +432,7 @@ export const useChatStore = defineStore('chat', {
 
     async sendFile(
       file: File,
-      uploadApi: FileUploadLike = createDefaultFileApi(),
+      uploadApi: SendFileUploadArg = createDefaultFileApi(),
       api: ChatApiLike = createDefaultChatApi(),
       options: SendOptions = {},
       onProgress?: (progress: number) => void,
@@ -428,16 +442,19 @@ export const useChatStore = defineStore('chat', {
       }
 
       const capturedRoomId = this.roomId;
+      const capturedGeneration = this.roomGeneration;
+      const resolvedOnProgress = isProgressCallback(uploadApi) ? uploadApi : onProgress;
+      const resolvedUploadApi = isProgressCallback(uploadApi) ? createDefaultFileApi() : uploadApi;
       let uploaded: DriveFile;
       try {
-        const rawUploaded = await uploadWith(uploadApi, file, onProgress);
-        if (this.roomId !== capturedRoomId) {
+        const rawUploaded = await uploadWith(resolvedUploadApi, file, resolvedOnProgress);
+        if (this.roomId !== capturedRoomId || this.roomGeneration !== capturedGeneration) {
           return { ok: false, stage: 'send', error: 'Room changed before file could be sent' };
         }
         uploaded = normalizeUploadedFile(rawUploaded);
       } catch (error) {
         const message = messageFromError(error);
-        if (this.roomId === capturedRoomId) {
+        if (this.roomId === capturedRoomId && this.roomGeneration === capturedGeneration) {
           this.error = message;
         }
         return { ok: false, stage: 'upload', error: message };
@@ -464,7 +481,7 @@ export const useChatStore = defineStore('chat', {
 
       try {
         const serverMessage = withComposerContext(withUploadedFile(await api.createToRoom(pending.payload), uploaded), capturedReply, capturedQuote);
-        if (this.roomId !== capturedRoomId) {
+        if (this.roomId !== capturedRoomId || this.roomGeneration !== capturedGeneration) {
           return { ok: true, localId, serverId: serverMessage.id };
         }
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
@@ -472,7 +489,7 @@ export const useChatStore = defineStore('chat', {
         return { ok: true, localId, serverId: serverMessage.id };
       } catch (error) {
         const message = messageFromError(error);
-        if (this.roomId === capturedRoomId) {
+        if (this.roomId === capturedRoomId && this.roomGeneration === capturedGeneration) {
           this.outgoing = failPendingMessage(this.outgoing, localId, message);
           this.timeline = this.timeline.map((entry) => entry.kind === 'pending' && entry.localId === localId ? { ...entry, status: 'failed', error: message } : entry);
           this.error = message;

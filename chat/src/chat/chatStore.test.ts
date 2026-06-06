@@ -3,6 +3,24 @@ import { createPinia, setActivePinia } from 'pinia';
 import type { ChatMessage } from '@/shared/types';
 import { useChatStore, type ChatApiLike } from './chatStore';
 
+const defaultUploadFile = vi.hoisted(() => vi.fn());
+const defaultCreateToRoom = vi.hoisted(() => vi.fn());
+
+vi.mock('@/files/fileApi', () => ({
+  createFileApi: vi.fn(() => ({ uploadFile: defaultUploadFile })),
+}));
+
+vi.mock('./chatApi', () => ({
+  createChatApi: vi.fn(() => ({
+    roomTimeline: vi.fn(async () => []),
+    createToRoom: defaultCreateToRoom,
+    delete: vi.fn(async () => undefined),
+    react: vi.fn(async () => undefined),
+    unreact: vi.fn(async () => undefined),
+    search: vi.fn(async () => []),
+  })),
+}));
+
 const KEY_SEARCH_USER = { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' };
 const VALID_KEY_TEXT = 'sk-AbCdEfGhIjKlMnOpQrStUvWxYz012345';
 const SECOND_VALID_KEY_TEXT = 'sk-0123456789abcdefghijklmnopqrstuv';
@@ -33,6 +51,8 @@ function createApi(overrides: Partial<ChatApiLike> = {}): ChatApiLike {
 
 describe('chatStore', () => {
   beforeEach(() => {
+    defaultUploadFile.mockReset();
+    defaultCreateToRoom.mockReset();
     setActivePinia(createPinia());
   });
 
@@ -523,7 +543,7 @@ describe('chatStore', () => {
     expect(progress).toHaveBeenCalledWith(0.5);
   });
 
-  it('ignores stale initial and newer responses after the active room changes', async () => {
+  it('ignores stale initial responses after the active room changes', async () => {
     let resolveRoom1: (messages: ChatMessage[]) => void = () => {
       throw new Error('room-1 resolver was not set');
     };
@@ -547,6 +567,160 @@ describe('chatStore', () => {
 
     expect(store.roomId).toBe('room-2');
     expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+  });
+
+  it('ignores stale initial responses after returning to the same room', async () => {
+    let resolveFirstRoom1: (messages: ChatMessage[]) => void = () => {
+      throw new Error('first room-1 resolver was not set');
+    };
+    const firstRoom1Response = new Promise<ChatMessage[]>((resolve) => {
+      resolveFirstRoom1 = resolve;
+    });
+    let room1Calls = 0;
+    const api = createApi({
+      roomTimeline: vi.fn(async (roomId) => {
+        if (roomId === 'room-1') {
+          room1Calls += 1;
+          if (room1Calls === 1) {
+            return firstRoom1Response;
+          }
+          return [{ ...message('m9'), roomId: 'room-1' }];
+        }
+        return [{ ...message('m8'), roomId: 'room-2' }];
+      }),
+    });
+    const store = useChatStore();
+
+    const firstLoad = store.loadInitial('room-1', api);
+    await store.loadInitial('room-2', api);
+    await store.loadInitial('room-1', api);
+    resolveFirstRoom1([{ ...message('m1'), roomId: 'room-1' }]);
+    await firstLoad;
+
+    expect(store.roomId).toBe('room-1');
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m9']);
+  });
+
+  it('ignores stale pagination responses after returning to the same room', async () => {
+    let resolveOlder: (messages: ChatMessage[]) => void = () => {
+      throw new Error('older resolver was not set');
+    };
+    let resolveNewer: (messages: ChatMessage[]) => void = () => {
+      throw new Error('newer resolver was not set');
+    };
+    const olderResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveOlder = resolve;
+    });
+    const newerResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveNewer = resolve;
+    });
+    let room1InitialCalls = 0;
+    const api = createApi({
+      roomTimeline: vi.fn(async (roomId, params) => {
+        if (params?.untilId === 'm1') {
+          return olderResponse;
+        }
+        if (params?.sinceId === 'm2') {
+          return newerResponse;
+        }
+        if (roomId === 'room-1') {
+          room1InitialCalls += 1;
+          return room1InitialCalls === 1 ? [message('m1'), message('m2')] : [{ ...message('m9'), roomId: 'room-1' }];
+        }
+        return [{ ...message('m8'), roomId: 'room-2' }];
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', api);
+    const olderLoad = store.loadOlder(api);
+    const newerLoad = store.loadNewer(api);
+    await store.loadInitial('room-2', api);
+    await store.loadInitial('room-1', api);
+    resolveOlder([{ ...message('m0'), roomId: 'room-1' }]);
+    resolveNewer([{ ...message('m3'), roomId: 'room-1' }]);
+    await Promise.all([olderLoad, newerLoad]);
+
+    expect(store.roomId).toBe('room-1');
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m9']);
+  });
+
+  it('does not let stale text send completion mutate a later same-room session', async () => {
+    let resolveFirstSend: (message: ChatMessage) => void = () => {
+      throw new Error('first send resolver was not set');
+    };
+    let resolveSecondSend: (message: ChatMessage) => void = () => {
+      throw new Error('second send resolver was not set');
+    };
+    const firstSendResponse = new Promise<ChatMessage>((resolve) => {
+      resolveFirstSend = resolve;
+    });
+    const secondSendResponse = new Promise<ChatMessage>((resolve) => {
+      resolveSecondSend = resolve;
+    });
+    const firstSendApi = createApi({
+      createToRoom: vi.fn(async () => firstSendResponse),
+    });
+    const secondSendApi = createApi({
+      createToRoom: vi.fn(async () => secondSendResponse),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const room1AgainApi = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m9'), roomId: 'room-1' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const firstSend = store.sendText('first', firstSendApi, {
+      idFactory: () => 'local-repeat',
+      now: () => '2026-01-01T00:00:03.000Z',
+    });
+    await store.loadInitial('room-2', room2Api);
+    await store.loadInitial('room-1', room1AgainApi);
+    const secondSend = store.sendText('second', secondSendApi, {
+      idFactory: () => 'local-repeat',
+      now: () => '2026-01-01T00:00:10.000Z',
+    });
+
+    resolveFirstSend({ id: 'm-first', roomId: 'room-1', createdAt: '2026-01-01T00:00:03.000Z', text: 'first' });
+    const firstResult = await firstSend;
+
+    const pending = store.timeline.find((entry) => entry.kind === 'pending' && entry.localId === 'local-repeat');
+    expect(firstResult).toEqual({ ok: true, localId: 'local-repeat', serverId: 'm-first' });
+    expect(pending?.message.text).toBe('second');
+    expect(store.outgoing[0]).toMatchObject({ localId: 'local-repeat', status: 'pending' });
+
+    resolveSecondSend({ id: 'm-second', roomId: 'room-1', createdAt: '2026-01-01T00:00:10.000Z', text: 'second' });
+    await secondSend;
+  });
+
+  it('supports sendFile(file, onProgress) with default transports', async () => {
+    const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+    const progress = vi.fn();
+    defaultUploadFile.mockImplementation(async (_file: File, onProgress?: (progress: number) => void) => {
+      onProgress?.(0.75);
+      return { id: 'file-default', name: 'hello.txt' };
+    });
+    defaultCreateToRoom.mockImplementation(async (params) => ({
+      id: 'm-default',
+      roomId: params.toRoomId,
+      createdAt: '2026-01-01T00:00:03.000Z',
+      text: null,
+    }));
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const result = await store.sendFile(file, progress);
+
+    expect(defaultUploadFile).toHaveBeenCalledWith(file, progress);
+    expect(defaultCreateToRoom).toHaveBeenCalledWith({ toRoomId: 'room-1', fileId: 'file-default' });
+    expect(progress).toHaveBeenCalledWith(0.75);
+    expect(result).toMatchObject({ ok: true, serverId: 'm-default' });
+    if (result.ok) {
+      expect(result.localId).toMatch(/^local-/);
+    }
   });
 
   it('does not enqueue or send stale files after the active room changes during upload', async () => {
