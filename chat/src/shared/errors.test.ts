@@ -17,6 +17,7 @@ describe('redactSensitiveText', () => {
       'https://dc.hhhl.cc/streaming?i=secret-token',
       'https://dc.hhhl.cc/api?room=1&i=query-token&safe=1',
       'token=form-token',
+      'i=form-token',
       '{"i":"json-i-token"}',
       '{"token":"json-token"}',
     ].join(' ');
@@ -25,6 +26,7 @@ describe('redactSensitiveText', () => {
       'https://dc.hhhl.cc/streaming?i=[redacted]',
       'https://dc.hhhl.cc/api?room=1&i=[redacted]&safe=1',
       'token=[redacted]',
+      'i=[redacted]',
       '{"i":"[redacted]"}',
       '{"token":"[redacted]"}',
     ].join(' '));
@@ -56,6 +58,17 @@ describe('redactSensitiveText', () => {
       'Authorization: Bearer [redacted]',
       'Bearer [redacted]',
     ].join(' '));
+  });
+
+  it('does not rewrite already-redacted token fields', () => {
+    const raw = [
+      'i=[redacted]',
+      'token=[redacted]',
+      'Authorization: Bearer [redacted]',
+      'Bearer [redacted]',
+    ].join(' ');
+
+    expect(redactSensitiveText(raw)).toBe(raw);
   });
 });
 

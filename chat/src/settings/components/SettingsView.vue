@@ -144,9 +144,11 @@ import { createAuthDependencies, useAuthStore } from '@/auth/authStore';
 import { useChatStore } from '@/chat/chatStore';
 import { i18n, type MessageKey } from '@/i18n';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
+import type { RoomSummary, UserSummary } from '@/shared/types';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
 import { useRoomStore } from '@/rooms/roomStore';
 import { getTelegramLaunchContext, isTelegramEnvironment } from '@/telegram/telegram';
+import type { DiagnosticsRedactionIdentifierInput } from '../diagnostics';
 import { useSettingsStore, type ThemeMode } from '../settingsStore';
 import DiagnosticsPanel from './DiagnosticsPanel.vue';
 
@@ -214,6 +216,88 @@ function failedOutgoingCount(): number {
   return chatStore.outgoing.filter((item) => item.status === 'failed').length;
 }
 
+function addRedactionIdentifier(
+  identifiers: DiagnosticsRedactionIdentifierInput[],
+  value: string | null | undefined,
+  caseInsensitive = false,
+): void {
+  if (value != null && value.trim() !== '') {
+    identifiers.push({ value, caseInsensitive });
+  }
+}
+
+function addRoomRedactionIdentifiers(
+  identifiers: DiagnosticsRedactionIdentifierInput[],
+  room: Pick<RoomSummary, 'id' | 'name'> | null | undefined,
+): void {
+  if (room == null) {
+    return;
+  }
+
+  addRedactionIdentifier(identifiers, room.id);
+  addRedactionIdentifier(identifiers, room.name, true);
+}
+
+function addUserRedactionIdentifiers(
+  identifiers: DiagnosticsRedactionIdentifierInput[],
+  user: Pick<UserSummary, 'id' | 'username' | 'name'> | null | undefined,
+): void {
+  if (user == null) {
+    return;
+  }
+
+  addRedactionIdentifier(identifiers, user.id);
+  addRedactionIdentifier(identifiers, user.username, true);
+  addRedactionIdentifier(identifiers, user.name, true);
+}
+
+function redactionIdentifiers(): DiagnosticsRedactionIdentifierInput[] {
+  const identifiers: DiagnosticsRedactionIdentifierInput[] = [];
+
+  addUserRedactionIdentifiers(identifiers, auth.user);
+  for (const favoriteUserId of settings.favoriteUserIds) {
+    addRedactionIdentifier(identifiers, favoriteUserId);
+  }
+
+  for (const entry of roomStore.rooms) {
+    addRoomRedactionIdentifiers(identifiers, entry.room);
+  }
+  for (const room of roomStore.manualRooms ?? []) {
+    addRoomRedactionIdentifiers(identifiers, room);
+  }
+  addRoomRedactionIdentifiers(identifiers, roomStore.deepLinkedRoom);
+  for (const invitation of roomStore.invitations) {
+    addRoomRedactionIdentifiers(identifiers, invitation.room ?? null);
+    addRedactionIdentifier(identifiers, invitation.roomId);
+  }
+  for (const invitation of roomStore.outboxInvitations) {
+    addRoomRedactionIdentifiers(identifiers, invitation.room ?? null);
+    addRedactionIdentifier(identifiers, invitation.roomId);
+  }
+
+  addRedactionIdentifier(identifiers, realtimeStore.roomId);
+  addRedactionIdentifier(identifiers, roomStore.activeRoomId);
+  addRedactionIdentifier(identifiers, roomStore.pendingStartRoomId);
+  addRedactionIdentifier(identifiers, chatStore.roomId);
+
+  for (const roomId of Object.keys(roomStore.membersByRoomId)) {
+    addRedactionIdentifier(identifiers, roomId);
+  }
+  for (const roomId of Object.keys(roomStore.membersLoadingByRoomId ?? {})) {
+    addRedactionIdentifier(identifiers, roomId);
+  }
+  for (const roomId of Object.keys(roomStore.membersHasMoreByRoomId ?? {})) {
+    addRedactionIdentifier(identifiers, roomId);
+  }
+  for (const members of Object.values(roomStore.membersByRoomId)) {
+    for (const member of members) {
+      addUserRedactionIdentifiers(identifiers, member);
+    }
+  }
+
+  return identifiers;
+}
+
 function collectSettingsDiagnostics(): void {
   settings.collectDiagnostics({
     environment: {
@@ -264,6 +348,7 @@ function collectSettingsDiagnostics(): void {
       searchError: chatStore.searchError,
       keySearchError: chatStore.keySearchError,
     },
+    redactionIdentifiers: redactionIdentifiers(),
   });
 }
 

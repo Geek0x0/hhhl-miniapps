@@ -9,9 +9,17 @@ const MAX_PERCENT_DECODE_ROUNDS = 3;
 const SENSITIVE_URL_FIELD_PATTERN =
   /(?:^|[^\w])["']?(?:thumbnailUrl|downloadUrl|fileUrl|mediaUrl|previewUrl|webUrl|webpublicUrl|url|src|thumbnail)["']?\s*[:=]/i;
 const TOKEN_FIELD_MARKER_PATTERN =
-  /(?:^|[^\w])["']?(?:(?:access|refresh|id)_token|(?:auth|bot)Token|token)["']?\s*[:=]\s*["']?(?!\[redacted\]["']?(?:[\s,}&\]]|$))[^\s"',}&\]]+/i;
+  /(?:^|[^\w])["']?(?:(?:access|refresh|id)_token|(?:auth|bot)Token|token|i)["']?\s*[:=]\s*["']?(?!\[redacted\]["']?(?:[\s,}&\]]|$))[^\s"',}&\]]+/i;
 const BEARER_TOKEN_MARKER_PATTERN =
   /\b(?:Authorization\s*:\s*)?Bearer\s+(?!\[redacted\](?:[\s,}&\]]|$))[A-Za-z0-9._~+/=-]{6,}/i;
+const MESSAGE_ID_FIELD_MARKER_PATTERN =
+  /(?:^|[^\w])["']?(?:messageIds?|message_id|chatMessageId|sinceId|untilId|lastSeenId|replyId|replyToId|replyMessageId|quoteId|quoteMessageId|localId|serverId)["']?(?:\[\]|%5b%5d)?\s*[:=]/i;
+const MESSAGE_TEXT_FIELD_MARKER_PATTERN =
+  /(?:^|[^\w])["']?(?:text|body|content|message)["']?\s*[:=]/i;
+const MESSAGE_SHAPE_FIELD_MARKER_PATTERN =
+  /(?:^|[^\w])["']?(?:roomId|toRoomId|createdAt|created_at|created|user|file|reply|quote|reactions)["']?\s*[:=]/i;
+const CANONICAL_ID_FIELD_MARKER_PATTERN =
+  /(?:^|[^\w])["']?id["']?\s*[:=]/i;
 
 export type DiagnosticsRouteType = 'root' | 'rooms' | 'room' | 'settings' | 'auth-callback' | 'other';
 
@@ -82,6 +90,11 @@ export interface DiagnosticsErrorsInput {
   raw?: string | null;
 }
 
+export interface DiagnosticsRedactionIdentifierInput {
+  value?: string | null;
+  caseInsensitive?: boolean;
+}
+
 export interface DiagnosticsInput {
   environment?: DiagnosticsEnvironmentInput;
   auth?: DiagnosticsAuthInput;
@@ -91,6 +104,7 @@ export interface DiagnosticsInput {
   rooms?: DiagnosticsRoomsInput;
   chat?: DiagnosticsChatInput;
   errors?: DiagnosticsErrorsInput;
+  redactionIdentifiers?: DiagnosticsRedactionIdentifierInput[];
   raw?: string;
   instanceUrl?: string;
   realtimeStatus?: string;
@@ -161,6 +175,11 @@ export interface DiagnosticsErrorsSnapshot {
   raw: string | null;
 }
 
+export interface DiagnosticsRedactionIdentifierSnapshot {
+  value: string;
+  caseInsensitive: boolean;
+}
+
 export interface DiagnosticsSnapshot {
   environment: DiagnosticsEnvironmentSnapshot;
   auth: DiagnosticsAuthSnapshot;
@@ -170,6 +189,7 @@ export interface DiagnosticsSnapshot {
   rooms: DiagnosticsRoomsSnapshot;
   chat: DiagnosticsChatSnapshot;
   errors: DiagnosticsErrorsSnapshot;
+  redactionIdentifiers: DiagnosticsRedactionIdentifierSnapshot[];
 }
 
 export interface DiagnosticsOutput {
@@ -274,6 +294,7 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
       keySearch: optionalText(errors.keySearch ?? chat.keySearchError),
       raw: optionalText(errors.raw ?? input.raw),
     },
+    redactionIdentifiers: normalizeRedactionIdentifiers(input.redactionIdentifiers ?? []),
   };
 }
 
@@ -395,6 +416,10 @@ function freeFormDiagnosticValue(value: string | null, snapshot: DiagnosticsSnap
 }
 
 function sanitizeFreeformValue(value: string, snapshot: DiagnosticsSnapshot): string {
+  if (containsForbiddenDiagnosticMarker(value)) {
+    return REDACTED;
+  }
+
   const tokenRedacted = redactSensitiveText(value);
 
   if (containsForbiddenDiagnosticMarker(tokenRedacted)) {
@@ -414,6 +439,7 @@ function containsForbiddenDiagnosticMarker(value: string): boolean {
   return (
     looksLikeTelegramInitData(value) ||
     looksLikeTokenLikeFreeform(value) ||
+    looksLikeMessageTextOrId(value) ||
     looksLikeFileUrlOrMessageIdList(value)
   );
 }
@@ -422,7 +448,7 @@ function looksLikeTelegramInitData(value: string): boolean {
   return markerDetectionValues(value).some(
     (candidate) =>
       /(?:^|[?&#])(?:query_id|auth_date|hash|signature|user)=/i.test(candidate) ||
-      /(?:^|[?&#\s])initData=/i.test(candidate),
+      /(?:^|[^\w])["']?initData(?:Unsafe)?["']?\s*[:=]/i.test(candidate),
   );
 }
 
@@ -440,22 +466,49 @@ function looksLikeFileUrlOrMessageIdList(value: string): boolean {
       /(?:\/|%2f)(?:drive(?:\/|%2f))?files(?:\/|%2f)/i.test(candidate) ||
       /(?:\/|%2f)media(?:\/|%2f)/i.test(candidate) ||
       SENSITIVE_URL_FIELD_PATTERN.test(candidate) ||
-      /messageIds?(?:\[\]|%5b%5d)?=/i.test(candidate) ||
-      /\bmessageIds?\s*:/i.test(candidate) ||
-      /["']messageIds?["']/i.test(candidate),
+      MESSAGE_ID_FIELD_MARKER_PATTERN.test(candidate),
+  );
+}
+
+function looksLikeMessageTextOrId(value: string): boolean {
+  return markerDetectionValues(value).some(
+    (candidate) =>
+      MESSAGE_TEXT_FIELD_MARKER_PATTERN.test(candidate) ||
+      (
+        CANONICAL_ID_FIELD_MARKER_PATTERN.test(candidate) &&
+        MESSAGE_SHAPE_FIELD_MARKER_PATTERN.test(candidate)
+      ),
   );
 }
 
 function markerDetectionValues(value: string): string[] {
-  const decoded = decodeValidPercentEscapes(value);
+  const values = [value];
+  let decoded = value;
 
-  return decoded === value ? [value] : [value, decoded];
+  for (let round = 0; round < MAX_PERCENT_DECODE_ROUNDS; round += 1) {
+    const nextDecoded = decodeValidPercentEscapes(decoded);
+
+    if (nextDecoded === decoded) {
+      break;
+    }
+
+    values.push(nextDecoded);
+    decoded = nextDecoded;
+  }
+
+  return uniqueStringValues(values);
 }
 
 function decodeValidPercentEscapes(value: string): string {
-  return value.replace(/%([0-9A-Fa-f]{2})/g, (_, hex: string) =>
-    String.fromCharCode(Number.parseInt(hex, 16)),
-  );
+  return value.replace(/(?:%[0-9A-Fa-f]{2})+/g, (encodedRun) => {
+    try {
+      return decodeURIComponent(encodedRun);
+    } catch {
+      return encodedRun.replace(/%([0-9A-Fa-f]{2})/g, (_, hex: string) =>
+        String.fromCharCode(Number.parseInt(hex, 16)),
+      );
+    }
+  });
 }
 
 function redactKnownIdentifiersInFreeform(value: string, snapshot: DiagnosticsSnapshot): string {
@@ -597,6 +650,7 @@ function knownIdentifiers(snapshot: DiagnosticsSnapshot): KnownIdentifier[] {
     knownIdentifier(snapshot.rooms.activeRoomName, true),
     knownIdentifier(snapshot.rooms.pendingStartRoomId, false),
     knownIdentifier(snapshot.chat.roomId, false),
+    ...snapshot.redactionIdentifiers,
   ]
     .filter((identifier): identifier is KnownIdentifier => identifier != null);
 
@@ -611,6 +665,18 @@ function knownIdentifier(value: string | null, caseInsensitive: boolean): KnownI
   }
 
   return { value: normalized, caseInsensitive };
+}
+
+function normalizeRedactionIdentifiers(
+  identifiers: DiagnosticsRedactionIdentifierInput[],
+): DiagnosticsRedactionIdentifierSnapshot[] {
+  return uniqueKnownIdentifiers(
+    identifiers
+      .map((identifier) =>
+        knownIdentifier(optionalText(identifier.value), identifier.caseInsensitive ?? false),
+      )
+      .filter((identifier): identifier is KnownIdentifier => identifier != null),
+  );
 }
 
 function uniqueKnownIdentifiers(identifiers: KnownIdentifier[]): KnownIdentifier[] {

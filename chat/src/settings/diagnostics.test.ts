@@ -91,9 +91,10 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('searchResultCount=5');
     expect(safe).toContain('keySearchResultCount=1');
     expect(safe).toContain('[errors]');
-    expect(safe).toContain('token=[redacted]');
-    expect(safe).toContain('&i=[redacted]');
-    expect(safe).toContain('"token":"[redacted]"');
+    expect(safe).toContain('authError=[redacted]');
+    expect(safe).toContain('roomsError=[redacted]');
+    expect(safe).toContain('chatError=[redacted]');
+    expect(safe).toContain('[raw]\n[redacted]');
     expect(safe).not.toContain('user-secret');
     expect(safe).not.toContain('alice');
     expect(safe).not.toContain('room-secret');
@@ -120,9 +121,10 @@ describe('diagnostics renderer', () => {
     expect(detailed).toContain('replyTargetPresent=true');
     expect(detailed).toContain('quoteTargetPresent=false');
     expect(detailed).toContain('failedOutgoingCount=1');
-    expect(detailed).toContain('token=[redacted]');
-    expect(detailed).toContain('&i=[redacted]');
-    expect(detailed).toContain('"token":"[redacted]"');
+    expect(detailed).toContain('authError=[redacted]');
+    expect(detailed).toContain('roomsError=[redacted]');
+    expect(detailed).toContain('chatError=[redacted]');
+    expect(detailed).toContain('[raw]\n[redacted]');
     expect(detailed).not.toContain('auth-token');
     expect(detailed).not.toContain('room-token');
     expect(detailed).not.toContain('chat-token');
@@ -173,6 +175,35 @@ describe('diagnostics renderer', () => {
     expect(detailed).not.toContain('hash%3Dsecret');
   });
 
+  it('redacts object-log Telegram initData fields from raw and errors', () => {
+    const rawInitData = '{"initData":"tgWebAppData=secret-launch-payload"}';
+    const errorInitData = 'auth failed initData: tgWebAppData=error-launch-payload';
+    const { safe, detailed } = createDiagnosticsOutput({
+      auth: { error: errorInitData },
+      raw: rawInitData,
+    });
+
+    expect(safe).toContain('authError=[redacted]');
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(detailed).toContain('authError=[redacted]');
+    expect(detailed).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('secret-launch-payload');
+    expect(safe).not.toContain('error-launch-payload');
+    expect(detailed).not.toContain('secret-launch-payload');
+    expect(detailed).not.toContain('error-launch-payload');
+  });
+
+  it('redacts object-log Telegram initDataUnsafe fields from raw diagnostics', () => {
+    const { safe, detailed } = createDiagnosticsOutput({
+      raw: '{"initDataUnsafe":{"user":{"id":"telegram-user-secret"}}}',
+    });
+
+    expect(safe).toContain('[raw]\n[redacted]');
+    expect(detailed).toContain('[raw]\n[redacted]');
+    expect(safe).not.toContain('telegram-user-secret');
+    expect(detailed).not.toContain('telegram-user-secret');
+  });
+
   it('redacts URL-encoded identifiers from free-form errors', () => {
     const { safe } = createDiagnosticsOutput({
       auth: { username: 'alice@example' },
@@ -185,6 +216,32 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('roomsError=failed for [redacted] in [redacted]');
     expect(safe).not.toContain('alice%40example');
     expect(safe).not.toContain('Secret%20Room');
+  });
+
+  it('redacts UTF-8 percent-encoded identifiers from free-form errors', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { username: '张三' },
+      rooms: {
+        activeRoomName: '秘密房间',
+        error: 'failed for %E5%BC%A0%E4%B8%89 in %E7%A7%98%E5%AF%86%E6%88%BF%E9%97%B4',
+      },
+    });
+
+    expect(safe).toContain('roomsError=[redacted]');
+    expect(safe).not.toContain('%E5%BC%A0%E4%B8%89');
+    expect(safe).not.toContain('%E7%A7%98%E5%AF%86');
+  });
+
+  it('redacts double-encoded UTF-8 identifiers from free-form errors', () => {
+    const { safe } = createDiagnosticsOutput({
+      auth: { username: '张三' },
+      rooms: {
+        error: 'failed for %25E5%25BC%25A0%25E4%25B8%2589',
+      },
+    });
+
+    expect(safe).toContain('roomsError=[redacted]');
+    expect(safe).not.toContain('%25E5%25BC%25A0');
   });
 
   it('redacts over-encoded known identifiers in free-form diagnostics', () => {
@@ -214,6 +271,32 @@ describe('diagnostics renderer', () => {
 
     expect(safe).toContain('roomsError=[redacted]');
     expect(safe).not.toContain('room%252Fsecret');
+  });
+
+  it('uses redaction-only identifiers without rendering them as details', () => {
+    const { safe, detailed } = createDiagnosticsOutput({
+      errors: {
+        rooms: 'failed room-other Other Room member-secret bobby',
+        chat: 'failed room%2Dother member%2Dsecret',
+      },
+      redactionIdentifiers: [
+        { value: 'room-other' },
+        { value: 'Other Room', caseInsensitive: true },
+        { value: 'member-secret' },
+        { value: 'bobby', caseInsensitive: true },
+      ],
+    });
+
+    expect(safe).toContain('roomsError=failed [redacted] [redacted] [redacted] [redacted]');
+    expect(safe).toContain('chatError=[redacted]');
+    expect(safe).not.toContain('room-other');
+    expect(safe).not.toContain('Other Room');
+    expect(safe).not.toContain('member-secret');
+    expect(safe).not.toContain('bobby');
+    expect(detailed).not.toContain('room-other');
+    expect(detailed).not.toContain('Other Room');
+    expect(detailed).not.toContain('member-secret');
+    expect(detailed).not.toContain('bobby');
   });
 
   it('redacts display identifiers case-insensitively from free-form errors', () => {
@@ -318,6 +401,7 @@ describe('diagnostics renderer', () => {
       'id_token=secret-token',
       'authToken=secret-token',
       'botToken: secret-token',
+      'i=secret-token',
       'Authorization: Bearer secret-token',
       'Bearer secret-token',
       'token%3Dsecret-token',
@@ -332,6 +416,22 @@ describe('diagnostics renderer', () => {
     const { safe } = createDiagnosticsOutput({ raw: 'bad% token%3Dsecret-token' });
     expect(safe).toContain('[raw]\n[redacted]');
     expect(safe).not.toContain('secret-token');
+  });
+
+  it('redacts double-encoded forbidden markers from raw diagnostics', () => {
+    for (const raw of [
+      'token%253Dsecret-token',
+      'i%253Dsecret-token',
+      'query_id%253Dabc%2526auth_date%253D1%2526hash%253Dsecret-hash',
+      'mediaUrl%253Dhttps%25253A%25252F%25252Fdc.hhhl.cc%25252Fmedia%25252Fsecret.png',
+    ]) {
+      const { safe, detailed } = createDiagnosticsOutput({ raw });
+
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(detailed).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('secret');
+      expect(detailed).not.toContain('secret');
+    }
   });
 
   it('redacts message ID lists from raw diagnostics', () => {
@@ -355,6 +455,63 @@ describe('diagnostics renderer', () => {
       const { safe } = createDiagnosticsOutput({ raw });
       expect(safe).toContain('[raw]\n[redacted]');
       expect(safe).not.toContain('msg-1');
+    }
+  });
+
+  it('redacts message ID alias fields from raw diagnostics', () => {
+    for (const raw of [
+      '{"replyId":"msg-1"}',
+      '{"quoteId":"msg-1"}',
+      'failed message_id=msg-1',
+      'failed sinceId=msg-1',
+      'failed untilId=msg-1',
+      'failed lastSeenId=msg-1',
+      'failed replyMessageId: msg-1',
+      'failed quoteMessageId = msg-1',
+      'failed localId=local-1',
+      'failed serverId=msg-1',
+    ]) {
+      const { safe, detailed } = createDiagnosticsOutput({ raw });
+
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(detailed).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('msg-1');
+      expect(safe).not.toContain('local-1');
+      expect(detailed).not.toContain('msg-1');
+      expect(detailed).not.toContain('local-1');
+    }
+  });
+
+  it('redacts message-shaped text and canonical id fields from raw diagnostics', () => {
+    for (const raw of [
+      '{"id":"msg-1","roomId":"room-1","text":"private body"}',
+      'failed ChatMessage text: private body',
+      '{"id":"msg-1","createdAt":"2026-06-05T00:00:00.000Z","user":{"id":"user-1"}}',
+    ]) {
+      const { safe, detailed } = createDiagnosticsOutput({ raw });
+
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(detailed).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('msg-1');
+      expect(safe).not.toContain('private body');
+      expect(detailed).not.toContain('msg-1');
+      expect(detailed).not.toContain('private body');
+    }
+  });
+
+  it('redacts message-shaped text and room aliases from raw diagnostics', () => {
+    for (const raw of [
+      '{"id":"msg-1","toRoomId":"room-1","body":"private body"}',
+      '{"id":"msg-1","created_at":"2026-06-05T00:00:00.000Z","content":"private body"}',
+    ]) {
+      const { safe, detailed } = createDiagnosticsOutput({ raw });
+
+      expect(safe).toContain('[raw]\n[redacted]');
+      expect(detailed).toContain('[raw]\n[redacted]');
+      expect(safe).not.toContain('msg-1');
+      expect(safe).not.toContain('private body');
+      expect(detailed).not.toContain('msg-1');
+      expect(detailed).not.toContain('private body');
     }
   });
 

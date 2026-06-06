@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
   settings: {
     language: 'en',
     themeMode: 'system',
-    favoriteUserIds: [],
+    favoriteUserIds: [] as string[],
     debugOpen: false,
     diagnostics: '',
     safeDiagnostics: '',
@@ -46,11 +46,14 @@ const mocks = vi.hoisted(() => ({
   roomStore: {
     loading: false,
     rooms: [] as Array<{ room: { id: string; name: string } }>,
+    manualRooms: [] as Array<{ id: string; name: string }>,
     invitations: [] as unknown[],
     activeRoomId: null as string | null,
     deepLinkedRoom: null as { id: string; name: string } | null,
     pendingStartRoomId: null as string | null,
     membersByRoomId: {} as Record<string, unknown[]>,
+    membersLoadingByRoomId: {} as Record<string, boolean>,
+    membersHasMoreByRoomId: {} as Record<string, boolean>,
     outboxInvitations: [] as unknown[],
     error: null as string | null,
   },
@@ -114,6 +117,7 @@ describe('SettingsView', () => {
     mocks.settings.safeDiagnostics = '';
     mocks.settings.detailedDiagnostics = '';
     mocks.settings.diagnosticsDetailConfirmed = false;
+    mocks.settings.favoriteUserIds = [];
     mocks.settings.lastAction = null;
     mocks.settings.syncStatus = 'synced';
     mocks.settings.syncError = null;
@@ -130,11 +134,14 @@ describe('SettingsView', () => {
     mocks.realtimeStore.roomId = null;
     mocks.roomStore.loading = false;
     mocks.roomStore.rooms = [];
+    mocks.roomStore.manualRooms = [];
     mocks.roomStore.invitations = [];
     mocks.roomStore.activeRoomId = null;
     mocks.roomStore.deepLinkedRoom = null;
     mocks.roomStore.pendingStartRoomId = null;
     mocks.roomStore.membersByRoomId = {};
+    mocks.roomStore.membersLoadingByRoomId = {};
+    mocks.roomStore.membersHasMoreByRoomId = {};
     mocks.roomStore.outboxInvitations = [];
     mocks.roomStore.error = null;
     mocks.chatStore.loading = false;
@@ -199,6 +206,7 @@ describe('SettingsView', () => {
     mocks.route.path = '/rooms/room-route';
     mocks.auth.user = { id: 'user-secret', username: 'alice', name: 'Alice' };
     mocks.auth.error = 'auth error';
+    mocks.settings.favoriteUserIds = ['favorite-user'];
     mocks.realtimeStore.status = 'connected';
     mocks.realtimeStore.roomId = 'room-realtime';
     mocks.roomStore.loading = false;
@@ -206,23 +214,36 @@ describe('SettingsView', () => {
       { room: { id: 'room-active', name: 'Active Room' } },
       { room: { id: 'room-other', name: 'Other Room' } },
     ];
-    mocks.roomStore.invitations = [{ id: 'invite-1' }, { id: 'invite-2' }];
+    mocks.roomStore.manualRooms = [{ id: 'room-manual', name: 'Manual Room' }];
+    mocks.roomStore.invitations = [
+      { id: 'invite-1', room: { id: 'room-invited', name: 'Invited Room' } },
+      { id: 'invite-2', roomId: 'room-invited-id' },
+    ];
     mocks.roomStore.activeRoomId = 'room-active';
     mocks.roomStore.deepLinkedRoom = { id: 'room-stale', name: 'Stale Deep Linked Room' };
     mocks.roomStore.pendingStartRoomId = 'room-pending';
     mocks.roomStore.membersByRoomId = {
-      'room-active': [{ id: 'user-secret' }, { id: 'user-2' }],
+      'room-active': [{ id: 'user-secret' }, { id: 'user-2', username: 'bob', name: 'Bob' }],
+      'room-other': [{ id: 'user-3', username: 'carol', name: 'Carol' }],
     };
-    mocks.roomStore.outboxInvitations = [{ id: 'outbox-1' }];
+    mocks.roomStore.membersLoadingByRoomId = { 'room-loading': true };
+    mocks.roomStore.membersHasMoreByRoomId = { 'room-has-more': true };
+    mocks.roomStore.outboxInvitations = [
+      { id: 'outbox-1', room: { id: 'room-outbox', name: 'Outbox Room' } },
+    ];
     mocks.roomStore.error = 'room error';
     mocks.chatStore.loading = true;
     mocks.chatStore.roomId = 'room-chat';
-    mocks.chatStore.timeline = [{ id: 'message-1' }, { id: 'message-2' }, { id: 'message-3' }];
+    mocks.chatStore.timeline = [
+      { id: 'message-secret-1', text: 'hidden message text' },
+      { id: 'message-secret-2', file: { url: 'https://dc.hhhl.cc/files/secret.png' } },
+      { id: 'message-secret-3' },
+    ];
     mocks.chatStore.outgoing = [{ status: 'failed' }, { status: 'sending' }, { status: 'failed' }];
     mocks.chatStore.searchResults = [{ id: 'search-1' }];
     mocks.chatStore.keySearchResults = [{ id: 'key-1' }, { id: 'key-2' }];
-    mocks.chatStore.replyTarget = { id: 'reply-1' };
-    mocks.chatStore.quoteTarget = null;
+    mocks.chatStore.replyTarget = { id: 'reply-secret', text: 'reply hidden text' };
+    mocks.chatStore.quoteTarget = { id: 'quote-secret', file: { url: 'https://dc.hhhl.cc/media/secret.png' } };
     mocks.chatStore.error = 'chat error';
     mocks.chatStore.searchError = 'search error';
     mocks.chatStore.keySearchError = 'key search error';
@@ -277,12 +298,48 @@ describe('SettingsView', () => {
         searchResultCount: 1,
         keySearchResultCount: 2,
         replyTargetPresent: true,
-        quoteTargetPresent: false,
+        quoteTargetPresent: true,
         error: 'chat error',
         searchError: 'search error',
         keySearchError: 'key search error',
       },
+      redactionIdentifiers: expect.arrayContaining([
+        { value: 'user-secret', caseInsensitive: false },
+        { value: 'alice', caseInsensitive: true },
+        { value: 'Alice', caseInsensitive: true },
+        { value: 'favorite-user', caseInsensitive: false },
+        { value: 'room-realtime', caseInsensitive: false },
+        { value: 'room-active', caseInsensitive: false },
+        { value: 'Active Room', caseInsensitive: true },
+        { value: 'room-other', caseInsensitive: false },
+        { value: 'Other Room', caseInsensitive: true },
+        { value: 'room-manual', caseInsensitive: false },
+        { value: 'Manual Room', caseInsensitive: true },
+        { value: 'room-stale', caseInsensitive: false },
+        { value: 'Stale Deep Linked Room', caseInsensitive: true },
+        { value: 'room-invited', caseInsensitive: false },
+        { value: 'Invited Room', caseInsensitive: true },
+        { value: 'room-invited-id', caseInsensitive: false },
+        { value: 'room-pending', caseInsensitive: false },
+        { value: 'room-chat', caseInsensitive: false },
+        { value: 'room-loading', caseInsensitive: false },
+        { value: 'room-has-more', caseInsensitive: false },
+        { value: 'user-2', caseInsensitive: false },
+        { value: 'bob', caseInsensitive: true },
+        { value: 'Bob', caseInsensitive: true },
+        { value: 'user-3', caseInsensitive: false },
+        { value: 'carol', caseInsensitive: true },
+        { value: 'Carol', caseInsensitive: true },
+        { value: 'room-outbox', caseInsensitive: false },
+        { value: 'Outbox Room', caseInsensitive: true },
+      ]),
     });
+    const diagnosticsInput = JSON.stringify(mocks.settings.collectDiagnostics.mock.calls[0]?.[0]);
+    expect(diagnosticsInput).not.toContain('hidden message text');
+    expect(diagnosticsInput).not.toContain('message-secret');
+    expect(diagnosticsInput).not.toContain('reply-secret');
+    expect(diagnosticsInput).not.toContain('quote-secret');
+    expect(diagnosticsInput).not.toContain('secret.png');
     expect(mocks.settings.collectDiagnostics.mock.calls[0]?.[0].rooms.activeRoomName).not.toBe(
       'Stale Deep Linked Room',
     );
