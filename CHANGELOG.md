@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.4.4 - 2026-06-05
+
+### chat
+
+#### Fixed
+
+- Hardened diagnostics redaction for token-like fields, Telegram launch data, message-shaped logs, encoded identifiers, message ID aliases, and non-active room/member identifiers.
+
 ## 0.4.3 - 2026-06-05
 
 ### chat
