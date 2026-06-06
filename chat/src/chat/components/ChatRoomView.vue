@@ -10,6 +10,7 @@
         @key-search="handleKeySearch"
         @favorites="showFavorites"
         @members="showMembers"
+        @manage="toggleManage"
       />
       <SearchPanel
         v-if="activePanel === 'search'"
@@ -396,6 +397,10 @@ function handleKeySearch(): void {
     activePanel.value = 'keySearch';
     chatStore.searchKeyMessages();
   }
+}
+
+function toggleManage(): void {
+  activePanel.value = activePanel.value === 'manage' ? null : 'manage';
 }
 
 function handleDocumentPointerDown(event: globalThis.PointerEvent): void {

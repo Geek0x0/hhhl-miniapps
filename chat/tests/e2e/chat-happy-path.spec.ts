@@ -9,7 +9,9 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await page.goto('/rooms/amlc1bekzi');
 
   await expect(page.locator('.chat-header').getByText('New Home')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Manage room' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'More room actions' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Manage room' })).toBeVisible();
+  await page.getByRole('button', { name: 'More room actions' }).click();
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Alice' }).first()).toBeVisible();
   await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();
   const aliceBubble = page.locator('.message-bubble', { hasText: 'hello @alice' }).first();
@@ -112,7 +114,8 @@ test('chat room supports message send, panels, and file preview', async ({ page 
   await expect(page.locator('.side-panel--members').getByText('@bob')).toBeVisible();
   await expect(page.locator('.side-panel--members').getByText('@alice')).toHaveCount(0);
   await page.getByRole('button', { name: 'Toggle favorite for Bob' }).click();
-  await page.getByRole('button', { name: 'Favorites' }).click();
+  await page.getByRole('button', { name: 'More room actions' }).click();
+  await page.getByRole('menuitem', { name: 'Favorites' }).click();
   await expect(page.locator('.side-panel--favorites', { hasText: '@bob' })).toBeVisible();
   await expect(page.locator('.message-bubble', { hasText: 'Bob' }).locator('.favorite-marker').first()).toBeVisible();
 
@@ -120,11 +123,13 @@ test('chat room supports message send, panels, and file preview', async ({ page 
     localStorage.setItem('hhhl-chat:favorite-users', JSON.stringify(['user-32', 'user-99']));
   });
   await page.reload();
-  await page.getByRole('button', { name: 'Favorites' }).click();
+  await page.getByRole('button', { name: 'More room actions' }).click();
+  await page.getByRole('menuitem', { name: 'Favorites' }).click();
   await expect(page.locator('.side-panel--favorites', { hasText: '@dora' })).toBeVisible();
   await expect(page.locator('.side-panel--favorites', { hasText: '@eve' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Search keys' }).click();
+  await page.getByRole('button', { name: 'More room actions' }).click();
+  await page.getByRole('menuitem', { name: 'Search keys' }).click();
   await expect(page.locator('.search-result-row', { hasText: MOCK_KEY_TEXT })).toHaveCount(1);
   await expect(page.locator('.side-panel', { hasText: 'sk-0123456789abcdefghijklmnopqrstuv' })).toHaveCount(0);
   await expect(page.locator('.side-panel', { hasText: `${MOCK_KEY_TEXT} extra` })).toHaveCount(0);

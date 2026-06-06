@@ -169,3 +169,16 @@ test('upload failures stay retryable in the composer', async ({ page }) => {
   await expect(page.getByText('upload failed once')).toHaveCount(0);
   await expect(page.locator('.message-bubble--own', { hasText: 'hello.txt' })).toBeVisible();
 });
+
+test('room management opens from the room header more menu', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page);
+  await authorizeSession(page);
+
+  await page.goto('/rooms/amlc1bekzi');
+  await page.getByRole('button', { name: 'More room actions' }).click();
+  await page.getByRole('menuitem', { name: 'Manage room' }).click();
+
+  await expect(page.locator('.side-panel', { hasText: 'Manage room' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Leave room' })).toBeVisible();
+});

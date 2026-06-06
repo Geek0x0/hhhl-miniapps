@@ -1,6 +1,6 @@
 <template>
   <section class="side-panel">
-    <h2>{{ i18n.t('common.settings') }}</h2>
+    <h2>{{ i18n.t('rooms.manage') }}</h2>
     <form
       class="side-panel__form"
       @submit.prevent="$emit('update', { name: name.trim(), description: description.trim() })"

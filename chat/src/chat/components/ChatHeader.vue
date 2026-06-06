@@ -30,33 +30,60 @@
       <button
         class="chat-icon-button"
         type="button"
-        :aria-label="i18n.t('chat.keySearch')"
-        @click="$emit('keySearch')"
-      >
-        <KeyRound :size="18" />
-      </button>
-      <button
-        class="chat-icon-button"
-        type="button"
-        :aria-label="i18n.t('chat.favorites')"
-        @click="$emit('favorites')"
-      >
-        <Heart :size="18" />
-      </button>
-      <button
-        class="chat-icon-button"
-        type="button"
         :aria-label="i18n.t('rooms.members')"
         @click="$emit('members')"
       >
         <Users :size="18" />
       </button>
+      <div class="chat-header__more">
+        <button
+          class="chat-icon-button"
+          type="button"
+          :aria-label="i18n.t('chat.moreActions')"
+          aria-haspopup="menu"
+          :aria-expanded="showMore ? 'true' : 'false'"
+          @click="showMore = !showMore"
+        >
+          <EllipsisVertical :size="18" />
+        </button>
+        <div
+          v-if="showMore"
+          class="chat-header__more-menu"
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            @click="selectMore('favorites')"
+          >
+            <Heart :size="16" />
+            <span>{{ i18n.t('chat.favorites') }}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            @click="selectMore('keySearch')"
+          >
+            <KeyRound :size="16" />
+            <span>{{ i18n.t('chat.keySearch') }}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            @click="selectMore('manage')"
+          >
+            <Settings :size="16" />
+            <span>{{ i18n.t('rooms.manage') }}</span>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeft, Heart, KeyRound, Search, Users } from '@lucide/vue';
+import { ref } from 'vue';
+import { ArrowLeft, EllipsisVertical, Heart, KeyRound, Search, Settings, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 
 defineProps<{
@@ -65,11 +92,26 @@ defineProps<{
   degraded?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   back: [];
   search: [];
   keySearch: [];
   favorites: [];
   members: [];
+  manage: [];
 }>();
+
+const showMore = ref(false);
+
+function selectMore(action: 'keySearch' | 'favorites' | 'manage'): void {
+  showMore.value = false;
+
+  if (action === 'keySearch') {
+    emit('keySearch');
+  } else if (action === 'favorites') {
+    emit('favorites');
+  } else {
+    emit('manage');
+  }
+}
 </script>
