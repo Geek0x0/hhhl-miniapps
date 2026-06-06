@@ -330,6 +330,26 @@ describe('chatStore', () => {
     expect(store.searchResults.map((item) => item.id)).toEqual(['m4']);
   });
 
+  it('tracks search pagination and appends load-more results without duplicates', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => {
+        if (params.untilId === 'm30') {
+          return [message('m2'), message('m3')];
+        }
+        return Array.from({ length: 30 }, (_value, index) => message(`m${index + 1}`));
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello' }, api);
+    await store.loadMoreSearchResults(api);
+
+    expect(store.searchHasMore).toBe(false);
+    expect(store.searchResults.map((item) => item.id).filter((id) => id === 'm2')).toHaveLength(1);
+    expect(store.searchResults.at(-1)?.id).toBe('m3');
+  });
+
   it('loads message context before jumping to a search result outside the current timeline', async () => {
     const context = vi.fn(async () => [message('m0', '2025-12-31T23:59:59.000Z'), message('m9', '2026-01-01T00:00:09.000Z')]);
     const api = { ...createApi(), context } as ChatApiLike & { context: (messageId: string) => Promise<ChatMessage[]> };

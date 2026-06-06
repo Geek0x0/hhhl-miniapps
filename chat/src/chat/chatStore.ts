@@ -60,6 +60,7 @@ export interface ChatState {
   searchResults: ChatMessage[];
   searchQuery: string | null;
   searchKey: string | null;
+  searchHasMore: boolean;
   keySearchLoading: boolean;
   keySearchError: string | null;
   keySearchResults: ChatMessage[];
@@ -267,6 +268,7 @@ export const useChatStore = defineStore('chat', {
     searchResults: [],
     searchQuery: null,
     searchKey: null,
+    searchHasMore: false,
     keySearchLoading: false,
     keySearchError: null,
     keySearchResults: [],
@@ -278,6 +280,7 @@ export const useChatStore = defineStore('chat', {
       this.searchResults = [];
       this.searchQuery = null;
       this.searchKey = null;
+      this.searchHasMore = false;
     },
 
     clearKeySearch() {
@@ -556,14 +559,28 @@ export const useChatStore = defineStore('chat', {
         const searchKey = createSearchKey(query, params.userId);
         const isContinuation = this.searchKey === searchKey && params.untilId != null;
         const results = await api.search({ ...params, query, roomId: this.roomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
+        const incomingIds = new Set(isContinuation ? results.map((message) => message.id) : []);
+        const nextResults = isContinuation ? [...this.searchResults.filter((message) => !incomingIds.has(message.id)), ...results] : results;
         this.searchQuery = query;
         this.searchKey = searchKey;
-        this.searchResults = isContinuation ? [...this.searchResults, ...results] : results;
+        this.searchResults = nextResults;
+        this.searchHasMore = results.length >= (params.limit ?? DEFAULT_PAGE_SIZE);
       } catch (error) {
         this.searchError = messageFromError(error);
       } finally {
         this.searchLoading = false;
       }
+    },
+
+    async loadMoreSearchResults(api: ChatApiLike = createDefaultChatApi()) {
+      if (this.searchQuery == null || this.searchResults.length === 0 || !this.searchHasMore || this.searchLoading) {
+        return;
+      }
+
+      await this.searchMessages({
+        query: this.searchQuery,
+        untilId: this.searchResults.at(-1)?.id,
+      }, api);
     },
 
     async ensureMessageVisible(messageId: string, api: ChatApiLike = createDefaultChatApi()): Promise<boolean> {

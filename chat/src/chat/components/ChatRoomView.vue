@@ -14,10 +14,13 @@
       />
       <SearchPanel
         v-if="activePanel === 'search'"
+        :query="chatStore.searchQuery"
         :results="chatStore.searchResults"
         :loading="chatStore.searchLoading"
         :error="chatStore.searchError"
+        :has-more="chatStore.searchHasMore"
         @search="(query) => chatStore.searchMessages({ query })"
+        @load-more="chatStore.loadMoreSearchResults()"
         @select="jumpToMessage"
       />
       <KeySearchPanel
