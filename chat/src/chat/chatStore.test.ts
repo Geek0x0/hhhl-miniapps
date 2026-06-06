@@ -548,4 +548,119 @@ describe('chatStore', () => {
     expect(store.roomId).toBe('room-2');
     expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
   });
+
+  it('does not enqueue or send stale files after the active room changes during upload', async () => {
+    let resolveUpload: (file: { id: string; name: string }) => void = () => {
+      throw new Error('upload resolver was not set');
+    };
+    const uploadResponse = new Promise<{ id: string; name: string }>((resolve) => {
+      resolveUpload = resolve;
+    });
+    const uploadFile = vi.fn(async () => uploadResponse);
+    const sendApi = createApi();
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const send = store.sendFile(
+      new File(['hello'], 'hello.txt', { type: 'text/plain' }),
+      { uploadFile },
+      sendApi,
+      { idFactory: () => 'local-stale-file', now: () => '2026-01-01T00:00:03.000Z' },
+    );
+    await store.loadInitial('room-2', room2Api);
+    resolveUpload({ id: 'file-1', name: 'hello.txt' });
+
+    const result = await send;
+
+    expect(result).toEqual({ ok: false, stage: 'send', error: 'Room changed before file could be sent' });
+    expect(sendApi.createToRoom).not.toHaveBeenCalled();
+    expect(store.roomId).toBe('room-2');
+    expect(store.error).toBeNull();
+    expect(store.outgoing).toEqual([]);
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+  });
+
+  it('does not set the new room error when upload fails after the active room changes', async () => {
+    let rejectUpload: (error: unknown) => void = () => {
+      throw new Error('upload rejecter was not set');
+    };
+    const uploadResponse = new Promise<{ id: string; name: string }>((_resolve, reject) => {
+      rejectUpload = reject;
+    });
+    const uploadFile = vi.fn(async () => uploadResponse);
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const send = store.sendFile(
+      new File(['hello'], 'hello.txt', { type: 'text/plain' }),
+      { uploadFile },
+      createApi(),
+      { idFactory: () => 'local-stale-upload', now: () => '2026-01-01T00:00:03.000Z' },
+    );
+    await store.loadInitial('room-2', room2Api);
+    rejectUpload(new Error('upload failed'));
+
+    const result = await send;
+
+    expect(result).toEqual({ ok: false, stage: 'upload', error: 'upload failed' });
+    expect(store.roomId).toBe('room-2');
+    expect(store.error).toBeNull();
+    expect(store.outgoing).toEqual([]);
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+  });
+
+  it('resets pagination loading flags when switching rooms during pagination', async () => {
+    let resolveOlder: (messages: ChatMessage[]) => void = () => {
+      throw new Error('older resolver was not set');
+    };
+    let resolveNewer: (messages: ChatMessage[]) => void = () => {
+      throw new Error('newer resolver was not set');
+    };
+    const olderResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveOlder = resolve;
+    });
+    const newerResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveNewer = resolve;
+    });
+    const paginationApi = createApi({
+      roomTimeline: vi.fn(async (_roomId, params) => {
+        if (params?.untilId === 'm1') {
+          return olderResponse;
+        }
+        if (params?.sinceId === 'm2') {
+          return newerResponse;
+        }
+        return [message('m1'), message('m2')];
+      }),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', paginationApi);
+    const olderLoad = store.loadOlder(paginationApi);
+    const newerLoad = store.loadNewer(paginationApi);
+    expect(store.olderLoading).toBe(true);
+    expect(store.newerLoading).toBe(true);
+
+    await store.loadInitial('room-2', room2Api);
+
+    expect(store.olderLoading).toBe(false);
+    expect(store.newerLoading).toBe(false);
+
+    resolveOlder([{ ...message('m0'), roomId: 'room-1' }]);
+    resolveNewer([{ ...message('m3'), roomId: 'room-1' }]);
+    await Promise.all([olderLoad, newerLoad]);
+
+    expect(store.olderLoading).toBe(false);
+    expect(store.newerLoading).toBe(false);
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+  });
 });

@@ -291,6 +291,8 @@ export const useChatStore = defineStore('chat', {
       if (roomChanged) {
         this.timeline = [];
         this.outgoing = [];
+        this.olderLoading = false;
+        this.newerLoading = false;
         this.hasMoreOlder = true;
         this.clearComposerContext();
         this.clearSearch();
@@ -428,10 +430,16 @@ export const useChatStore = defineStore('chat', {
       const capturedRoomId = this.roomId;
       let uploaded: DriveFile;
       try {
-        uploaded = normalizeUploadedFile(await uploadWith(uploadApi, file, onProgress));
+        const rawUploaded = await uploadWith(uploadApi, file, onProgress);
+        if (this.roomId !== capturedRoomId) {
+          return { ok: false, stage: 'send', error: 'Room changed before file could be sent' };
+        }
+        uploaded = normalizeUploadedFile(rawUploaded);
       } catch (error) {
         const message = messageFromError(error);
-        this.error = message;
+        if (this.roomId === capturedRoomId) {
+          this.error = message;
+        }
         return { ok: false, stage: 'upload', error: message };
       }
 
