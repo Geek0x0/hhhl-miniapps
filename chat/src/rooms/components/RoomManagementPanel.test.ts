@@ -17,12 +17,17 @@ describe('RoomManagementPanel', () => {
     });
 
     await fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(emitted('leave')).toBeUndefined();
 
+    await fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
     expect(emitted('leave')).toEqual([[]]);
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    expect(emitted('delete')).toBeUndefined();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(emitted('delete')).toEqual([[]]);
+
     expect(confirm).toHaveBeenCalledWith('Leave this room?');
     expect(confirm).toHaveBeenCalledWith('Delete this room?');
   });
