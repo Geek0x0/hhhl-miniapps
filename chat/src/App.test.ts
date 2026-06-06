@@ -8,6 +8,8 @@ import { installMockTelegram, uninstallMockTelegram } from './test/mockTelegram'
 describe('App', () => {
   afterEach(() => {
     uninstallMockTelegram();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -48,6 +50,32 @@ describe('App', () => {
 
     expect(screen.getByText('Open in Telegram')).toBeInTheDocument();
     expect(screen.queryByText('HHHL Chat Mini App')).not.toBeInTheDocument();
+  });
+
+  it('keeps rendering the Mini App after an iOS Telegram restore temporarily loses the bridge object', async () => {
+    installMockTelegram({ platform: 'ios' });
+    router.push('/');
+    await router.isReady();
+
+    const firstRender = render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Log in to dc.hhhl.cc' })).toBeInTheDocument();
+
+    firstRender.unmount();
+    uninstallMockTelegram();
+
+    render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Log in to dc.hhhl.cc' })).toBeInTheDocument();
+    expect(screen.queryByText('Open in Telegram')).not.toBeInTheDocument();
   });
 
   it('shows callback errors on the login guide', async () => {

@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.4.5 - 2026-06-06
+
+### chat
+
+#### Fixed
+
+- Kept the Mini App gate stable after iOS Telegram background restores by remembering recent Telegram launches and rechecking the WebApp bridge on page visibility events.
+
 ## 0.4.4 - 2026-06-05
 
 ### chat
