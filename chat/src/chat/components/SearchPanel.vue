@@ -1,9 +1,25 @@
 <template>
   <section class="side-panel">
     <form
-      class="side-panel__form"
-      @submit.prevent="$emit('search', query)"
+      class="side-panel__form search-panel__form"
+      @submit.prevent="submitSearch"
     >
+      <select
+        v-model="selectedUserId"
+        class="room-direct-join__input"
+        :aria-label="i18n.t('chat.searchMember')"
+      >
+        <option value="">
+          {{ i18n.t('chat.searchAllMembers') }}
+        </option>
+        <option
+          v-for="member in members"
+          :key="member.id"
+          :value="member.id"
+        >
+          {{ memberLabel(member) }}
+        </option>
+      </select>
       <input
         v-model="query"
         class="room-direct-join__input"
@@ -13,7 +29,7 @@
       <button
         class="app-button"
         type="submit"
-        :disabled="query.trim() === '' || loading"
+        :disabled="!canSearch || loading"
       >
         {{ i18n.t('common.search') }}
       </button>
@@ -25,7 +41,7 @@
       {{ error }}
     </p>
     <p
-      v-if="!loading && error == null && results.length === 0 && query.trim() !== ''"
+      v-if="!loading && error == null && results.length === 0 && canSearch"
       class="app-copy"
     >
       {{ i18n.t('chat.searchEmpty') }}
@@ -80,31 +96,52 @@
 import { computed, ref, watch } from 'vue';
 import { i18n } from '@/i18n';
 import { formatMessageTimestamp } from '@/shared/time';
-import type { ChatMessage } from '@/shared/types';
+import type { ChatMessage, UserSummary } from '@/shared/types';
 import { displayMessageText } from '../messageText';
 import { splitSearchHighlight } from '../searchHighlight';
 
 const props = defineProps<{
   query: string | null;
+  selectedUserId: string | null;
+  members: UserSummary[];
   results: ChatMessage[];
   loading: boolean;
   error: string | null;
   hasMore: boolean;
 }>();
 
-defineEmits<{
-  search: [query: string];
+const query = ref(props.query ?? '');
+const selectedUserId = ref(props.selectedUserId ?? '');
+const submittedQuery = computed(() => props.query ?? '');
+const submittedUserId = computed(() => props.selectedUserId ?? '');
+const canSearch = computed(() => query.value.trim() !== '' || selectedUserId.value !== '');
+const canLoadMore = computed(() => props.hasMore && query.value.trim() === submittedQuery.value && selectedUserId.value === submittedUserId.value);
+const emit = defineEmits<{
+  search: [params: { query: string; userId?: string }];
   loadMore: [];
   select: [messageId: string];
 }>();
 
-const query = ref(props.query ?? '');
-const submittedQuery = computed(() => props.query ?? '');
-const canLoadMore = computed(() => props.hasMore && query.value.trim() === submittedQuery.value);
-
 watch(() => props.query, (next) => {
   query.value = next ?? '';
 });
+
+watch(() => props.selectedUserId, (next) => {
+  selectedUserId.value = next ?? '';
+});
+
+function submitSearch(): void {
+  const userId = selectedUserId.value.trim();
+  emit('search', {
+    query: query.value,
+    ...(userId === '' ? {} : { userId }),
+  });
+}
+
+function memberLabel(member: UserSummary): string {
+  const name = member.name ?? member.username;
+  return name === member.username ? `@${member.username}` : `${name} @${member.username}`;
+}
 
 function senderName(message: ChatMessage): string {
   return message.user?.name ?? message.user?.username ?? message.user?.id ?? 'Unknown';

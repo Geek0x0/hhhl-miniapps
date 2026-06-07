@@ -355,6 +355,10 @@
   gap: 8px;
 }
 
+.search-panel__form .app-button {
+  justify-self: start;
+}
+
 .side-panel__header {
   display: flex;
   align-items: center;

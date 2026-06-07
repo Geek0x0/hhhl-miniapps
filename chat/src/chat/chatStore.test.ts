@@ -350,6 +350,25 @@ describe('chatStore', () => {
     expect(store.searchResults.at(-1)?.id).toBe('m3');
   });
 
+  it('searches all messages for a selected member and preserves the member filter when loading more', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => params.untilId === 'm30'
+        ? [message('m31')]
+        : Array.from({ length: 30 }, (_value, index) => message(`m${index + 1}`))),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: '   ', userId: ' user-2 ' }, api);
+    await store.loadMoreSearchResults(api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: '', userId: 'user-2', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: '', userId: 'user-2', untilId: 'm30', limit: 30 });
+    expect(store.searchQuery).toBe('');
+    expect(store.searchUserId).toBe('user-2');
+    expect(store.searchResults.at(-1)?.id).toBe('m31');
+  });
+
   it('ignores stale search results after switching away and back while search is pending', async () => {
     let resolveSearch: (messages: ChatMessage[]) => void = () => {
       throw new Error('search resolver was not set');

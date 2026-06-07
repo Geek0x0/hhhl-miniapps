@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.5.3 - 2026-06-07
+
+### chat
+
+#### Added
+
+- Added member-filtered message search, including member-only searches for all messages from a selected member and paginated continuation that preserves the selected member filter.
+
 ## 0.5.2 - 2026-06-07
 
 ### chat

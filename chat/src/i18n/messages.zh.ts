@@ -78,6 +78,8 @@ const messages = {
   'chat.copyFailed': '复制失败',
   'chat.reactions': '回应',
   'chat.searchPlaceholder': '搜索消息',
+  'chat.searchMember': '搜索成员',
+  'chat.searchAllMembers': '全部成员',
   'chat.searchEmpty': '没有找到消息',
   'chat.pending': '正在发送...',
   'chat.failed': '发送失败',

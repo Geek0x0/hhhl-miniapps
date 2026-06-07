@@ -15,11 +15,13 @@
       <SearchPanel
         v-if="activePanel === 'search'"
         :query="chatStore.searchQuery"
+        :selected-user-id="chatStore.searchUserId"
+        :members="allKnownMembers"
         :results="chatStore.searchResults"
         :loading="chatStore.searchLoading"
         :error="chatStore.searchError"
         :has-more="chatStore.searchHasMore"
-        @search="(query) => chatStore.searchMessages({ query })"
+        @search="(params) => chatStore.searchMessages(params)"
         @load-more="chatStore.loadMoreSearchResults()"
         @select="jumpToMessage"
       />
@@ -415,8 +417,11 @@ async function showFavorites(): Promise<void> {
   }
 }
 
-function toggleSearch(): void {
+async function toggleSearch(): Promise<void> {
   activePanel.value = activePanel.value === 'search' ? null : 'search';
+  if (activePanel.value === 'search') {
+    await ensureAllMembersLoaded();
+  }
 }
 
 function handleKeySearch(): void {

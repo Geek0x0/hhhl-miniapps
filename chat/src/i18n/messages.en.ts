@@ -78,6 +78,8 @@ const messages = {
   'chat.copyFailed': 'Copy failed',
   'chat.reactions': 'Reactions',
   'chat.searchPlaceholder': 'Search messages',
+  'chat.searchMember': 'Search member',
+  'chat.searchAllMembers': 'All members',
   'chat.searchEmpty': 'No messages found',
   'chat.pending': 'Sending...',
   'chat.failed': 'Failed to send',

@@ -59,6 +59,7 @@ export interface ChatState {
   searchError: string | null;
   searchResults: ChatMessage[];
   searchQuery: string | null;
+  searchUserId: string | null;
   searchKey: string | null;
   searchHasMore: boolean;
   keySearchLoading: boolean;
@@ -267,6 +268,7 @@ export const useChatStore = defineStore('chat', {
     searchError: null,
     searchResults: [],
     searchQuery: null,
+    searchUserId: null,
     searchKey: null,
     searchHasMore: false,
     keySearchLoading: false,
@@ -279,6 +281,7 @@ export const useChatStore = defineStore('chat', {
       this.searchError = null;
       this.searchResults = [];
       this.searchQuery = null;
+      this.searchUserId = null;
       this.searchKey = null;
       this.searchHasMore = false;
     },
@@ -548,7 +551,8 @@ export const useChatStore = defineStore('chat', {
 
     async searchMessages(params: Omit<SearchMessagesParams, 'roomId' | 'limit'> & { limit?: number }, api: ChatApiLike = createDefaultChatApi()) {
       const query = params.query.trim();
-      if (this.roomId == null || query === '') {
+      const userId = params.userId?.trim() || undefined;
+      if (this.roomId == null || (query === '' && userId == null)) {
         return;
       }
 
@@ -558,15 +562,22 @@ export const useChatStore = defineStore('chat', {
       this.searchError = null;
 
       try {
-        const searchKey = createSearchKey(query, params.userId);
+        const searchKey = createSearchKey(query, userId);
         const isContinuation = this.searchKey === searchKey && params.untilId != null;
-        const results = await api.search({ ...params, query, roomId: requestedRoomId, limit: params.limit ?? DEFAULT_PAGE_SIZE });
+        const results = await api.search({
+          query,
+          ...(userId == null ? {} : { userId }),
+          ...(params.untilId == null ? {} : { untilId: params.untilId }),
+          roomId: requestedRoomId,
+          limit: params.limit ?? DEFAULT_PAGE_SIZE,
+        });
         if (this.roomId !== requestedRoomId || this.roomGeneration !== requestedGeneration) {
           return;
         }
         const incomingIds = new Set(isContinuation ? results.map((message) => message.id) : []);
         const nextResults = isContinuation ? [...this.searchResults.filter((message) => !incomingIds.has(message.id)), ...results] : results;
         this.searchQuery = query;
+        this.searchUserId = userId ?? null;
         this.searchKey = searchKey;
         this.searchResults = nextResults;
         this.searchHasMore = results.length >= (params.limit ?? DEFAULT_PAGE_SIZE);
@@ -582,12 +593,13 @@ export const useChatStore = defineStore('chat', {
     },
 
     async loadMoreSearchResults(api: ChatApiLike = createDefaultChatApi()) {
-      if (this.searchQuery == null || this.searchResults.length === 0 || !this.searchHasMore || this.searchLoading) {
+      if (this.searchQuery == null || (this.searchQuery === '' && this.searchUserId == null) || this.searchResults.length === 0 || !this.searchHasMore || this.searchLoading) {
         return;
       }
 
       await this.searchMessages({
         query: this.searchQuery,
+        userId: this.searchUserId ?? undefined,
         untilId: this.searchResults.at(-1)?.id,
       }, api);
     },
