@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPinia } from 'pinia';
+import { nextTick } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { installMockTelegram, uninstallMockTelegram } from './test/mockTelegram';
@@ -11,6 +12,7 @@ describe('App', () => {
     window.localStorage.clear();
     window.sessionStorage.clear();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('renders the login gate inside Telegram', async () => {
@@ -75,6 +77,28 @@ describe('App', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'Log in to dc.hhhl.cc' })).toBeInTheDocument();
+    expect(screen.queryByText('Open in Telegram')).not.toBeInTheDocument();
+  });
+
+  it('recovers when iOS Telegram injects the bridge shortly after restore startup', async () => {
+    vi.useFakeTimers();
+    uninstallMockTelegram();
+    router.push('/');
+    await router.isReady();
+
+    render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(screen.getByText('Open in Telegram')).toBeInTheDocument();
+
+    installMockTelegram({ platform: 'ios' });
+    await vi.advanceTimersByTimeAsync(1_000);
+    await nextTick();
+
+    expect(screen.getByRole('heading', { name: 'Log in to dc.hhhl.cc' })).toBeInTheDocument();
     expect(screen.queryByText('Open in Telegram')).not.toBeInTheDocument();
   });
 
