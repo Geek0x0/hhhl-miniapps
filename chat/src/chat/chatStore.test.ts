@@ -352,9 +352,28 @@ describe('chatStore', () => {
 
   it('searches all messages for a selected member and preserves the member filter when loading more', async () => {
     const api = createApi({
-      search: vi.fn(async (params) => params.untilId === 'm30'
-        ? [message('m31')]
-        : Array.from({ length: 30 }, (_value, index) => message(`m${index + 1}`))),
+      roomTimeline: vi.fn(async (_roomId, params) => {
+        if (params?.untilId === 'm30') {
+          return [
+            userTextMessage('m31', 'from alice', { id: 'user-1', username: 'alice', name: 'Alice' }),
+            userTextMessage('m32', 'from bob', { id: 'user-2', username: 'bob', name: 'Bob' }),
+          ];
+        }
+
+        return Array.from({ length: 30 }, (_value, index) => {
+          const id = `m${index + 1}`;
+          return userTextMessage(
+            id,
+            id,
+            index % 2 === 0
+              ? { id: 'user-2', username: 'bob', name: 'Bob' }
+              : { id: 'user-1', username: 'alice', name: 'Alice' },
+          );
+        });
+      }),
+      search: vi.fn(async () => {
+        throw new Error('member-only search should not call chat/messages/search');
+      }),
     });
     const store = useChatStore();
 
@@ -362,11 +381,15 @@ describe('chatStore', () => {
     await store.searchMessages({ query: '   ', userId: ' user-2 ' }, api);
     await store.loadMoreSearchResults(api);
 
-    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: '', userId: 'user-2', limit: 30 });
-    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: '', userId: 'user-2', untilId: 'm30', limit: 30 });
+    expect(api.search).not.toHaveBeenCalled();
+    expect(api.roomTimeline).toHaveBeenCalledWith('room-1', { limit: 30 });
+    expect(api.roomTimeline).toHaveBeenCalledWith('room-1', { limit: 30, untilId: 'm30' });
     expect(store.searchQuery).toBe('');
     expect(store.searchUserId).toBe('user-2');
-    expect(store.searchResults.at(-1)?.id).toBe('m31');
+    expect(store.searchResults.map((item) => item.id)).toEqual([
+      ...Array.from({ length: 15 }, (_value, index) => `m${index * 2 + 1}`),
+      'm32',
+    ]);
   });
 
   it('ignores stale search results after switching away and back while search is pending', async () => {

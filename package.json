@@ -1,6 +1,6 @@
 {
   "name": "hhhl-miniapps",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "private": true,
   "scripts": {
     "dev": "npm --prefix chat run dev",

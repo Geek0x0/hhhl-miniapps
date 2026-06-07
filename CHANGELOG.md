@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.5.6 - 2026-06-07
+
+### chat
+
+#### Fixed
+
+- Fixed member-only message search returning `Invalid param` by scanning room timeline pages and filtering by sender instead of sending an empty query to `chat/messages/search`.
+
 ## 0.5.5 - 2026-06-07
 
 ### chat
