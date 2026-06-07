@@ -202,6 +202,10 @@ export const useRoomStore = defineStore('rooms', {
     },
 
     async ensureRoomVisible(roomId: string, api: RoomApiLike = createDefaultRoomApi()) {
+      if (this.rooms.length === 0) {
+        await this.loadRooms(api);
+      }
+
       const existing = this.rooms.find((entry) => entry.room.id === roomId)?.room;
       if (existing != null) {
         return existing;

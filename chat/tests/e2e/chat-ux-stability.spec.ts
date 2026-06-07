@@ -172,7 +172,7 @@ test('upload failures stay retryable in the composer', async ({ page }) => {
 
 test('room management opens from the room header more menu', async ({ page }) => {
   await installTelegramMock(page);
-  await mockApi(page);
+  await mockApi(page, { canManageRoom: true });
   await authorizeSession(page);
 
   await page.goto('/rooms/amlc1bekzi');
@@ -188,7 +188,7 @@ test('room management opens from the room header more menu', async ({ page }) =>
 
 test('room header more menu closes and supports keyboard navigation', async ({ page }) => {
   await installTelegramMock(page);
-  await mockApi(page);
+  await mockApi(page, { canManageRoom: true });
   await authorizeSession(page);
 
   await page.goto('/rooms/amlc1bekzi');

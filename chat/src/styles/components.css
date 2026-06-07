@@ -679,6 +679,48 @@
   transform: translateX(-50%);
 }
 
+.app-update-banner {
+  position: fixed;
+  right: 12px;
+  bottom: max(84px, calc(72px + env(safe-area-inset-bottom, 0px)));
+  left: 12px;
+  z-index: 25;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--tg-button) 35%, var(--tg-soft-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tg-panel) 96%, transparent);
+  color: var(--tg-text);
+  box-shadow: var(--tg-shadow);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.app-update-banner__button,
+.app-update-banner__dismiss {
+  min-height: 34px;
+  border: 1px solid var(--tg-button);
+  border-radius: 8px;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  font: inherit;
+  font-weight: 700;
+}
+
+.app-update-banner__button {
+  padding: 0 12px;
+}
+
+.app-update-banner__dismiss {
+  width: 34px;
+  padding: 0;
+}
+
 .message-timeline {
   position: relative;
   display: flex;

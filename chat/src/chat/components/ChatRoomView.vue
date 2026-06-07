@@ -5,6 +5,7 @@
         :room-id="roomId"
         :title="roomTitle"
         :degraded="realtimeStore.status === 'degraded'"
+        :can-manage-room="canManageRoom"
         @back="router.push('/rooms')"
         @search="toggleSearch"
         @key-search="handleKeySearch"
@@ -47,7 +48,7 @@
         :loading="favoriteMembersResolving"
       />
       <RoomManagementPanel
-        v-if="activePanel === 'manage'"
+        v-if="activePanel === 'manage' && canManageRoom"
         :room-id="roomId"
         :error="roomStore.error"
         @update="(params) => roomStore.updateRoom(roomId, params)"
@@ -142,7 +143,9 @@ const localStorageAdapter = createLocalStorageAdapter();
 const composerDraft = ref('');
 const feedbackMessage = ref<string | null>(null);
 const roomId = computed(() => String(route.params.roomId ?? ''));
-const roomTitle = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value)?.room.name ?? roomId.value);
+const activeRoomEntry = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value) ?? null);
+const roomTitle = computed(() => activeRoomEntry.value?.room.name ?? roomId.value);
+const canManageRoom = computed(() => activeRoomEntry.value?.sources.includes('owned') === true);
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
 const favoriteMembersResolving = ref(false);
 const favoriteUsersById = ref<Record<string, UserSummary>>({});
@@ -434,6 +437,11 @@ function handleKeySearch(): void {
 }
 
 function toggleManage(): void {
+  if (!canManageRoom.value) {
+    activePanel.value = null;
+    return;
+  }
+
   activePanel.value = activePanel.value === 'manage' ? null : 'manage';
 }
 

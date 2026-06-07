@@ -17,6 +17,7 @@ describe('App', () => {
 
   it('renders the login gate inside Telegram', async () => {
     installMockTelegram();
+    vi.spyOn(window, 'fetch').mockResolvedValue(Response.json({ version: '0.5.4' }));
     router.push('/');
     await router.isReady();
 
@@ -39,6 +40,22 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Authorize with hhhl' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'dc.hhhl.cc' })).not.toBeInTheDocument();
     expect(screen.queryByText(/MiAuth/)).not.toBeInTheDocument();
+  });
+
+  it('shows a refresh prompt when a newer remote version is available', async () => {
+    installMockTelegram();
+    vi.spyOn(window, 'fetch').mockResolvedValue(Response.json({ version: '99.0.0' }));
+    router.push('/');
+    await router.isReady();
+
+    render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(await screen.findByRole('status')).toHaveTextContent('A new version is available');
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   });
 
   it('renders the Telegram-only prompt outside Telegram', () => {

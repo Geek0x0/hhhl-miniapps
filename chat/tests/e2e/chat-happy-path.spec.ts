@@ -10,7 +10,7 @@ test('chat room supports message send, panels, and file preview', async ({ page 
 
   await expect(page.locator('.chat-header').getByText('New Home')).toBeVisible();
   await page.getByRole('button', { name: 'More room actions' }).click();
-  await expect(page.getByRole('menuitem', { name: 'Manage room' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Manage room' })).toHaveCount(0);
   await page.getByRole('button', { name: 'More room actions' }).click();
   await expect(page.locator('.message-bubble__meta strong', { hasText: 'Alice' }).first()).toBeVisible();
   await expect(page.locator('.message-bubble__text', { hasText: 'hello' }).first()).toBeVisible();

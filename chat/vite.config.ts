@@ -2,11 +2,25 @@ import vue from '@vitejs/plugin-vue';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 
+const appVersion = process.env.npm_package_version ?? '0.3.0';
+
 export default defineConfig({
   base: '/',
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    {
+      name: 'emit-app-version',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: `${JSON.stringify({ version: appVersion })}\n`,
+        });
+      },
+    },
+  ],
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.3.0'),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   server: {
     watch: {

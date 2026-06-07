@@ -41,6 +41,7 @@ export interface MockApiOptions {
   failJoinRoomId?: string;
   failSearchContext?: boolean;
   paginatedSearch?: boolean;
+  canManageRoom?: boolean;
   failFirstUpload?: boolean;
   failFirstCreateMessage?: boolean;
   delayCreateMessageMs?: number;
@@ -112,7 +113,12 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
       return;
     }
 
-    if (endpoint === 'chat/rooms/owned' || endpoint === 'chat/rooms/invitations/inbox') {
+    if (endpoint === 'chat/rooms/owned') {
+      await route.fulfill({ headers, json: options.canManageRoom === true ? [{ id: 'amlc1bekzi', name: 'New Home' }] : [] });
+      return;
+    }
+
+    if (endpoint === 'chat/rooms/invitations/inbox') {
       await route.fulfill({ headers, json: [] });
       return;
     }

@@ -77,6 +77,7 @@
             <span>{{ i18n.t('chat.keySearch') }}</span>
           </button>
           <button
+            v-if="canManageRoom"
             ref="manageMenuItem"
             type="button"
             role="menuitem"
@@ -100,6 +101,7 @@ defineProps<{
   roomId: string;
   title: string;
   degraded?: boolean;
+  canManageRoom?: boolean;
 }>();
 
 const emit = defineEmits<{

@@ -2,6 +2,18 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.5.5 - 2026-06-07
+
+### chat
+
+#### Added
+
+- Added a remote version check that compares the running app version with `/version.json` and prompts users to refresh when a newer release is available.
+
+#### Fixed
+
+- Hid room management actions unless the active room is returned by the owned-room list, including direct room routes that must load room sources before showing header actions.
+
 ## 0.5.4 - 2026-06-07
 
 ### chat

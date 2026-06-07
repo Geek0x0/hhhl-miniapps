@@ -107,14 +107,30 @@ describe('roomStore', () => {
     expect(store.rooms).toEqual([{ room: room('manual-1', 'Room manual-1'), sources: ['manual'] }]);
   });
 
-  it('loads a visible room summary for direct room route headers', async () => {
+  it('loads room sources before falling back to a visible room summary for direct room route headers', async () => {
     const api = createRoomApi();
     const store = useRoomStore();
 
     await expect(store.ensureRoomVisible('room-1', api)).resolves.toEqual(room('room-1', 'Room room-1'));
 
+    expect(api.joining).toHaveBeenCalledWith({ limit: 30 });
+    expect(api.owned).toHaveBeenCalledWith({ limit: 30 });
     expect(api.show).toHaveBeenCalledWith('room-1');
-    expect(store.rooms).toEqual([{ room: room('room-1', 'Room room-1'), sources: ['deep-link'] }]);
+    expect(store.rooms.find((entry) => entry.room.id === 'room-1')).toEqual({ room: room('room-1', 'Room room-1'), sources: ['deep-link'] });
+  });
+
+  it('preserves owned source permissions when opening a directly routed owned room', async () => {
+    const api = createRoomApi({
+      joining: vi.fn(async () => []),
+      owned: vi.fn(async () => [room('room-1', 'Owned Room')]),
+      invitationsInbox: vi.fn(async () => []),
+    });
+    const store = useRoomStore();
+
+    await expect(store.ensureRoomVisible('room-1', api)).resolves.toEqual(room('room-1', 'Owned Room'));
+
+    expect(api.show).not.toHaveBeenCalled();
+    expect(store.rooms).toEqual([{ room: room('room-1', 'Owned Room'), sources: ['owned'] }]);
   });
 
   it('keeps the current rooms and exposes errors when direct join fails', async () => {
