@@ -40,6 +40,7 @@ export async function installTelegramMock(page: Page, startParam?: string, langu
 export interface MockApiOptions {
   failJoinRoomId?: string;
   failSearchContext?: boolean;
+  paginatedSearch?: boolean;
   failFirstUpload?: boolean;
   failFirstCreateMessage?: boolean;
   delayCreateMessageMs?: number;
@@ -223,6 +224,24 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
 
       if (body.query === 'sk-') {
         await route.fulfill({ status: 400, headers, json: { error: { code: 'BAD_KEY_SEARCH', message: 'key search requires ls user' } } });
+        return;
+      }
+
+      if (options.paginatedSearch === true && body.query === 'hello') {
+        if (body.untilId === 'search-30') {
+          await route.fulfill({ headers, json: [
+            { id: 'search-31', roomId: 'amlc1bekzi', createdAt: '2025-12-31T23:59:31.000Z', text: 'older hello result', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
+          ] });
+          return;
+        }
+
+        await route.fulfill({ headers, json: Array.from({ length: 30 }, (_value, index) => ({
+          id: `search-${index + 1}`,
+          roomId: 'amlc1bekzi',
+          createdAt: `2025-12-31T23:59:${String(index).padStart(2, '0')}.000Z`,
+          text: `hello result ${index + 1}`,
+          user: { id: 'user-1', username: 'alice', name: 'Alice' },
+        })) });
         return;
       }
 

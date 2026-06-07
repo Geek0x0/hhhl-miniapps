@@ -240,3 +240,51 @@ test('room header more menu closes and supports keyboard navigation', async ({ p
   await expect(moreButton).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.side-panel', { hasText: 'Manage room' })).toBeVisible();
 });
+
+test('search results paginate and keep normal search isolated from key search', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page, { paginatedSearch: true });
+  await authorizeSession(page);
+
+  await page.goto('/rooms/amlc1bekzi');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByPlaceholder('Search messages').fill('hello');
+  await page.getByRole('button', { name: 'Search', exact: true }).last().click();
+
+  await expect(page.locator('.search-result-row')).toHaveCount(30);
+  await page.getByRole('button', { name: 'Load more' }).click();
+  await expect(page.locator('.search-result-row', { hasText: 'older hello result' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'More room actions' }).click();
+  await page.getByRole('menuitem', { name: 'Search keys' }).click();
+  await expect(page.locator('.side-panel', { hasText: 'older hello result' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.locator('.search-result-row', { hasText: 'older hello result' })).toBeVisible();
+});
+
+test('visible restore catches up newer messages without fixed foreground polling', async ({ page }) => {
+  await installTelegramMock(page);
+  await mockApi(page);
+  await authorizeSession(page);
+
+  const timelineRequests: Array<Record<string, unknown>> = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/chat/messages/room-timeline') && request.method() === 'POST') {
+      timelineRequests.push(request.postDataJSON() as Record<string, unknown>);
+    }
+  });
+
+  await page.goto('/rooms/amlc1bekzi');
+  await page.waitForTimeout(3500);
+
+  const foregroundRequests = timelineRequests.filter((body) => body.sinceId === 'm3');
+  expect(foregroundRequests).toHaveLength(0);
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  await expect(page.getByText('latest')).toBeVisible();
+});
