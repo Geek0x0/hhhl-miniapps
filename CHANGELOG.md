@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.5.2 - 2026-06-07
+
+### chat
+
+#### Fixed
+
+- Fixed another iOS Telegram restore gate case where the WebApp bridge reported a real Telegram platform but restored without launch data, leaving the Mini App on the `Open in Telegram` prompt.
+
 ## 0.5.1 - 2026-06-07
 
 ### chat

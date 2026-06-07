@@ -39,6 +39,18 @@ describe('telegram adapter', () => {
     expect(isTelegramEnvironment()).toBe(true);
   });
 
+  it('detects Telegram environment via platform when iOS restore launch data is temporarily empty', () => {
+    installMockTelegram({ initData: '', initDataUnsafe: {}, platform: 'ios' });
+
+    expect(isTelegramEnvironment()).toBe(true);
+  });
+
+  it('does not detect Telegram when WebApp only has SDK defaults', () => {
+    installMockTelegram({ initData: '', initDataUnsafe: {}, platform: 'unknown' });
+
+    expect(isTelegramEnvironment()).toBe(false);
+  });
+
   it('does not detect Telegram when WebApp is absent even with hash params', () => {
     uninstallMockTelegram();
     Object.defineProperty(window, 'location', {

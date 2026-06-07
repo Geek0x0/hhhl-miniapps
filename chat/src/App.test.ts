@@ -102,6 +102,28 @@ describe('App', () => {
     expect(screen.queryByText('Open in Telegram')).not.toBeInTheDocument();
   });
 
+  it('recovers when iOS Telegram restore injects a platform-only bridge', async () => {
+    vi.useFakeTimers();
+    uninstallMockTelegram();
+    router.push('/');
+    await router.isReady();
+
+    render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(screen.getByText('Open in Telegram')).toBeInTheDocument();
+
+    installMockTelegram({ initData: '', initDataUnsafe: {}, platform: 'ios' });
+    await vi.advanceTimersByTimeAsync(1_000);
+    await nextTick();
+
+    expect(screen.getByRole('heading', { name: 'Log in to dc.hhhl.cc' })).toBeInTheDocument();
+    expect(screen.queryByText('Open in Telegram')).not.toBeInTheDocument();
+  });
+
   it('shows callback errors on the login guide', async () => {
     vi.spyOn(window, 'fetch').mockResolvedValue(Response.json({ error: { code: 'FAILED', message: 'callback rejected' } }, { status: 403 }));
     installMockTelegram();

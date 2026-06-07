@@ -61,12 +61,17 @@ export function hasTelegramHashParams(hash: string = window.location.hash): bool
   return params.has('tgWebAppVersion') || params.has('tgWebAppPlatform') || params.has('tgWebAppData');
 }
 
+function hasTelegramPlatform(webApp: TelegramWebApp): boolean {
+  const platform = webApp.platform.trim().toLowerCase();
+  return platform !== '' && platform !== 'unknown';
+}
+
 export function isTelegramEnvironment(): boolean {
   const webApp = getTelegramWebApp();
   if (webApp == null) {
     return false;
   }
-  return webApp.initData !== '' || hasTelegramHashParams();
+  return webApp.initData !== '' || hasTelegramHashParams() || hasTelegramPlatform(webApp);
 }
 
 export function getTelegramLaunchContext(): TelegramLaunchContext {
