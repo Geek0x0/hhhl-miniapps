@@ -227,14 +227,19 @@ export async function mockApi(page: Page, options: MockApiOptions = {}): Promise
         return;
       }
 
-      if (options.paginatedSearch === true && body.query === 'hello') {
-        if (body.untilId === 'search-30') {
-          await route.fulfill({ headers, json: [
-            { id: 'search-31', roomId: 'amlc1bekzi', createdAt: '2025-12-31T23:59:31.000Z', text: 'older hello result', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
-          ] });
-          return;
-        }
+      const isPaginatedNormalSearch = options.paginatedSearch === true
+        && body.roomId === 'amlc1bekzi'
+        && body.query === 'hello'
+        && body.limit === 30
+        && !('userId' in body);
+      if (isPaginatedNormalSearch && body.untilId === 'search-30') {
+        await route.fulfill({ headers, json: [
+          { id: 'search-31', roomId: 'amlc1bekzi', createdAt: '2025-12-31T23:58:59.000Z', text: 'older hello result', user: { id: 'user-2', username: 'bob', name: 'Bob' } },
+        ] });
+        return;
+      }
 
+      if (isPaginatedNormalSearch && !('untilId' in body)) {
         await route.fulfill({ headers, json: Array.from({ length: 30 }, (_value, index) => ({
           id: `search-${index + 1}`,
           roomId: 'amlc1bekzi',

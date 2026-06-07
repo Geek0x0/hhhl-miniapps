@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { authorizeSession, installTelegramMock, mockApi } from './helpers';
+import { MOCK_KEY_TEXT, authorizeSession, installTelegramMock, mockApi } from './helpers';
 
 test('room drafts survive reload and clear after successful send', async ({ page }) => {
   await installTelegramMock(page);
@@ -246,24 +246,63 @@ test('search results paginate and keep normal search isolated from key search', 
   await mockApi(page, { paginatedSearch: true });
   await authorizeSession(page);
 
+  const searchRequests: Array<Record<string, unknown>> = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/chat/messages/search') && request.method() === 'POST') {
+      searchRequests.push(request.postDataJSON() as Record<string, unknown>);
+    }
+  });
+
   await page.goto('/rooms/amlc1bekzi');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByPlaceholder('Search messages').fill('hello');
-  await page.getByRole('button', { name: 'Search', exact: true }).last().click();
+  const searchPanel = page.locator('.side-panel');
+  await searchPanel.getByPlaceholder('Search messages').fill('hello');
+  await searchPanel.getByRole('button', { name: 'Search', exact: true }).click();
 
   await expect(page.locator('.search-result-row')).toHaveCount(30);
   await page.getByRole('button', { name: 'Load more' }).click();
+  await expect(page.locator('.search-result-row')).toHaveCount(31);
+  await expect(page.locator('.search-result-row').first()).toContainText('hello result 1');
   await expect(page.locator('.search-result-row', { hasText: 'older hello result' })).toBeVisible();
+
+  const normalSearchRequests = searchRequests.filter((body) => body.query === 'hello');
+  expect(normalSearchRequests).toHaveLength(2);
+  expect(normalSearchRequests[0]).toMatchObject({ roomId: 'amlc1bekzi', query: 'hello', limit: 30 });
+  expect(normalSearchRequests[0]).not.toHaveProperty('untilId');
+  expect(normalSearchRequests[0]).not.toHaveProperty('userId');
+  expect(normalSearchRequests[1]).toMatchObject({ roomId: 'amlc1bekzi', query: 'hello', untilId: 'search-30', limit: 30 });
+  expect(normalSearchRequests[1]).not.toHaveProperty('userId');
 
   await page.getByRole('button', { name: 'More room actions' }).click();
   await page.getByRole('menuitem', { name: 'Search keys' }).click();
+  await expect(page.locator('.side-panel .search-result-row', { hasText: MOCK_KEY_TEXT })).toHaveCount(1);
   await expect(page.locator('.side-panel', { hasText: 'older hello result' })).toHaveCount(0);
+  const keySearchRequests = searchRequests.filter((body) => body.query === 'sk-');
+  expect(keySearchRequests).toHaveLength(2);
+  expect(keySearchRequests[0]).toMatchObject({ roomId: 'amlc1bekzi', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
+  expect(keySearchRequests[0]).not.toHaveProperty('untilId');
+  expect(keySearchRequests[1]).toMatchObject({ roomId: 'amlc1bekzi', query: 'sk-', limit: 30 });
+  expect(keySearchRequests[1]).not.toHaveProperty('userId');
+  expect(keySearchRequests[1]).not.toHaveProperty('untilId');
 
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await expect(page.locator('.search-result-row', { hasText: 'older hello result' })).toBeVisible();
 });
 
 test('visible restore catches up newer messages without fixed foreground polling', async ({ page }) => {
+  await page.addInitScript(() => {
+    let testVisibilityState: DocumentVisibilityState = 'visible';
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => testVisibilityState,
+    });
+    Object.defineProperty(window, '__setTestVisibilityState', {
+      configurable: true,
+      value: (state: DocumentVisibilityState) => {
+        testVisibilityState = state;
+      },
+    });
+  });
   await installTelegramMock(page);
   await mockApi(page);
   await authorizeSession(page);
@@ -276,15 +315,25 @@ test('visible restore catches up newer messages without fixed foreground polling
   });
 
   await page.goto('/rooms/amlc1bekzi');
-  await page.waitForTimeout(3500);
+  await expect(page.locator('[data-message-id="m3"]')).toBeVisible();
+  timelineRequests.length = 0;
+
+  await page.evaluate(() => {
+    (window as typeof window & { __setTestVisibilityState: (state: DocumentVisibilityState) => void }).__setTestVisibilityState('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForTimeout(6000);
 
   const foregroundRequests = timelineRequests.filter((body) => body.sinceId === 'm3');
   expect(foregroundRequests).toHaveLength(0);
 
   await page.evaluate(() => {
-    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    (window as typeof window & { __setTestVisibilityState: (state: DocumentVisibilityState) => void }).__setTestVisibilityState('visible');
     document.dispatchEvent(new Event('visibilitychange'));
   });
 
-  await expect(page.getByText('latest')).toBeVisible();
+  await expect(page.locator('[data-message-id="m4"]', { hasText: 'latest' })).toBeVisible();
+  const catchUpRequests = timelineRequests.filter((body) => body.sinceId === 'm3');
+  expect(catchUpRequests).toHaveLength(1);
+  expect(catchUpRequests[0]).toMatchObject({ roomId: 'amlc1bekzi', limit: 30, sinceId: 'm3' });
 });
