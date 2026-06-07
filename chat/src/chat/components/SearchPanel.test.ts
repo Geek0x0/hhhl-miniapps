@@ -14,7 +14,7 @@ function message(id: string, text: string): ChatMessage {
 }
 
 const members: UserSummary[] = [
-  { id: 'user-1', username: 'alice', name: 'Alice' },
+  { id: 'user-1', username: 'alice', name: 'Alice', avatarUrl: 'https://example.com/alice.png' },
   { id: 'user-2', username: 'bob', name: 'Bob' },
 ];
 
@@ -47,7 +47,7 @@ describe('SearchPanel', () => {
   });
 
   it('emits selected member searches and allows member-only searches', async () => {
-    const { emitted } = renderSearchPanel({
+    const { container, emitted } = renderSearchPanel({
       query: '',
       results: [],
       hasMore: false,
@@ -56,7 +56,12 @@ describe('SearchPanel', () => {
     const searchButton = screen.getByRole('button', { name: 'Search' });
     expect(searchButton).toBeDisabled();
 
-    await fireEvent.update(screen.getByRole('combobox', { name: 'Search member' }), 'user-2');
+    await fireEvent.click(screen.getByRole('combobox', { name: 'Search member' }));
+    expect(container.querySelector('img.member-picker__avatar')?.getAttribute('src')).toBe('https://example.com/alice.png');
+
+    await fireEvent.update(screen.getByRole('searchbox', { name: 'Search members' }), 'bo');
+    expect(screen.queryByRole('option', { name: /Alice/ })).not.toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('option', { name: /Bob.*@bob/ }));
     expect(searchButton).toBeEnabled();
 
     await fireEvent.click(searchButton);

@@ -2,6 +2,18 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.5.4 - 2026-06-07
+
+### chat
+
+#### Added
+
+- Added an avatar-backed, searchable member picker to message search so members can be filtered by name, username, handle, or id before selecting a sender filter.
+
+#### Changed
+
+- Disabled page-level viewport zoom in the Telegram Mini App while preserving image preview pinch-zoom behavior.
+
 ## 0.5.3 - 2026-06-07
 
 ### chat
