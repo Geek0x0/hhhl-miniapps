@@ -2,6 +2,30 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.5.0 - 2026-06-07
+
+### chat
+
+#### Added
+
+- Added room-scoped composer draft persistence that survives refresh and room switching, with successful sends clearing only the submitted room draft.
+- Added retryable composer file uploads with validation errors, upload-stage failure feedback, progress forwarding, and preview object URL cleanup.
+- Added a compact room-header more menu for favorites, key search, and room management, with keyboard navigation and accessible menu behavior.
+- Added search result pagination, safe text-part highlighting, load-more controls, empty state copy, and e2e coverage for normal search/key-search isolation.
+- Added non-blocking favorite toggle feedback and favorite-panel loading copy that reports unresolved favorite member counts.
+- Added release checklist coverage for drafts, uploads, realtime restore, search pagination, room management, destructive confirmations, favorite feedback, and performance smoke paths.
+
+#### Changed
+
+- Replaced fixed foreground newer-message polling with state-driven realtime reconnect handling, idempotent degraded polling, and visibility-based catch-up.
+- Updated search pagination state to guard stale room results and keep unsubmitted search input from driving load-more behavior.
+
+#### Fixed
+
+- Guarded stale room/session races across initial load, older/newer loading, text sending, and file sending so late responses cannot mutate the wrong room.
+- Confirmed destructive message, leave-room, and delete-room actions before emitting API calls.
+- Preserved pending text drafts across slow or failed sends, including same-text re-entry and room-switch races.
+
 ## 0.4.5 - 2026-06-06
 
 ### chat
