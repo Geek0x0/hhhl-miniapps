@@ -49,7 +49,7 @@ function sanitizeTelegramFileName(fileName: string | undefined): string | null {
 
   const baseName = trimmed.split(/[\\/]+/).filter(Boolean).pop() ?? '';
   const safe = baseName.replace(/[\x00-\x1F\x7F]+/g, '_').replace(/^_+|_+$/g, '');
-  return safe || null;
+  return safe && !/^\.+$/.test(safe) ? safe : null;
 }
 
 function safeNamePart(value: string): string {

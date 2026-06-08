@@ -255,6 +255,12 @@ describe('Telegram media downloads', () => {
     );
   });
 
+  it('falls back to generated names for dot-only explicit Telegram filenames', () => {
+    expect(selectTelegramDownloadName({ fileId: 'doc-1', fileName: '.' }, 'document')).toBe('document-doc-1.bin');
+    expect(selectTelegramDownloadName({ fileId: 'doc-2', fileName: '..' }, 'document')).toBe('document-doc-2.bin');
+    expect(selectTelegramDownloadName({ fileId: 'doc-3', fileName: '../..' }, 'document')).toBe('document-doc-3.bin');
+  });
+
   it('downloads media with resolved name, type, and blob', async () => {
     const media: TelegramMedia = { fileId: 'file-id', fileName: 'clip.mp4', mimeType: 'video/mp4' };
     const api = {
