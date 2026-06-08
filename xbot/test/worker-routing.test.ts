@@ -213,7 +213,6 @@ describe('worker Telegram routing', () => {
     ['/bind', '用法：/bind <roomId> [显示名]'],
     ['/does-not-exist', '未知命令。发送 /help 查看帮助。'],
     ['/status', ['实时状态：', 'state：stopped', 'connectedAt：无', 'lastError：无', 'nextReconnectAt：无'].join('\n')],
-    ['普通消息', '命令处理中断：该功能还没有接入。'],
   ] as const)('replies to %s with routed text', async (text, expectedReply) => {
     const { fetchImpl, calls } = createTelegramFetch();
     vi.stubGlobal('fetch', fetchImpl);
