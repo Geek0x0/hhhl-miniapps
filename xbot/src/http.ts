@@ -1,5 +1,5 @@
 import { readConfig } from './config';
-import { executeBridgeCommand, type BridgeCommand } from './bridge/commands';
+import { executeBridgeCommand } from './bridge/commands';
 import { forwardTelegramMessageToHhhl } from './bridge/inbound';
 import type { AppConfig, Env } from './env';
 import { HhhlApiClient } from './hhhl/apiClient';
@@ -14,7 +14,6 @@ import { downloadTelegramMedia } from './telegram/media';
 import type { TelegramMessage } from './telegram/types';
 import { parseTelegramUpdate } from './telegram/updates';
 
-const PLACEHOLDER_REPLY = '命令处理中断：该功能还没有接入。';
 const UNKNOWN_COMMAND_REPLY = '未知命令。发送 /help 查看帮助。';
 const TELEGRAM_WEBHOOK_SECRET_HEADER = 'x-telegram-bot-api-secret-token';
 
@@ -40,31 +39,30 @@ async function parseJson(request: Request): Promise<JsonParseResult> {
   }
 }
 
-function isBridgeCommand(command: BotCommand): command is BridgeCommand {
-  return (
-    command.type === 'bind' ||
-    command.type === 'unbind' ||
-    command.type === 'rename' ||
-    command.type === 'list' ||
-    command.type === 'status'
-  );
-}
-
-async function routedReplyText(message: TelegramMessage, env: Env, config: AppConfig): Promise<string> {
-  const command = message.text == null ? null : parseCommand(message.text);
-
-  if (command == null) return PLACEHOLDER_REPLY;
-  if (command.type === 'help') return commandHelpText;
-  if (command.type === 'invalid') return command.reason;
-  if (command.type === 'unknown') return UNKNOWN_COMMAND_REPLY;
-  if (isBridgeCommand(command)) {
-    return executeBridgeCommand(command, {
-      config,
-      env,
-      telegramUserId: String(message.fromId),
-    });
+async function routedReplyText(
+  command: BotCommand,
+  telegramUserId: string,
+  env: Env,
+  config: AppConfig,
+): Promise<string> {
+  switch (command.type) {
+    case 'help':
+      return commandHelpText;
+    case 'invalid':
+      return command.reason;
+    case 'unknown':
+      return UNKNOWN_COMMAND_REPLY;
+    case 'bind':
+    case 'unbind':
+    case 'rename':
+    case 'list':
+    case 'status':
+      return executeBridgeCommand(command, {
+        config,
+        env,
+        telegramUserId,
+      });
   }
-  return PLACEHOLDER_REPLY;
 }
 
 function shouldProcessMessage(message: TelegramMessage, config: AppConfig): boolean {
@@ -109,10 +107,15 @@ function isTelegramUpdateEnvelope(value: unknown): boolean {
   return typeof value.update_id === 'number' && Number.isInteger(value.update_id) && value.update_id >= 0;
 }
 
-async function sendRoutedReply(message: TelegramMessage, env: Env, config: AppConfig): Promise<void> {
+async function sendRoutedReply(
+  message: TelegramMessage,
+  command: BotCommand,
+  env: Env,
+  config: AppConfig,
+): Promise<void> {
   const telegram = new TelegramApi(config.botToken);
   try {
-    await telegram.sendMessage(message.chatId, await routedReplyText(message, env, config), {
+    await telegram.sendMessage(message.chatId, await routedReplyText(command, String(message.fromId), env, config), {
       replyToMessageId: message.messageId,
     });
   } catch (error) {
@@ -153,7 +156,7 @@ async function processAuthorizedMessage(message: TelegramMessage, env: Env, conf
     return;
   }
 
-  await sendRoutedReply(message, env, config);
+  await sendRoutedReply(message, command, env, config);
 }
 
 async function processWebhook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

@@ -345,7 +345,6 @@ describe('Telegram inbound text forwarding', () => {
       hhhlMessageId: 'hhhl-created-1',
       telegramMessageId: 101,
     });
-    expect(calls.map((call) => requestBody(call).text)).not.toContain('命令处理中断：该功能还没有接入。');
   });
 
   it('acks normal text webhooks and logs sanitized inbound failures when HHHL create fails', async () => {
