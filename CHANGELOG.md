@@ -2,6 +2,20 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.3 - 2026-06-08
+
+### chat
+
+#### Added
+
+- Added an `autoKeySearch` room launch mode so bot WebApp buttons can open the fixed key room and automatically search keys using the current Telegram user's CloudStorage-restored HHHL token.
+
+### bot
+
+#### Changed
+
+- Changed the `获取密钥` button to open the Mini App at room `amlc1bekzi` instead of querying HHHL from the Worker, keeping HHHL auth scoped to each Telegram user's CloudStorage.
+
 ## 0.6.2 - 2026-06-08
 
 ### chat

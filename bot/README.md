@@ -1,6 +1,8 @@
 # HHHL Telegram Bot
 
-Cloudflare Worker for the Telegram bot entrypoint. When a user sends `/start`, the Worker replies with an inline `打开hhhl` URL button for `https://dc.hhhl.cc`, followed by a WebApp button that opens `MINI_APP_URL`.
+Cloudflare Worker for the Telegram bot entrypoint. When a user sends `/start`, the Worker replies with an inline `打开hhhl` URL button for `https://dc.hhhl.cc`, followed by WebApp buttons that open `MINI_APP_URL`.
+
+The `获取密钥` button opens the Mini App at room `amlc1bekzi` with `autoKeySearch=1`. HHHL authorization for that flow is read by the Mini App from Telegram CloudStorage, so each Telegram user uses their own stored HHHL token. The Worker does not need or read a shared HHHL token.
 
 The `/start` reply uses `message.from.language_code` from Telegram. Chinese language codes such as `zh`, `zh-CN`, and `zh-Hant` receive Chinese copy; all other languages fall back to English.
 

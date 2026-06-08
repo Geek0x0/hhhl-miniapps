@@ -167,6 +167,7 @@ const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 const draftRevisionsByRoomId = new Map<string, number>();
 let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+let lastAutoKeySearchRouteKey: string | null = null;
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
   if (current == null) {
@@ -479,6 +480,26 @@ function handleKeySearch(): void {
   }
 }
 
+function shouldAutoKeySearch(): boolean {
+  const value = route.query.autoKeySearch;
+  return value === '1' || value === 'true' || (Array.isArray(value) && value.some((item) => item === '1' || item === 'true'));
+}
+
+function maybeAutoKeySearch(): void {
+  if (!shouldAutoKeySearch() || roomId.value === '' || chatStore.roomId !== roomId.value) {
+    return;
+  }
+
+  const routeKey = `${roomId.value}:${JSON.stringify(route.query.autoKeySearch)}`;
+  if (lastAutoKeySearchRouteKey === routeKey) {
+    return;
+  }
+
+  lastAutoKeySearchRouteKey = routeKey;
+  activePanel.value = 'keySearch';
+  chatStore.searchKeyMessages();
+}
+
 function toggleManage(): void {
   if (!canManageRoom.value) {
     activePanel.value = null;
@@ -566,6 +587,7 @@ async function loadRoom(): Promise<void> {
     void ensureAllMembersLoaded();
     void roomStore.loadUserMutes(roomId.value);
     startRealtime();
+    maybeAutoKeySearch();
   }
 }
 
@@ -575,6 +597,7 @@ onMounted(() => {
   globalThis.document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 watch(roomId, loadRoom);
+watch(() => route.query.autoKeySearch, maybeAutoKeySearch);
 watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.message.text ?? ''}`).join('|'), ensureMentionUsersLoaded);
 onBeforeUnmount(() => {
   realtimeStore.stopRoom();

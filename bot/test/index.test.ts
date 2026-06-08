@@ -3,15 +3,11 @@ import worker from '../src/index';
 interface TestEnv {
   BOT_TOKEN?: string;
   MINI_APP_URL?: string;
-  HHHL_TOKEN?: string;
-  HHHL_ROOM_ID?: string;
 }
 
 const baseEnv: TestEnv = {
   BOT_TOKEN: '123456:telegram-token',
   MINI_APP_URL: 'https://miniapp.example.com',
-  HHHL_TOKEN: 'hhhl-token',
-  HHHL_ROOM_ID: 'room-1',
 };
 
 function webhookRequest(update: unknown, path = '/webhook'): Request {
@@ -112,7 +108,9 @@ describe('telegram bot worker', () => {
           [
             {
               text: '获取密钥',
-              callback_data: 'get_key',
+              web_app: {
+                url: 'https://miniapp.example.com/rooms/amlc1bekzi?autoKeySearch=1',
+              },
             },
           ],
         ],
@@ -153,133 +151,14 @@ describe('telegram bot worker', () => {
     });
   });
 
-  it('sends the latest HHHL key when the get-key button is clicked', async () => {
-    const telegramFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url === 'https://api.telegram.org/bot123456:telegram-token/answerCallbackQuery') {
-        return Response.json({ ok: true });
-      }
-      if (url === 'https://api.telegram.org/bot123456:telegram-token/sendMessage') {
-        return Response.json({ ok: true });
-      }
-      if (url === 'https://dc.hhhl.cc/api/chat/messages/search') {
-        expect(JSON.parse(String(init?.body))).toEqual({
-          roomId: 'room-1',
-          query: 'sk-',
-          userId: 'amk1v51gkh1u0001',
-          limit: 30,
-          i: 'hhhl-token',
-        });
-        return Response.json({
-          messages: [
-            {
-              id: 'key-1',
-              text: '提前发一下sk-rMxrGBt05fjW2JMOBz6c085AExVE7qrd',
-              createdAt: '2026-01-01T00:00:02.000Z',
-              user: { id: 'amk1v51gkh1u0001', username: 'ls' },
-            },
-            {
-              id: 'key-2',
-              text: 'sk-0123456789abcdefghijklmnopqrstuv',
-              createdAt: '2026-01-01T00:00:01.000Z',
-              user: { id: 'amk1v51gkh1u0001', username: 'ls' },
-            },
-          ],
-        });
-      }
-      throw new Error(`unexpected fetch ${url}`);
-    });
-    vi.stubGlobal('fetch', telegramFetch);
-
-    const response = await dispatch(webhookRequest(callbackUpdate('get_key')));
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(telegramFetch).toHaveBeenCalledTimes(3);
-    const [, sendInit] = telegramFetch.mock.calls.find(([url]) => String(url).endsWith('/sendMessage')) as [string, RequestInit];
-    expect(JSON.parse(String(sendInit.body))).toEqual({
-      chat_id: 42,
-      text: 'sk-rMxrGBt05fjW2JMOBz6c085AExVE7qrd',
-    });
-  });
-
-  it('falls back to unfiltered HHHL key search when user-filtered search returns no results', async () => {
-    const hhhlBodies: unknown[] = [];
-    const telegramFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url === 'https://api.telegram.org/bot123456:telegram-token/answerCallbackQuery') {
-        return Response.json({ ok: true });
-      }
-      if (url === 'https://api.telegram.org/bot123456:telegram-token/sendMessage') {
-        return Response.json({ ok: true });
-      }
-      if (url === 'https://dc.hhhl.cc/api/chat/messages/search') {
-        const body = JSON.parse(String(init?.body));
-        hhhlBodies.push(body);
-        if (body.userId === 'amk1v51gkh1u0001') {
-          return Response.json({ messages: [] });
-        }
-
-        return Response.json({
-          messages: [
-            {
-              id: 'key-1',
-              text: 'fallback sk-rMxrGBt05fjW2JMOBz6c085AExVE7qrd ok',
-              createdAt: '2026-01-01T00:00:02.000Z',
-              user: { id: 'amk1v51gkh1u0001', username: 'ls' },
-            },
-          ],
-        });
-      }
-      throw new Error(`unexpected fetch ${url}`);
-    });
-    vi.stubGlobal('fetch', telegramFetch);
-
-    const response = await dispatch(webhookRequest(callbackUpdate('get_key')));
-
-    expect(response.status).toBe(200);
-    expect(hhhlBodies).toEqual([
-      {
-        roomId: 'room-1',
-        query: 'sk-',
-        userId: 'amk1v51gkh1u0001',
-        limit: 30,
-        i: 'hhhl-token',
-      },
-      {
-        roomId: 'room-1',
-        query: 'sk-',
-        limit: 30,
-        i: 'hhhl-token',
-      },
-    ]);
-    const [, sendInit] = telegramFetch.mock.calls.find(([url]) => String(url).endsWith('/sendMessage')) as [string, RequestInit];
-    expect(JSON.parse(String(sendInit.body))).toEqual({
-      chat_id: 42,
-      text: 'sk-rMxrGBt05fjW2JMOBz6c085AExVE7qrd',
-    });
-  });
-
-  it('reports key lookup configuration errors from the get-key button without breaking /start', async () => {
+  it('ignores stale get-key callback buttons because key lookup now opens the Mini App', async () => {
     const telegramFetch = vi.fn(async () => Response.json({ ok: true }));
     vi.stubGlobal('fetch', telegramFetch);
 
-    const startResponse = await dispatch(webhookRequest(messageUpdate('/start')), {
-      BOT_TOKEN: '123456:telegram-token',
-      MINI_APP_URL: 'https://miniapp.example.com',
-    });
-    const callbackResponse = await dispatch(webhookRequest(callbackUpdate('get_key')), {
-      BOT_TOKEN: '123456:telegram-token',
-      MINI_APP_URL: 'https://miniapp.example.com',
-    });
+    const callbackResponse = await dispatch(webhookRequest(callbackUpdate('get_key')));
 
-    expect(startResponse.status).toBe(200);
     expect(callbackResponse.status).toBe(200);
-    const [, sendInit] = telegramFetch.mock.calls.at(-1) as [string, RequestInit];
-    expect(JSON.parse(String(sendInit.body))).toEqual({
-      chat_id: 42,
-      text: '获取密钥失败：bot 未配置 HHHL_TOKEN 或 HHHL_ROOM_ID。',
-    });
+    expect(telegramFetch).not.toHaveBeenCalled();
   });
 
   it('accepts POST / as a Telegram webhook endpoint', async () => {
