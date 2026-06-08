@@ -2,6 +2,24 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.4 - 2026-06-08
+
+### chat
+
+#### Added
+
+- Added bot key-result delivery from the Mini App: `autoKeySearch=sendToBot` reads the current Telegram user's CloudStorage-restored HHHL auth, searches room `amlc1bekzi`, and posts only the key result to the bot Worker.
+
+#### Fixed
+
+- Fixed settings sync after login so default local settings are not stamped as freshly updated before the HHHL Drive config is checked, allowing existing cloud settings to load first.
+
+### bot
+
+#### Changed
+
+- Changed the `获取密钥` button flow so the Mini App performs the per-user HHHL lookup and the bot sends the resulting key message after validating Telegram WebApp `initData`, without using KV/D1 or shared HHHL token storage.
+
 ## 0.6.3 - 2026-06-08
 
 ### chat

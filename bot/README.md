@@ -2,7 +2,7 @@
 
 Cloudflare Worker for the Telegram bot entrypoint. When a user sends `/start`, the Worker replies with an inline `打开hhhl` URL button for `https://dc.hhhl.cc`, followed by WebApp buttons that open `MINI_APP_URL`.
 
-The `获取密钥` button opens the Mini App at room `amlc1bekzi` with `autoKeySearch=1`. HHHL authorization for that flow is read by the Mini App from Telegram CloudStorage, so each Telegram user uses their own stored HHHL token. The Worker does not need or read a shared HHHL token.
+The `获取密钥` button opens the Mini App at room `amlc1bekzi` with `autoKeySearch=sendToBot`. The Mini App reads that Telegram user's HHHL authorization from `Telegram.WebApp.CloudStorage`, searches for the latest key, and posts only the key result back to this Worker. The Worker validates Telegram WebApp `initData` and sends the key message to the signed Telegram user. It does not need or read a shared HHHL token, and it does not store user HHHL tokens in KV, D1, or any server-side storage.
 
 The `/start` reply uses `message.from.language_code` from Telegram. Chinese language codes such as `zh`, `zh-CN`, and `zh-Hant` receive Chinese copy; all other languages fall back to English.
 
@@ -46,6 +46,11 @@ The Worker accepts Telegram webhook updates at both:
 - `POST /`
 
 It also exposes `GET /health` for a lightweight health check.
+
+The Worker also accepts Mini App key-result delivery at:
+
+- `POST /webapp/key-result`
+- `OPTIONS /webapp/key-result`
 
 ## Deployment
 

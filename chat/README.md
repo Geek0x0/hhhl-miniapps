@@ -34,6 +34,14 @@ https://t.me/mybot?startapp=room_amlc1bekzi
 
 Configure the bot menu button in BotFather with the deployed Mini App URL. For group entry, send a room link using `startapp=room_<roomId>`. Update the BotFather URL when moving from a `*.pages.dev` deployment to a custom domain.
 
+When the bot `获取密钥` button should send the key back through the bot, build the Mini App with:
+
+```text
+VITE_BOT_WORKER_URL=https://<your-bot-worker-host>
+```
+
+This value is only the bot Worker endpoint used for Mini App result delivery. HHHL authorization remains per Telegram user in `Telegram.WebApp.CloudStorage`; the Mini App sends only the extracted key result and Telegram WebApp `initData` to the bot Worker.
+
 ## Cloudflare Pages Deployment
 
 Git deployment settings:

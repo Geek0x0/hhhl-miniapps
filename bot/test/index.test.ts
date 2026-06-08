@@ -10,6 +10,8 @@ const baseEnv: TestEnv = {
   MINI_APP_URL: 'https://miniapp.example.com',
 };
 
+const KEY_TEXT = 'sk-rMxrGBt05fjW2JMOBz6c085AExVE7qrd';
+
 function webhookRequest(update: unknown, path = '/webhook'): Request {
   return new Request(`https://bot.example.com${path}`, {
     method: 'POST',
@@ -18,6 +20,47 @@ function webhookRequest(update: unknown, path = '/webhook'): Request {
     },
     body: JSON.stringify(update),
   });
+}
+
+function keyResultRequest(body: unknown): Request {
+  return new Request('https://bot.example.com/webapp/key-result', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function hmacSha256(key: Uint8Array, data: string): Promise<Uint8Array> {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data)));
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function signedInitData(params: Record<string, string>, botToken = baseEnv.BOT_TOKEN ?? ''): Promise<string> {
+  const searchParams = new URLSearchParams({
+    auth_date: String(Math.floor(Date.now() / 1000)),
+    query_id: 'query-1',
+    user: JSON.stringify({ id: 100, first_name: 'Test', is_bot: false }),
+    ...params,
+  });
+  const dataCheckString = [...searchParams.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+  const secretKey = await hmacSha256(new TextEncoder().encode('WebAppData'), botToken);
+  searchParams.set('hash', bytesToHex(await hmacSha256(secretKey, dataCheckString)));
+  return searchParams.toString();
 }
 
 function messageUpdate(text: string, languageCode?: string): unknown {
@@ -109,7 +152,7 @@ describe('telegram bot worker', () => {
             {
               text: '获取密钥',
               web_app: {
-                url: 'https://miniapp.example.com/rooms/amlc1bekzi?autoKeySearch=1',
+                url: 'https://miniapp.example.com/rooms/amlc1bekzi?autoKeySearch=sendToBot',
               },
             },
           ],
@@ -158,6 +201,67 @@ describe('telegram bot worker', () => {
     const callbackResponse = await dispatch(webhookRequest(callbackUpdate('get_key')));
 
     expect(callbackResponse.status).toBe(200);
+    expect(telegramFetch).not.toHaveBeenCalled();
+  });
+
+  it('sends a Mini App delivered key result to the signed Telegram user', async () => {
+    const telegramFetch = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal('fetch', telegramFetch);
+
+    const initData = await signedInitData({});
+    const response = await dispatch(keyResultRequest({
+      initData,
+      roomId: 'amlc1bekzi',
+      status: 'found',
+      key: KEY_TEXT,
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(telegramFetch).toHaveBeenCalledOnce();
+
+    const [url, init] = telegramFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.telegram.org/bot123456:telegram-token/sendMessage');
+    expect(JSON.parse(String(init.body))).toEqual({
+      chat_id: 100,
+      text: KEY_TEXT,
+    });
+  });
+
+  it('sends a failure message for signed Mini App key lookup failures', async () => {
+    const telegramFetch = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal('fetch', telegramFetch);
+
+    const initData = await signedInitData({});
+    const response = await dispatch(keyResultRequest({
+      initData,
+      roomId: 'amlc1bekzi',
+      status: 'failed',
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+
+    const [, init] = telegramFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toEqual({
+      chat_id: 100,
+      text: '获取密钥失败，请打开 Mini App 检查 HHHL 登录状态。',
+    });
+  });
+
+  it('rejects Mini App key result requests with invalid Telegram init data', async () => {
+    const telegramFetch = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal('fetch', telegramFetch);
+
+    const response = await dispatch(keyResultRequest({
+      initData: 'user=%7B%22id%22%3A100%7D&auth_date=1800000000&hash=bad',
+      roomId: 'amlc1bekzi',
+      status: 'found',
+      key: KEY_TEXT,
+    }));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ ok: false, error: 'invalid init data' });
     expect(telegramFetch).not.toHaveBeenCalled();
   });
 

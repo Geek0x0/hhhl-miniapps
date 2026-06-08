@@ -295,10 +295,6 @@ export const useSettingsStore = defineStore('settings', {
       this.themeMode = normalizeThemeMode(storage.getJson<ThemeMode>(SETTINGS_THEME_MODE_KEY, 'system'));
       this.favoriteUserIds = normalizeFavoriteUserIds(storage.getJson<string[]>(SETTINGS_FAVORITE_USERS_KEY, [])) ?? [];
       this.localUpdatedAt = storage.getJson<string | null>(SETTINGS_UPDATED_AT_KEY, null);
-      if (this.localUpdatedAt == null) {
-        this.localUpdatedAt = isoNow(dependencies);
-        storage.setJson(SETTINGS_UPDATED_AT_KEY, this.localUpdatedAt);
-      }
       this.debugOpen = false;
       this.syncError = null;
       applyThemeMode(this.themeMode);
@@ -451,6 +447,7 @@ export const useSettingsStore = defineStore('settings', {
 
       if (this.localUpdatedAt == null) {
         this.init(dependencies);
+        this.touchLocal(dependencies);
       }
 
       this.syncStatus = 'saving';

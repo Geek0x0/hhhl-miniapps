@@ -300,22 +300,47 @@ describe('settingsStore', () => {
     expect(store.lastAction).toBe('settings.clearLocalDataDone');
   });
 
-  it('initializes local updatedAt when missing', () => {
+  it('does not mark default settings as locally updated during init', () => {
     const storage = createLocalStorageAdapter(new MemoryStorage());
     const store = useSettingsStore();
 
     store.init(syncDeps(storage));
 
-    expect(store.localUpdatedAt).toBe('2026-06-05T01:00:00.000Z');
-    expect(storage.getJson(SETTINGS_UPDATED_AT_KEY, null)).toBe('2026-06-05T01:00:00.000Z');
+    expect(store.localUpdatedAt).toBeNull();
+    expect(storage.getJson(SETTINGS_UPDATED_AT_KEY, null)).toBeNull();
     expect(store.syncStatus).toBe('idle');
     expect(store.syncError).toBeNull();
   });
 
-  it('uses epoch updatedAt fallback before init', () => {
+  it('uses epoch updatedAt fallback before local changes', () => {
     const store = useSettingsStore();
 
     expect(store.localSnapshot().updatedAt).toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  it('syncs after login with an epoch local snapshot when no local update exists', async () => {
+    const storage = createLocalStorageAdapter(new MemoryStorage());
+    const syncAfterLogin = vi.fn(async (snapshot): Promise<SettingsSyncResult> => ({
+      status: 'unchanged',
+      document: createCloudSettingsDocument(snapshot.preferences, snapshot.updatedAt, snapshot.baseDocument ?? null),
+      syncedAt: '2026-06-05T02:00:00.000Z',
+    }));
+    const deps = syncDeps(storage, { syncAfterLogin });
+    const store = useSettingsStore();
+
+    store.init(deps);
+    await store.syncAfterLogin(deps);
+
+    expect(syncAfterLogin).toHaveBeenCalledWith({
+      preferences: {
+        language: 'en',
+        themeMode: 'system',
+        favoriteUserIds: [],
+      },
+      updatedAt: '1970-01-01T00:00:00.000Z',
+      baseDocument: null,
+    });
+    expect(storage.getJson(SETTINGS_UPDATED_AT_KEY, null)).toBeNull();
   });
 
   it('normalizes favorite users in preference snapshots', () => {

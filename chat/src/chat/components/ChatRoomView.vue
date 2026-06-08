@@ -118,6 +118,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { ApiClient } from '@/api/apiClient';
 import { useAuthStore } from '@/auth/authStore';
+import { deliverKeySearchResultToBot } from '@/bot/keyDelivery';
 import { API_BASE_URL } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import { createChatApi } from '@/chat/chatApi';
@@ -480,12 +481,20 @@ function handleKeySearch(): void {
   }
 }
 
-function shouldAutoKeySearch(): boolean {
+function autoKeySearchValues(): string[] {
   const value = route.query.autoKeySearch;
-  return value === '1' || value === 'true' || (Array.isArray(value) && value.some((item) => item === '1' || item === 'true'));
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : typeof value === 'string' ? [value] : [];
 }
 
-function maybeAutoKeySearch(): void {
+function shouldAutoKeySearch(): boolean {
+  return autoKeySearchValues().some((value) => value === '1' || value === 'true' || value === 'sendToBot');
+}
+
+function shouldDeliverAutoKeySearchToBot(): boolean {
+  return autoKeySearchValues().includes('sendToBot');
+}
+
+async function maybeAutoKeySearch(): Promise<void> {
   if (!shouldAutoKeySearch() || roomId.value === '' || chatStore.roomId !== roomId.value) {
     return;
   }
@@ -496,8 +505,18 @@ function maybeAutoKeySearch(): void {
   }
 
   lastAutoKeySearchRouteKey = routeKey;
+  const requestedRoomId = roomId.value;
+  const shouldDeliverToBot = shouldDeliverAutoKeySearchToBot();
   activePanel.value = 'keySearch';
-  chatStore.searchKeyMessages();
+  await chatStore.searchKeyMessages();
+
+  if (shouldDeliverToBot && roomId.value === requestedRoomId) {
+    await deliverKeySearchResultToBot({
+      roomId: requestedRoomId,
+      message: chatStore.keySearchResults[0] ?? null,
+      ...(chatStore.keySearchError == null ? {} : { failed: true }),
+    });
+  }
 }
 
 function toggleManage(): void {
@@ -587,7 +606,7 @@ async function loadRoom(): Promise<void> {
     void ensureAllMembersLoaded();
     void roomStore.loadUserMutes(roomId.value);
     startRealtime();
-    maybeAutoKeySearch();
+    void maybeAutoKeySearch();
   }
 }
 
@@ -597,7 +616,9 @@ onMounted(() => {
   globalThis.document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 watch(roomId, loadRoom);
-watch(() => route.query.autoKeySearch, maybeAutoKeySearch);
+watch(() => route.query.autoKeySearch, () => {
+  void maybeAutoKeySearch();
+});
 watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.message.text ?? ''}`).join('|'), ensureMentionUsersLoaded);
 onBeforeUnmount(() => {
   realtimeStore.stopRoom();

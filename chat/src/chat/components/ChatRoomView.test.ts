@@ -83,6 +83,7 @@ const mocks = vi.hoisted(() => ({
     favoriteUserIds: [] as string[],
     toggleFavoriteUser: vi.fn(),
   },
+  deliverKeySearchResultToBot: vi.fn(async () => true),
 }));
 
 vi.mock('vue-router', () => ({
@@ -136,6 +137,10 @@ vi.mock('@/chat/drafts', () => ({
   clearRoomDraft: vi.fn(),
 }));
 
+vi.mock('@/bot/keyDelivery', () => ({
+  deliverKeySearchResultToBot: mocks.deliverKeySearchResultToBot,
+}));
+
 vi.mock('@/chat/components/ChatHeader.vue', () => ({
   default: { template: '<header data-testid="chat-header" />' },
 }));
@@ -154,6 +159,7 @@ describe('ChatRoomView', () => {
     mocks.route.params = { roomId: 'amlc1bekzi' };
     mocks.route.query = {};
     mocks.chatStore.roomId = 'amlc1bekzi';
+    mocks.chatStore.keySearchResults = [];
   });
 
   it('opens key search automatically for bot get-key Mini App launches', async () => {
@@ -163,6 +169,29 @@ describe('ChatRoomView', () => {
 
     await waitFor(() => {
       expect(mocks.chatStore.searchKeyMessages).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('delivers the latest key search result to the bot for bot send launches', async () => {
+    const keyMessage = {
+      id: 'key-1',
+      roomId: 'amlc1bekzi',
+      createdAt: '2026-06-08T00:00:00.000Z',
+      text: 'sk-rMxrGBt05fjW2JMOBz6c085AExVE7qrd',
+      user: { id: 'amk1v51gkh1u0001', username: 'ls', name: 'LS' },
+    };
+    mocks.route.query = { autoKeySearch: 'sendToBot' };
+    mocks.chatStore.searchKeyMessages.mockImplementationOnce(async () => {
+      mocks.chatStore.keySearchResults = [keyMessage];
+    });
+
+    render(ChatRoomView);
+
+    await waitFor(() => {
+      expect(mocks.deliverKeySearchResultToBot).toHaveBeenCalledWith({
+        roomId: 'amlc1bekzi',
+        message: keyMessage,
+      });
     });
   });
 });
