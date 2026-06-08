@@ -98,6 +98,18 @@ function truncateTelegramText(text: string, limit: number): string {
   return `${text.slice(0, Math.max(0, limit - TRUNCATION_SUFFIX.length))}${TRUNCATION_SUFFIX}`;
 }
 
+function publicHttpUrl(value: string | null | undefined): string | null {
+  const url = trimmed(value);
+  if (url == null) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 function messageOptions(replyToMessageId: number | undefined): Pick<OutboundTelegramSendOptions, 'replyToMessageId'> | undefined {
   return replyToMessageId === undefined ? undefined : { replyToMessageId };
 }
@@ -165,6 +177,21 @@ async function putCreatedMessageMap(
   });
 }
 
+async function persistSentMessage(
+  options: ForwardHhhlMessageToTelegramOptions,
+  sent: OutboundTelegramSendResult,
+): Promise<void> {
+  try {
+    await putCreatedMessageMap(options, sent);
+  } catch (error) {
+    // The Telegram send already happened. Advance lastSeen so reconnect/backfill does not resend it.
+    await options.state.updateLastSeen(options.telegramUserId, options.message.id).catch(() => undefined);
+    throw error;
+  }
+
+  await options.state.updateLastSeen(options.telegramUserId, options.message.id);
+}
+
 async function sendText(
   options: ForwardHhhlMessageToTelegramOptions,
   replyContext: ReplyContext,
@@ -222,9 +249,8 @@ export async function forwardHhhlMessageToTelegram(options: ForwardHhhlMessageTo
 
   const replyContext = await resolveReplyContext(options);
   const file = options.message.file;
-  const fileUrl = trimmed(file?.url);
+  const fileUrl = publicHttpUrl(file?.url);
   const sent = file != null && fileUrl != null ? await sendFile(options, file, fileUrl, replyContext) : await sendText(options, replyContext);
 
-  await putCreatedMessageMap(options, sent);
-  await options.state.updateLastSeen(options.telegramUserId, options.message.id);
+  await persistSentMessage(options, sent);
 }

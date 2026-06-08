@@ -291,6 +291,54 @@ describe('HHHL outbound Telegram forwarding', () => {
     });
   });
 
+  it.each([
+    ['blob URL', 'blob:https://hhhl.example/file'],
+    ['data URL', 'data:text/plain;base64,SGVsbG8='],
+    ['bare path', '/files/file-1'],
+  ] as const)('falls back to text send for unsupported %s media URLs', async (_label, url) => {
+    const state = storeFor();
+    await seedBinding(state);
+    const telegram = createTelegramFake();
+
+    await forwardHhhlMessageToTelegram({
+      message: hhhlMessage({
+        id: `hhhl-unsupported-url-${_label}`,
+        text: 'file with unsupported url',
+        file: driveFile({ name: 'photo.png', type: 'image/png', url }),
+      }),
+      telegramUserId: '42',
+      chatId: 42,
+      state,
+      telegram,
+      hhhlBotUserId: 'hhhl-bot-user',
+      now: () => '2026-06-08T00:00:04.000Z',
+    });
+
+    expect(telegram.sendMessage).toHaveBeenCalledWith(42, 'alice: file with unsupported url');
+    expect(telegram.sendPhoto).not.toHaveBeenCalled();
+  });
+
+  it('advances lastSeen when Telegram send succeeds but message map persistence fails', async () => {
+    const state = storeFor();
+    await seedBinding(state);
+    const telegram = createTelegramFake();
+    vi.spyOn(state, 'putMessageMap').mockRejectedValueOnce(new Error('map persistence failed'));
+
+    await expect(forwardHhhlMessageToTelegram({
+      message: hhhlMessage({ id: 'hhhl-map-fails' }),
+      telegramUserId: '42',
+      chatId: 42,
+      state,
+      telegram,
+      hhhlBotUserId: 'hhhl-bot-user',
+      now: () => '2026-06-08T00:00:04.000Z',
+    })).rejects.toThrow('map persistence failed');
+
+    expect(telegram.sendMessage).toHaveBeenCalledWith(42, 'alice: hello Telegram');
+    await expect(state.getBinding('42')).resolves.toMatchObject({ lastSeenMessageId: 'hhhl-map-fails' });
+    await expect(state.getMessageMapByHhhl('room-1', 'hhhl-map-fails')).resolves.toBeNull();
+  });
+
   it('truncates long text and captions to Telegram limits', async () => {
     const state = storeFor();
     await seedBinding(state);
