@@ -15,6 +15,12 @@ export interface TelegramMainButton {
   offClick: (callback: () => void) => void;
 }
 
+export interface TelegramCloudStorage {
+  setItem: (key: string, value: string, callback?: (error: string | null, success: boolean) => void) => TelegramCloudStorage;
+  getItem: (key: string, callback: (error: string | null, value: string | null) => void) => TelegramCloudStorage;
+  removeItem: (key: string, callback?: (error: string | null, success: boolean) => void) => TelegramCloudStorage;
+}
+
 export interface TelegramWebApp {
   initData: string;
   initDataUnsafe: {
@@ -33,6 +39,7 @@ export interface TelegramWebApp {
   openTelegramLink?: (url: string) => void;
   BackButton?: TelegramBackButton;
   MainButton?: TelegramMainButton;
+  CloudStorage?: TelegramCloudStorage;
 }
 
 declare global {

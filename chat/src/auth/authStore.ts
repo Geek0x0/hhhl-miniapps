@@ -6,11 +6,13 @@ import type { LocalStorageAdapter } from '@/shared/storage';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import type { UserSummary } from '@/shared/types';
 import { buildCallbackUrl, buildMiAuthUrl, completeMiAuth, createMiAuthSession } from './miauth';
+import { createTelegramCloudAuthStorage, type CloudAuthStorage } from './cloudAuthStorage';
 
 export type AuthStatus = 'idle' | 'anonymous' | 'authorizing' | 'authorized' | 'token-invalid' | 'logout-complete';
 
 export interface AuthDependencies {
   storage: LocalStorageAdapter;
+  cloudAuthStorage?: CloudAuthStorage | null;
   api: EndpointCaller;
   completeMiAuth: (session: string) => Promise<string>;
   openAuthUrl: (url: string) => void;
@@ -40,6 +42,7 @@ function createDefaultDependencies(): AuthDependencies {
 
   return {
     storage,
+    cloudAuthStorage: createTelegramCloudAuthStorage(),
     api,
     completeMiAuth: (session) => completeMiAuth(session),
     openAuthUrl: (url) => window.location.assign(url),
@@ -51,6 +54,30 @@ function createDefaultDependencies(): AuthDependencies {
 
 async function validateStoredToken(api: EndpointCaller): Promise<UserSummary> {
   return api.callEndpoint<UserSummary>('i', {});
+}
+
+async function getCloudAuthToken(cloudAuthStorage: CloudAuthStorage | null | undefined): Promise<string | null> {
+  try {
+    return (await cloudAuthStorage?.getToken()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function setCloudAuthToken(cloudAuthStorage: CloudAuthStorage | null | undefined, token: string): Promise<void> {
+  try {
+    await cloudAuthStorage?.setToken(token);
+  } catch {
+    // CloudStorage sync is optional; local authorization remains authoritative.
+  }
+}
+
+async function clearCloudAuthToken(cloudAuthStorage: CloudAuthStorage | null | undefined): Promise<void> {
+  try {
+    await cloudAuthStorage?.clearToken();
+  } catch {
+    // Ignore CloudStorage failures so logout and local cleanup can still complete.
+  }
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -81,9 +108,27 @@ export const useAuthStore = defineStore('auth', {
           }
         }
 
+        const cloudToken = await getCloudAuthToken(dependencies.cloudAuthStorage);
+        if (cloudToken != null) {
+          dependencies.storage.setToken(cloudToken);
+          this.status = 'authorizing';
+          this.token = cloudToken;
+          this.error = null;
+
+          try {
+            this.user = await validateStoredToken(dependencies.api);
+            this.status = 'authorized';
+            return;
+          } catch {
+            dependencies.storage.clearAuth();
+            await clearCloudAuthToken(dependencies.cloudAuthStorage);
+          }
+        }
+
         this.status = 'anonymous';
         this.token = null;
         this.user = null;
+        this.error = null;
         return;
       }
 
@@ -93,6 +138,7 @@ export const useAuthStore = defineStore('auth', {
 
       try {
         this.user = await validateStoredToken(dependencies.api);
+        void setCloudAuthToken(dependencies.cloudAuthStorage, token);
         this.status = 'authorized';
       } catch (error) {
         dependencies.storage.clearAuth();
@@ -123,6 +169,7 @@ export const useAuthStore = defineStore('auth', {
         dependencies.storage.setToken(token);
         this.token = token;
         this.user = await validateStoredToken(dependencies.api);
+        void setCloudAuthToken(dependencies.cloudAuthStorage, token);
         this.status = 'authorized';
         this.pendingSession = null;
         dependencies.storage.remove(PENDING_SESSION_KEY);
@@ -137,8 +184,9 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    logout(dependencies: Pick<AuthDependencies, 'storage'> = createDefaultDependencies()) {
+    logout(dependencies: Pick<AuthDependencies, 'storage' | 'cloudAuthStorage'> = createDefaultDependencies()) {
       dependencies.storage.clearAuth();
+      void clearCloudAuthToken(dependencies.cloudAuthStorage);
       dependencies.storage.remove(DRAFTS_KEY);
       dependencies.storage.remove(RECENT_ROOM_KEY);
       dependencies.storage.remove(PENDING_SESSION_KEY);

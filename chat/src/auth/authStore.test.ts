@@ -41,6 +41,7 @@ function createDeps(overrides: Partial<AuthDependencies> = {}): AuthDependencies
 
   return {
     storage,
+    cloudAuthStorage: null,
     api,
     completeMiAuth: vi.fn(async () => 'dc-token'),
     openAuthUrl: vi.fn(),
@@ -48,6 +49,19 @@ function createDeps(overrides: Partial<AuthDependencies> = {}): AuthDependencies
     createSession: vi.fn(() => 'session-1'),
     currentUrl: () => 'https://mini.example/',
     ...overrides,
+  };
+}
+
+function createCloudAuthStorage(token: string | null = null): NonNullable<AuthDependencies['cloudAuthStorage']> {
+  let cloudToken = token;
+  return {
+    getToken: vi.fn(async () => cloudToken),
+    setToken: vi.fn(async (nextToken: string) => {
+      cloudToken = nextToken;
+    }),
+    clearToken: vi.fn(async () => {
+      cloudToken = null;
+    }),
   };
 }
 
@@ -78,6 +92,40 @@ describe('authStore', () => {
     expect(store.token).toBe('stored-token');
     expect(store.user).toEqual({ id: 'user-1', username: 'alice', name: 'Alice' });
     expect(deps.api.callEndpoint).toHaveBeenCalledWith('i', {});
+  });
+
+  it('restores a valid token from Telegram CloudStorage when local auth is empty', async () => {
+    const cloudAuthStorage = createCloudAuthStorage('cloud-token');
+    const deps = createDeps({ cloudAuthStorage });
+    const store = useAuthStore();
+
+    await store.restore(deps);
+
+    expect(cloudAuthStorage.getToken).toHaveBeenCalledOnce();
+    expect(deps.storage.getToken()).toBe('cloud-token');
+    expect(store.status).toBe('authorized');
+    expect(store.token).toBe('cloud-token');
+    expect(deps.api.callEndpoint).toHaveBeenCalledWith('i', {});
+  });
+
+  it('clears an invalid CloudStorage token without marking local auth invalid', async () => {
+    const cloudAuthStorage = createCloudAuthStorage('bad-cloud-token');
+    const deps = createDeps({
+      cloudAuthStorage,
+      api: {
+        callEndpoint: vi.fn(async () => {
+          throw new Error('invalid token');
+        }),
+      },
+    });
+    const store = useAuthStore();
+
+    await store.restore(deps);
+
+    expect(store.status).toBe('anonymous');
+    expect(store.token).toBeNull();
+    expect(deps.storage.getToken()).toBeNull();
+    expect(cloudAuthStorage.clearToken).toHaveBeenCalledOnce();
   });
 
   it('clears invalid stored tokens and returns to login state', async () => {
@@ -111,6 +159,17 @@ describe('authStore', () => {
     expect(store.token).toBe('dc-token');
   });
 
+  it('syncs successful MiAuth tokens to Telegram CloudStorage when available', async () => {
+    const cloudAuthStorage = createCloudAuthStorage();
+    const deps = createDeps({ cloudAuthStorage });
+    const store = useAuthStore();
+
+    await store.completeCallback('session-1', deps);
+
+    expect(cloudAuthStorage.setToken).toHaveBeenCalledWith('dc-token');
+    expect(store.status).toBe('authorized');
+  });
+
   it('logout clears token, user, drafts, and recent room state', async () => {
     const deps = createDeps();
     deps.storage.setToken('stored-token');
@@ -128,6 +187,18 @@ describe('authStore', () => {
     expect(deps.storage.getJson('hhhl-chat:drafts', null)).toBeNull();
     expect(deps.storage.getJson('hhhl-chat:recent-room', null)).toBeNull();
     expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
+  });
+
+  it('clears Telegram CloudStorage auth on logout when available', async () => {
+    const cloudAuthStorage = createCloudAuthStorage('stored-token');
+    const deps = createDeps({ cloudAuthStorage });
+    deps.storage.setToken('stored-token');
+    const store = useAuthStore();
+
+    await store.restore(deps);
+    store.logout(deps);
+
+    expect(cloudAuthStorage.clearToken).toHaveBeenCalledOnce();
   });
 
   it('persists pending session to storage on startLogin', () => {

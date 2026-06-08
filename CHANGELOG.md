@@ -2,6 +2,20 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.2 - 2026-06-08
+
+### chat
+
+#### Added
+
+- Added optional Telegram CloudStorage HHHL auth sync so the Mini App can restore login across devices after a successful local login.
+
+### bot
+
+#### Added
+
+- Added an independent `获取密钥` inline button that searches HHHL chat messages for the latest configured `sk-...` token and sends only the extracted key back to the Telegram user.
+
 ## 0.6.1 - 2026-06-08
 
 ### chat
