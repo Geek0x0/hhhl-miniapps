@@ -160,6 +160,36 @@ describe('Telegram inbound text forwarding', () => {
     });
   });
 
+  it('does not create another HHHL message for duplicate Telegram deliveries in the same room', async () => {
+    const state = storeFor();
+    await seedBinding(state);
+    await seedMessageMap(state, {
+      roomId: 'room-1',
+      hhhlMessageId: 'hhhl-created-1',
+      telegramMessageId: 101,
+      createdAt: '2026-06-08T00:00:04.000Z',
+    });
+    const { chatApi, telegram } = createForwardingFakes();
+
+    await forwardTelegramMessageToHhhl({
+      state,
+      chatApi,
+      telegram,
+      driveApi: null,
+      telegramUserId: '42',
+      message: textMessage(),
+      now: () => '2026-06-08T00:00:05.000Z',
+    });
+
+    expect(chatApi.createToRoom).not.toHaveBeenCalled();
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
+    await expect(state.getMessageMapByTelegram('42', 101)).resolves.toMatchObject({
+      roomId: 'room-1',
+      hhhlMessageId: 'hhhl-created-1',
+      createdAt: '2026-06-08T00:00:04.000Z',
+    });
+  });
+
   it('omits reply metadata when Telegram reply id has no stored map', async () => {
     const state = storeFor();
     await seedBinding(state);

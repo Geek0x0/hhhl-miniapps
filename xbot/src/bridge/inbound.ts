@@ -8,6 +8,7 @@ const UNSUPPORTED_REPLY = '暂不支持这类 Telegram 消息。';
 
 export interface InboundStateStore extends ReplyMappingState {
   getBinding(telegramUserId: string): Promise<BindingState | null>;
+  getMessageMapByTelegram(telegramUserId: string, telegramMessageId: number): Promise<MessageMapState | null>;
   putMessageMap(map: MessageMapState): Promise<void>;
 }
 
@@ -51,6 +52,9 @@ export async function forwardTelegramMessageToHhhl(options: ForwardTelegramMessa
     await options.telegram.sendMessage(options.message.chatId, UNSUPPORTED_REPLY);
     return;
   }
+
+  const existingMap = await options.state.getMessageMapByTelegram(options.telegramUserId, options.message.messageId);
+  if (existingMap?.roomId === binding.roomId) return;
 
   const replyId = await resolveReplyMapping(
     options.state,
