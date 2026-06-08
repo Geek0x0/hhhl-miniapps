@@ -1,8 +1,9 @@
 import { readConfig } from './config';
+import { executeBridgeCommand, type BridgeCommand } from './bridge/commands';
 import type { AppConfig, Env } from './env';
 import { redactSensitiveText } from './security/redact';
 import { TelegramApi } from './telegram/api';
-import { commandHelpText, parseCommand } from './telegram/commands';
+import { commandHelpText, parseCommand, type BotCommand } from './telegram/commands';
 import type { TelegramMessage } from './telegram/types';
 import { parseTelegramUpdate } from './telegram/updates';
 
@@ -32,13 +33,30 @@ async function parseJson(request: Request): Promise<JsonParseResult> {
   }
 }
 
-function routedReplyText(message: TelegramMessage): string {
+function isBridgeCommand(command: BotCommand): command is BridgeCommand {
+  return (
+    command.type === 'bind' ||
+    command.type === 'unbind' ||
+    command.type === 'rename' ||
+    command.type === 'list' ||
+    command.type === 'status'
+  );
+}
+
+async function routedReplyText(message: TelegramMessage, env: Env, config: AppConfig): Promise<string> {
   const command = message.text == null ? null : parseCommand(message.text);
 
   if (command == null) return PLACEHOLDER_REPLY;
   if (command.type === 'help') return commandHelpText;
   if (command.type === 'invalid') return command.reason;
   if (command.type === 'unknown') return UNKNOWN_COMMAND_REPLY;
+  if (isBridgeCommand(command)) {
+    return executeBridgeCommand(command, {
+      config,
+      env,
+      telegramUserId: String(message.fromId),
+    });
+  }
   return PLACEHOLDER_REPLY;
 }
 
@@ -46,9 +64,13 @@ function shouldProcessMessage(message: TelegramMessage, config: AppConfig): bool
   return message.chatType === 'private' && String(message.fromId) === config.allowedTelegramUserId;
 }
 
+function redactionSecrets(config: AppConfig): string[] {
+  return [config.botToken, config.botWebhookSecret, config.hhhlToken, config.hhhlOrigin, config.hhhlApiBaseUrl];
+}
+
 function logTelegramSendFailure(error: unknown, config: AppConfig): void {
   const message = error instanceof Error ? error.message : String(error);
-  const redacted = redactSensitiveText(message, [config.botToken, config.botWebhookSecret, config.hhhlToken]);
+  const redacted = redactSensitiveText(message, redactionSecrets(config));
   console.error('telegram send failed', redacted);
 }
 
@@ -84,7 +106,7 @@ async function processWebhook(request: Request, env: Env, _ctx: ExecutionContext
 
   const telegram = new TelegramApi(config.value.botToken);
   try {
-    await telegram.sendMessage(update.message.chatId, routedReplyText(update.message), {
+    await telegram.sendMessage(update.message.chatId, await routedReplyText(update.message, env, config.value), {
       replyToMessageId: update.message.messageId,
     });
   } catch (error) {
