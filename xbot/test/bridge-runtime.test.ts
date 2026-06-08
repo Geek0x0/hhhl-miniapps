@@ -4,6 +4,7 @@ import {
   type BridgeRuntimeOutbound,
   type BridgeRuntimeScheduleReconnect,
 } from '../src/realtime/bridgeRuntime';
+import { DurableObject } from 'cloudflare:workers';
 import { BridgeObject as DirectBridgeObject } from '../src/realtime/BridgeObject';
 import { BridgeObject as ExportedBridgeObject } from '../src/index';
 import type { HhhlChatMessage, PaginationParams } from '../src/hhhl/types';
@@ -257,6 +258,41 @@ describe('BridgeRuntime', () => {
     expect(roomTimeline).toHaveBeenCalledWith('room-1', { sinceId: 'msg-last', limit: 7 });
   });
 
+  it('queues live messages until backfill finishes and skips duplicates', async () => {
+    const store = createStore();
+    await seedBinding(store);
+    let resolveTimeline!: (messages: HhhlChatMessage[]) => void;
+    let roomTimelineStarted!: () => void;
+    const startedTimeline = new Promise<void>((resolve) => {
+      roomTimelineStarted = resolve;
+    });
+    const roomTimeline = vi.fn(async (_roomId: string, _params?: PaginationParams): Promise<HhhlChatMessage[]> => {
+      roomTimelineStarted();
+      return new Promise((resolve) => {
+        resolveTimeline = resolve;
+      });
+    }) as unknown as RoomTimelineMock;
+    const { runtime, outbound } = createRuntime({ store, roomTimeline });
+
+    await runtime.start();
+    const socket = FakeSocket.instances[0];
+    const openPromise = socket.open();
+    await startedTimeline;
+
+    const livePromise = socket.message(realtimeMessageEnvelope('room-1', { id: 'msg-live', text: 'live' }));
+    await Promise.resolve();
+    expect(outbound).not.toHaveBeenCalled();
+
+    resolveTimeline([
+      message({ id: 'msg-live', createdAt: '2026-06-08T00:00:02.000Z', text: 'live from backfill' }),
+      message({ id: 'msg-old', createdAt: '2026-06-08T00:00:01.000Z', text: 'old' }),
+    ]);
+    await openPromise;
+    await livePromise;
+
+    expect(outbound.mock.calls.map(([forwarded]) => forwarded.id)).toEqual(['msg-old', 'msg-live']);
+  });
+
   it('writes backing_off status and schedules reconnect on socket failure', async () => {
     const store = createStore();
     await seedBinding(store);
@@ -357,6 +393,7 @@ describe('BridgeObject export', () => {
     const instance = new ExportedBridgeObject(state, createTestEnv());
 
     expect(ExportedBridgeObject).toBe(DirectBridgeObject);
+    expect(instance).toBeInstanceOf(DurableObject);
     expect(instance).toEqual(
       expect.objectContaining({
         start: expect.any(Function),
@@ -400,6 +437,66 @@ describe('BridgeObject export', () => {
     expect(storage.delete).toHaveBeenCalledWith('telegramUserId');
   });
 
+  it('does not create a socket when stop wins over an in-flight start', async () => {
+    const { state, storage } = createFakeDurableObjectState();
+    const env = createTestEnv({
+      HHHL_ORIGIN: 'https://hhhl.example',
+      HHHL_API_BASE_URL: 'https://hhhl.example/api',
+    });
+    const store = new KvStateStore(env.XBOT_STATE, createKeys('xbot'));
+    await seedBinding(store);
+    let resolveMe!: (response: Response) => void;
+    let meRequested!: () => void;
+    const requestedMe = new Promise<void>((resolve) => {
+      meRequested = resolve;
+    });
+    const fetchImpl = vi.fn(async () => {
+      meRequested();
+      return new Promise<Response>((resolve) => {
+        resolveMe = resolve;
+      });
+    });
+    vi.stubGlobal('fetch', fetchImpl);
+    vi.stubGlobal('WebSocket', FakeSocket);
+
+    const object = new DirectBridgeObject(state, env);
+    const startPromise = object.start('42');
+    await requestedMe;
+
+    await object.stop('42');
+    resolveMe(jsonResponse({ user: { id: 'bot-user', username: 'bridge-bot' } }));
+    await startPromise;
+
+    expect(FakeSocket.instances).toEqual([]);
+    expect(storage.delete).toHaveBeenCalledWith('telegramUserId');
+  });
+
+  it('preserves alarm reconnect backoff across runtime recreation', async () => {
+    const { state, storage } = createFakeDurableObjectState();
+    const env = createTestEnv({
+      HHHL_ORIGIN: 'https://hhhl.example',
+      HHHL_API_BASE_URL: 'https://hhhl.example/api',
+      RECONNECT_BASE_DELAY_MS: '1000',
+      RECONNECT_MAX_DELAY_MS: '4000',
+    });
+    const store = new KvStateStore(env.XBOT_STATE, createKeys('xbot'));
+    await seedBinding(store);
+    const fetchImpl = vi.fn(async () => jsonResponse({ user: { id: 'bot-user', username: 'bridge-bot' } }));
+    vi.stubGlobal('fetch', fetchImpl);
+    vi.stubGlobal('WebSocket', FakeSocket);
+    vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    const object = new DirectBridgeObject(state, env);
+
+    await object.start('42');
+    await FakeSocket.instances[0].fail();
+    expect(storage.setAlarm).toHaveBeenLastCalledWith(1_001_000);
+
+    await object.alarm();
+    await FakeSocket.instances[1].fail();
+    expect(storage.setAlarm).toHaveBeenLastCalledWith(1_002_000);
+  });
+
   it('clears persisted restart state and writes stopped status when start has no binding', async () => {
     const { state, storage } = createFakeDurableObjectState();
     const env = createTestEnv({
@@ -417,7 +514,7 @@ describe('BridgeObject export', () => {
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(FakeSocket.instances).toEqual([]);
-    expect(storage.put).toHaveBeenCalledWith('telegramUserId', '42');
+    expect(storage.put).not.toHaveBeenCalledWith('telegramUserId', '42');
     expect(storage.deleteAlarm).toHaveBeenCalled();
     expect(storage.delete).toHaveBeenCalledWith('telegramUserId');
     await expect(store.getStatus('42')).resolves.toEqual({

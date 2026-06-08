@@ -21,6 +21,7 @@ export interface BridgeRuntimeWebSocket {
 export type BridgeRuntimeWebSocketConstructor = new (url: string) => BridgeRuntimeWebSocket;
 export type BridgeRuntimeSetTimeout = (callback: () => void, delayMs: number) => unknown;
 export type BridgeRuntimeScheduleReconnect = (delayMs: number) => void | Promise<void>;
+export type BridgeRuntimePersistFailureCount = (failureCount: number) => void | Promise<void>;
 export type BridgeRuntimeNow = () => Date;
 export type BridgeRuntimeOutbound = (message: HhhlChatMessage) => void | Promise<void>;
 
@@ -36,6 +37,8 @@ export interface BridgeRuntimeOptions {
   WebSocketImpl?: BridgeRuntimeWebSocketConstructor;
   setTimeoutImpl?: BridgeRuntimeSetTimeout;
   scheduleReconnect?: BridgeRuntimeScheduleReconnect;
+  persistFailureCount?: BridgeRuntimePersistFailureCount;
+  initialFailureCount?: number;
   now?: BridgeRuntimeNow;
   reconnectBaseDelayMs: number;
   reconnectMaxDelayMs: number;
@@ -75,14 +78,18 @@ function compareMessageCreatedAt(left: HhhlChatMessage, right: HhhlChatMessage):
 }
 
 export class BridgeRuntime {
+  private activeBackfill: { generation: number; promise: Promise<void> } | null = null;
   private currentGeneration = 0;
-  private failureCount = 0;
+  private failureCount: number;
   private failureHandledGeneration: number | null = null;
+  private forwardedMessageKeys = new Set<string>();
   private roomId: string | null = null;
   private socket: BridgeRuntimeWebSocket | null = null;
   private subscribedRooms = new Set<string>();
 
-  constructor(private readonly options: BridgeRuntimeOptions) {}
+  constructor(private readonly options: BridgeRuntimeOptions) {
+    this.failureCount = normalizeFailureCount(options.initialFailureCount);
+  }
 
   async start(): Promise<void> {
     const generation = this.beginNewGeneration();
@@ -156,6 +163,7 @@ export class BridgeRuntime {
     if (!this.isCurrentSocket(socket, generation)) return;
 
     this.failureCount = 0;
+    await this.persistFailureCount();
     await this.writeStatus(generation, {
       version: 1,
       state: 'connected',
@@ -168,7 +176,15 @@ export class BridgeRuntime {
     try {
       socket.send(JSON.stringify(createStreamConnectMessage()));
       socket.send(JSON.stringify(createRoomSubscribeMessage(binding.roomId)));
-      await this.backfill(binding, generation);
+      const backfillPromise = this.backfill(binding, generation);
+      this.activeBackfill = { generation, promise: backfillPromise };
+      try {
+        await backfillPromise;
+      } finally {
+        if (this.activeBackfill?.promise === backfillPromise) {
+          this.activeBackfill = null;
+        }
+      }
     } catch {
       await this.handleSocketFailure('websocket error', generation);
     }
@@ -184,7 +200,7 @@ export class BridgeRuntime {
 
     for (const message of [...messages].sort(compareMessageCreatedAt)) {
       if (!this.isCurrent(generation)) return;
-      await this.options.outbound(message);
+      await this.forwardOnce(message);
     }
   }
 
@@ -204,7 +220,17 @@ export class BridgeRuntime {
     const eventValue = normalizeRealtimeEvent(parsed, this.subscribedRooms);
     if (!this.isCurrent(generation) || eventValue?.type !== 'message') return;
 
-    await this.options.outbound(eventValue.message);
+    const activeBackfill = this.activeBackfill;
+    if (activeBackfill?.generation === generation) {
+      try {
+        await activeBackfill.promise;
+      } catch {
+        return;
+      }
+    }
+    if (!this.isCurrent(generation)) return;
+
+    await this.forwardOnce(eventValue.message);
   }
 
   private async handleSocketFailure(reason: string, generation: number): Promise<void> {
@@ -212,6 +238,7 @@ export class BridgeRuntime {
 
     this.failureHandledGeneration = generation;
     const delayMs = this.nextReconnectDelayMs();
+    await this.persistFailureCount();
     const nextReconnectAt = this.isoTimeAfter(delayMs);
 
     await this.writeStatus(generation, {
@@ -249,6 +276,23 @@ export class BridgeRuntime {
     return delayMs;
   }
 
+  private async persistFailureCount(): Promise<void> {
+    await this.options.persistFailureCount?.(this.failureCount);
+  }
+
+  private async forwardOnce(message: HhhlChatMessage): Promise<void> {
+    const key = messageKey(message);
+    if (this.forwardedMessageKeys.has(key)) return;
+
+    this.forwardedMessageKeys.add(key);
+    try {
+      await this.options.outbound(message);
+    } catch (error) {
+      this.forwardedMessageKeys.delete(key);
+      throw error;
+    }
+  }
+
   private async writeStatus(generation: number, status: RealtimeStatusState): Promise<void> {
     if (!this.isCurrent(generation)) return;
 
@@ -264,6 +308,8 @@ export class BridgeRuntime {
   }
 
   private clearSubscription(): void {
+    this.activeBackfill = null;
+    this.forwardedMessageKeys = new Set();
     this.roomId = null;
     this.subscribedRooms = new Set();
   }
@@ -297,4 +343,12 @@ function stoppedStatus(): RealtimeStatusState {
     lastError: null,
     nextReconnectAt: null,
   };
+}
+
+function normalizeFailureCount(value: number | undefined): number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0;
+}
+
+function messageKey(message: HhhlChatMessage): string {
+  return `${message.roomId}:${message.id}`;
 }
