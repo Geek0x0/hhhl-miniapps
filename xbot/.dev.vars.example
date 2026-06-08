@@ -1,3 +1,5 @@
+# Local-only example values. Copy this file to .dev.vars and replace these
+# placeholders for development; do not use them in production.
 BOT_TOKEN=123456:local-example-telegram-token
 BOT_WEBHOOK_SECRET=local-example-telegram-webhook-secret
 HHHL_TOKEN=local-example-hhhl-token
