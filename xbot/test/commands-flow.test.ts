@@ -121,6 +121,34 @@ async function postUpdate(text: string, env: ReturnType<typeof createTestEnv>): 
   );
 }
 
+function webhookRequest(text: string, env: ReturnType<typeof createTestEnv>): Request {
+  return new Request('https://xbot.example.com/webhook', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.BOT_WEBHOOK_SECRET ?? '',
+    },
+    body: JSON.stringify(telegramUpdate(text)),
+  });
+}
+
+function createCollectingExecutionContext(): {
+  ctx: ExecutionContext;
+  waitUntil: ReturnType<typeof vi.fn>;
+  promises: Promise<unknown>[];
+} {
+  const promises: Promise<unknown>[] = [];
+  const waitUntil = vi.fn((promise: Promise<unknown>) => {
+    promises.push(promise);
+  });
+
+  return {
+    ctx: { waitUntil } as unknown as ExecutionContext,
+    waitUntil,
+    promises,
+  };
+}
+
 function storeFor(env: ReturnType<typeof createTestEnv>): KvStateStore {
   return new KvStateStore(env.XBOT_STATE, createKeys(env.KV_KEY_PREFIX ?? 'xbot'));
 }
@@ -336,7 +364,18 @@ describe('command flow', () => {
     });
     const env = createCommandEnv({ bridge: bridge.namespace });
     const store = storeFor(env);
-    if (failure === 'stop') await seedBinding(store);
+    const map: MessageMapState = {
+      version: 1,
+      roomId: 'room-1',
+      hhhlMessageId: 'm1',
+      telegramUserId: '42',
+      telegramMessageId: 100,
+      createdAt: '2026-06-08T00:00:01.000Z',
+    };
+    if (failure === 'stop') {
+      await seedBinding(store);
+      await store.putMessageMap(map);
+    }
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { fetchImpl, telegramCalls } = createCommandFetch({
       hhhl: {
@@ -358,6 +397,13 @@ describe('command flow', () => {
     expect(logged).not.toContain('123456:telegram-secret');
     expect(logged).not.toContain('hhhl-secret');
     expect(logged).not.toContain('telegram-webhook-secret');
+    if (failure === 'start') {
+      await expect(store.getBinding('42')).resolves.toBeNull();
+    } else {
+      await expect(store.getBinding('42')).resolves.toMatchObject({ roomId: 'room-1', roomName: 'Ops' });
+      await expect(store.getMessageMapByTelegram('42', 100)).resolves.toEqual(map);
+      await expect(store.getMessageMapByHhhl('room-1', 'm1')).resolves.toEqual(map);
+    }
   });
 
   it('acks and logs redacted details when Telegram send fails during command handling', async () => {
@@ -378,5 +424,45 @@ describe('command flow', () => {
     expect(logged).not.toContain('hhhl-secret');
     expect(logged).not.toContain('telegram-webhook-secret');
     expect(logged).not.toContain('https://hhhl.example/api');
+  });
+
+  it('acks command webhooks before background command work completes when waitUntil is available', async () => {
+    const bridge = createBridgeNamespace();
+    const env = createCommandEnv({ bridge: bridge.namespace });
+    let resolveMe!: (response: Response) => void;
+    const pendingMe = new Promise<Response>((resolve) => {
+      resolveMe = resolve;
+    });
+    const { ctx, waitUntil, promises } = createCollectingExecutionContext();
+    const { fetchImpl, telegramCalls } = createCommandFetch({
+      hhhl: {
+        i: new Error('placeholder'),
+        'chat/rooms/show': { room: { id: 'room-1', name: 'Ops Room' } },
+        'chat/rooms/members': [{ user: { id: 'u1', username: 'ada' } }],
+      },
+    });
+    const controlledFetch: typeof fetch = vi.fn(async (input, init) => {
+      const url = input.toString();
+      if (url.endsWith('/i')) return pendingMe;
+      return fetchImpl(input, init);
+    });
+    vi.stubGlobal('fetch', controlledFetch);
+
+    const responseOrTimeout = await Promise.race([
+      worker.fetch(webhookRequest('/bind room-1', env), env, ctx),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 20)),
+    ]);
+
+    expect(responseOrTimeout).toBeInstanceOf(Response);
+    const response = responseOrTimeout as Response;
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(waitUntil).toHaveBeenCalledTimes(1);
+    expect(telegramCalls).toHaveLength(0);
+
+    resolveMe(jsonResponse({ user: { id: 'u1', username: 'ada' } }));
+    await Promise.all(promises);
+    expect(telegramTexts(telegramCalls)[0]).toContain('已绑定');
+    expect(bridge.start).toHaveBeenCalledWith('42');
   });
 });

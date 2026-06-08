@@ -74,6 +74,15 @@ function logTelegramSendFailure(error: unknown, config: AppConfig): void {
   console.error('telegram send failed', redacted);
 }
 
+function scheduleWebhookWork(ctx: ExecutionContext, work: Promise<void>): Promise<void> | undefined {
+  if (typeof ctx.waitUntil === 'function') {
+    ctx.waitUntil(work);
+    return undefined;
+  }
+
+  return work;
+}
+
 function hasValidWebhookHeader(request: Request, config: AppConfig): boolean {
   return request.headers.get(TELEGRAM_WEBHOOK_SECRET_HEADER) === config.botWebhookSecret;
 }
@@ -87,7 +96,18 @@ function isTelegramUpdateEnvelope(value: unknown): boolean {
   return typeof value.update_id === 'number' && Number.isInteger(value.update_id) && value.update_id >= 0;
 }
 
-async function processWebhook(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+async function sendRoutedReply(message: TelegramMessage, env: Env, config: AppConfig): Promise<void> {
+  const telegram = new TelegramApi(config.botToken);
+  try {
+    await telegram.sendMessage(message.chatId, await routedReplyText(message, env, config), {
+      replyToMessageId: message.messageId,
+    });
+  } catch (error) {
+    logTelegramSendFailure(error, config);
+  }
+}
+
+async function processWebhook(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const config = readConfig(env);
   if (!config.ok) return json({ ok: false, error: config.error }, { status: 500 });
   if (!hasValidWebhookHeader(request, config.value)) {
@@ -104,14 +124,8 @@ async function processWebhook(request: Request, env: Env, _ctx: ExecutionContext
   if (update.message == null) return json({ ok: true });
   if (!shouldProcessMessage(update.message, config.value)) return json({ ok: true });
 
-  const telegram = new TelegramApi(config.value.botToken);
-  try {
-    await telegram.sendMessage(update.message.chatId, await routedReplyText(update.message, env, config.value), {
-      replyToMessageId: update.message.messageId,
-    });
-  } catch (error) {
-    logTelegramSendFailure(error, config.value);
-  }
+  const pendingWork = scheduleWebhookWork(ctx, sendRoutedReply(update.message, env, config.value));
+  if (pendingWork != null) await pendingWork;
 
   return json({ ok: true });
 }

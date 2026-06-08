@@ -13,7 +13,7 @@ export type BridgeCommand = Extract<
   { type: 'bind' | 'unbind' | 'rename' | 'list' | 'status' }
 >;
 
-interface BridgeUserObject {
+export interface BridgeUserObject {
   start(telegramUserId: string): Promise<void>;
   stop(telegramUserId: string): Promise<void>;
 }
@@ -153,9 +153,9 @@ async function unbind(context: CommandContext): Promise<string> {
   const binding = await store.getBinding(context.telegramUserId);
   if (binding == null) return NO_BINDING_REPLY;
 
+  await bridgeUserObject(context.env, context.telegramUserId).stop(context.telegramUserId);
   await store.clearBinding(context.telegramUserId);
   await store.clearRoomMaps(context.telegramUserId, binding.roomId);
-  await bridgeUserObject(context.env, context.telegramUserId).stop(context.telegramUserId);
 
   return `已解绑：${binding.roomName}（房间 ID：${binding.roomId}）。`;
 }
