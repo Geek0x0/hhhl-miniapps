@@ -426,6 +426,40 @@ describe('command flow', () => {
     expect(logged).not.toContain('https://hhhl.example/api');
   });
 
+  it('keeps binding retryable when unbind map cleanup fails', async () => {
+    const bridge = createBridgeNamespace();
+    const env = createCommandEnv({ bridge: bridge.namespace });
+    const store = storeFor(env);
+    const binding = await seedBinding(store);
+    const map: MessageMapState = {
+      version: 1,
+      roomId: 'room-1',
+      hhhlMessageId: 'm1',
+      telegramUserId: '42',
+      telegramMessageId: 100,
+      createdAt: '2026-06-08T00:00:01.000Z',
+    };
+    await store.putMessageMap(map);
+    (env.XBOT_STATE.delete as unknown as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      throw new Error('KV cleanup failed for hhhl-secret');
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { fetchImpl, telegramCalls } = createCommandFetch();
+    vi.stubGlobal('fetch', fetchImpl);
+
+    const response = await postUpdate('/unbind', env);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(bridge.stop).toHaveBeenCalledWith('42');
+    expect(telegramTexts(telegramCalls)[0]).toContain('解绑失败');
+    await expect(store.getBinding('42')).resolves.toEqual(binding);
+    await expect(store.getMessageMapByTelegram('42', 100)).resolves.toEqual(map);
+    await expect(store.getMessageMapByHhhl('room-1', 'm1')).resolves.toEqual(map);
+    const logged = errorSpy.mock.calls.flat().map(String).join(' ');
+    expect(logged).not.toContain('hhhl-secret');
+  });
+
   it('acks command webhooks before background command work completes when waitUntil is available', async () => {
     const bridge = createBridgeNamespace();
     const env = createCommandEnv({ bridge: bridge.namespace });

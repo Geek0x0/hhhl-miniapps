@@ -154,8 +154,8 @@ async function unbind(context: CommandContext): Promise<string> {
   if (binding == null) return NO_BINDING_REPLY;
 
   await bridgeUserObject(context.env, context.telegramUserId).stop(context.telegramUserId);
-  await store.clearBinding(context.telegramUserId);
   await store.clearRoomMaps(context.telegramUserId, binding.roomId);
+  await store.clearBinding(context.telegramUserId);
 
   return `已解绑：${binding.roomName}（房间 ID：${binding.roomId}）。`;
 }
