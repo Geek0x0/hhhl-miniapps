@@ -33,6 +33,7 @@ export interface ForwardTelegramMessageToHhhlOptions {
   mediaDownloader?: (message: TelegramMessage) => Promise<{ blob: Blob; name: string; type: string }>;
   telegramUserId: string;
   message: TelegramMessage;
+  onError?: (error: unknown) => void;
   now?: () => string;
 }
 
@@ -104,7 +105,8 @@ export async function forwardTelegramMessageToHhhl(options: ForwardTelegramMessa
       }
 
       created = await options.chatApi.createToRoom(params);
-    } catch {
+    } catch (error) {
+      options.onError?.(error);
       await options.telegram.sendMessage(options.message.chatId, MEDIA_FAILURE_REPLY);
       return;
     }

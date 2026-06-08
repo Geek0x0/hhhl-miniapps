@@ -327,6 +327,30 @@ describe('Telegram inbound media forwarding', () => {
     await expect(state.getMessageMapByTelegram('42', 101)).resolves.toBeNull();
   });
 
+  it('reports media failure causes through the injected error callback before notifying Telegram', async () => {
+    const state = storeFor();
+    await seedBinding(state);
+    const { chatApi, driveApi, mediaDownloader, telegram } = createForwardingFakes();
+    const error = new Error('upload failed with hhhl-secret');
+    const onError = vi.fn();
+    driveApi.upload.mockRejectedValueOnce(error);
+
+    await forwardTelegramMessageToHhhl({
+      state,
+      chatApi,
+      telegram,
+      driveApi,
+      mediaDownloader,
+      onError,
+      telegramUserId: '42',
+      message: mediaMessage(),
+      now: () => '2026-06-08T00:00:04.000Z',
+    });
+
+    expect(onError).toHaveBeenCalledWith(error);
+    expect(telegram.sendMessage).toHaveBeenCalledWith(42, '媒体发送失败');
+  });
+
   it('sends an unsupported-message notice for media when Drive or media downloading is unavailable', async () => {
     const state = storeFor();
     await seedBinding(state);

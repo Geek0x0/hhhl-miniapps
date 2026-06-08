@@ -139,6 +139,7 @@ async function forwardInboundMessage(message: TelegramMessage, env: Env, config:
       },
       telegramUserId: String(message.fromId),
       message,
+      onError: (error) => logInboundFailure(error, config),
     });
   } catch (error) {
     logInboundFailure(error, config);
