@@ -1191,6 +1191,16 @@
   grid-column: 2;
 }
 
+.message-bubble--referenced .message-actions {
+  grid-column: 2;
+  justify-self: end;
+  margin-top: 2px;
+}
+
+.message-bubble--own.message-bubble--referenced .message-actions {
+  grid-column: 1;
+}
+
 .message-composer {
   position: sticky;
   bottom: 0;

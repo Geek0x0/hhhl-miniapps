@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.1 - 2026-06-08
+
+### chat
+
+#### Fixed
+
+- Fixed sent reply and quote message bubbles so action buttons no longer squeeze the message body, keeping the sent text width aligned with its referenced message preview.
+
 ## 0.6.0 - 2026-06-08
 
 ### xbot

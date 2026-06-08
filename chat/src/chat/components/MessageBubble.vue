@@ -6,6 +6,7 @@
       'message-bubble--own': isOwnMessage,
       'message-bubble--incoming': !isOwnMessage,
       'message-bubble--pending': entry.kind === 'pending',
+      'message-bubble--referenced': reference != null,
     }"
   >
     <img

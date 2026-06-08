@@ -121,6 +121,48 @@ describe('MessageBubble', () => {
     expect(container.querySelector('.message-reference__preview')).toHaveTextContent('https://example.com/really/long/path');
   });
 
+  it('marks sent reply and quote bubbles for referenced-message layout', () => {
+    const reply = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm2',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:01.000Z',
+        text: 'sent reply text',
+        user: { id: 'me', username: 'me' },
+        replyId: 'm1',
+        reply: {
+          id: 'm1',
+          roomId: 'room-1',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          text: 'original',
+          user: { id: 'user-1', username: 'alice', name: 'Alice' },
+        },
+      },
+    });
+    const quote = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm3',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:02.000Z',
+        text: 'sent quote text',
+        user: { id: 'me', username: 'me' },
+        quoteId: 'm1',
+        quote: {
+          id: 'm1',
+          roomId: 'room-1',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          text: 'quoted',
+          user: { id: 'user-1', username: 'alice', name: 'Alice' },
+        },
+      },
+    });
+
+    expect(reply.container.querySelector('.message-bubble')).toHaveClass('message-bubble--referenced');
+    expect(quote.container.querySelector('.message-bubble')).toHaveClass('message-bubble--referenced');
+  });
+
   it('opens a sender menu on avatar long press with favorite and mute actions', async () => {
     vi.useFakeTimers();
     const { container, emitted } = renderBubble({
