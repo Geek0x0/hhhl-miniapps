@@ -35,7 +35,8 @@ function currentTime(now: (() => string) | undefined): string {
 
 function textPayload(message: TelegramMessage): string | null {
   if (message.kind !== 'text' || message.text == null) return null;
-  return message.text.trim();
+  const text = message.text.trim();
+  return text === '' ? null : text;
 }
 
 export async function forwardTelegramMessageToHhhl(options: ForwardTelegramMessageToHhhlOptions): Promise<void> {

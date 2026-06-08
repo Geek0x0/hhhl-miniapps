@@ -160,6 +160,28 @@ describe('Telegram inbound text forwarding', () => {
     });
   });
 
+  it('omits reply metadata when Telegram reply id has no stored map', async () => {
+    const state = storeFor();
+    await seedBinding(state);
+    const { chatApi, telegram } = createForwardingFakes();
+
+    await forwardTelegramMessageToHhhl({
+      state,
+      chatApi,
+      telegram,
+      driveApi: null,
+      telegramUserId: '42',
+      message: textMessage({ replyToMessageId: 999 }),
+      now: () => '2026-06-08T00:00:04.000Z',
+    });
+
+    expect(telegram.sendMessage).not.toHaveBeenCalled();
+    expect(chatApi.createToRoom).toHaveBeenCalledWith({ toRoomId: 'room-1', text: 'hello HHHL' });
+    const params = chatApi.createToRoom.mock.calls[0][0];
+    expect(params).not.toHaveProperty('replyId');
+    expect(params).not.toHaveProperty('quoteId');
+  });
+
   it('uses a same-room reply mapping for both HHHL replyId and quoteId', async () => {
     const state = storeFor();
     await seedBinding(state);
@@ -220,6 +242,25 @@ describe('Telegram inbound text forwarding', () => {
       driveApi: null,
       telegramUserId: '42',
       message: textMessage({ kind: 'unsupported', text: undefined }),
+      now: () => '2026-06-08T00:00:04.000Z',
+    });
+
+    expect(chatApi.createToRoom).not.toHaveBeenCalled();
+    expect(telegram.sendMessage).toHaveBeenCalledWith(42, '暂不支持这类 Telegram 消息。');
+  });
+
+  it('does not forward whitespace-only text to HHHL', async () => {
+    const state = storeFor();
+    await seedBinding(state);
+    const { chatApi, telegram } = createForwardingFakes();
+
+    await forwardTelegramMessageToHhhl({
+      state,
+      chatApi,
+      telegram,
+      driveApi: null,
+      telegramUserId: '42',
+      message: textMessage({ text: '   \n\t   ' }),
       now: () => '2026-06-08T00:00:04.000Z',
     });
 
