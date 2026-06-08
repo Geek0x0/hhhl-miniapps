@@ -49,4 +49,5 @@ describe('MessageActions', () => {
     expect(emitted('delete')).toEqual([['m1']]);
     expect(confirm).toHaveBeenCalledWith('Delete this message?');
   });
+
 });

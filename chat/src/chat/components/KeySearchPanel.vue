@@ -30,7 +30,7 @@
             <strong>{{ senderName(message) }}</strong>
             <small>{{ formattedTime(message) }}</small>
           </span>
-          <span class="search-result-row__text">{{ message.text ?? message.file?.name ?? message.id }}</span>
+          <span class="search-result-row__text">{{ keyText(message) }}</span>
         </span>
       </li>
     </ul>
@@ -52,6 +52,7 @@ import { onUnmounted, ref } from 'vue';
 import { i18n } from '@/i18n';
 import { formatMessageTimestamp } from '@/shared/time';
 import type { ChatMessage } from '@/shared/types';
+import { extractKeyToken } from '../keySearch';
 
 defineProps<{
   results: ChatMessage[];
@@ -80,9 +81,12 @@ function formattedTime(message: ChatMessage): string {
   return formatMessageTimestamp(message.createdAt);
 }
 
-async function copyText(message: ChatMessage): Promise<void> {
-  const text = message.text ?? message.file?.name ?? message.id;
+function keyText(message: ChatMessage): string {
+  return extractKeyToken(message.text) ?? message.text ?? message.file?.name ?? message.id;
+}
 
+async function copyText(message: ChatMessage): Promise<void> {
+  const text = keyText(message);
   if (copyTextWithSelection(text) || await writeClipboardText(text)) {
     showToast(i18n.t('chat.copiedToClipboard'));
     return;

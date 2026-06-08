@@ -309,7 +309,15 @@ describe('chatStore', () => {
 
   it('replaces search results for new queries and appends explicit continuations', async () => {
     const api = createApi({
-      search: vi.fn(async (params) => params.query === 'bye' ? [message('m4')] : [message(params.untilId === 'm2' ? 'm3' : 'm2')]),
+      search: vi.fn(async (params) => {
+        if (params.query === 'bye') {
+          return [message('m4')];
+        }
+        if (params.untilId === 'm3') {
+          return [userTextMessage('m2', 'hello', { id: 'user-2', username: 'bob', name: 'Bob' })];
+        }
+        return [message(params.untilId === 'm2' ? 'm3' : 'm2')];
+      }),
     });
     const store = useChatStore();
 
@@ -324,10 +332,51 @@ describe('chatStore', () => {
 
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', limit: 30 });
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', untilId: 'm2', limit: 30 });
-    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', userId: 'user-2', untilId: 'm3', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', untilId: 'm3', limit: 30 });
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'bye', limit: 30 });
     expect(store.searchQuery).toBe('bye');
     expect(store.searchResults.map((item) => item.id)).toEqual(['m4']);
+  });
+
+  it('filters keyword searches by selected member locally when the endpoint cannot combine query and user', async () => {
+    const api = createApi({
+      search: vi.fn(async (params) => {
+        if (params.userId != null) {
+          return [];
+        }
+        return [
+          userTextMessage('m10', 'hello from alice', { id: 'user-1', username: 'alice', name: 'Alice' }),
+          userTextMessage('m11', 'hello from bob', { id: 'user-2', username: 'bob', name: 'Bob' }),
+        ];
+      }),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello', userId: 'user-2' }, api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', limit: 30 });
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m11']);
+  });
+
+  it('keeps loading keyword member search pages when an unfiltered page has no matching sender', async () => {
+    const firstPage = Array.from({ length: 30 }, (_value, index) => (
+      userTextMessage(`m${index + 1}`, 'hello from alice', { id: 'user-1', username: 'alice', name: 'Alice' })
+    ));
+    const api = createApi({
+      search: vi.fn(async (params) => params.untilId === 'm30'
+        ? [userTextMessage('m31', 'hello from bob', { id: 'user-2', username: 'bob', name: 'Bob' })]
+        : firstPage),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.searchMessages({ query: 'hello', userId: 'user-2' }, api);
+    await store.loadMoreSearchResults(api);
+
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', limit: 30 });
+    expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'hello', untilId: 'm30', limit: 30 });
+    expect(store.searchResults.map((item) => item.id)).toEqual(['m31']);
   });
 
   it('tracks search pagination and appends load-more results without duplicates', async () => {
@@ -458,13 +507,11 @@ describe('chatStore', () => {
     expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
   });
 
-  it('only shows key search results whose full text is an exact key token', async () => {
+  it('extracts embedded key tokens and only keeps the latest key result', async () => {
     const api = createApi({
       search: vi.fn(async () => [
-        userTextMessage('key-1', VALID_KEY_TEXT),
-        userTextMessage('key-2', `${VALID_KEY_TEXT} extra`),
-        userTextMessage('key-3', `prefix ${VALID_KEY_TEXT}`),
-        userTextMessage('key-4', ` ${VALID_KEY_TEXT}`),
+        { ...userTextMessage('key-1', `提前发一下${VALID_KEY_TEXT}`, KEY_SEARCH_USER), createdAt: '2026-01-01T00:00:02.000Z' },
+        { ...userTextMessage('key-2', `older ${SECOND_VALID_KEY_TEXT}`, KEY_SEARCH_USER), createdAt: '2026-01-01T00:00:01.000Z' },
         userTextMessage('key-5', 'sk-test-secret'),
       ]),
     });
@@ -473,7 +520,9 @@ describe('chatStore', () => {
     await store.loadInitial('room-1', createApi());
     await store.searchKeyMessages(api);
 
-    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+    expect(store.keySearchResults.map((item) => [item.id, item.text])).toEqual([
+      ['key-1', VALID_KEY_TEXT],
+    ]);
   });
 
   it('verifies direct key search results without sender details', async () => {
@@ -532,7 +581,7 @@ describe('chatStore', () => {
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', limit: 30 });
     expect(api.show).toHaveBeenCalledWith('key-3');
-    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1', 'key-3']);
+    expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
   });
 
   it('does not show query-only key results when sender details cannot be verified', async () => {

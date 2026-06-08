@@ -7,6 +7,7 @@ import type { ChatMessage, DriveFile, PaginationParams } from '@/shared/types';
 import { createUuid } from '@/shared/uuid';
 import { createFileApi } from '@/files/fileApi';
 import { createChatApi, type CreateRoomMessageParams, type SearchMessagesParams } from './chatApi';
+import { extractKeyToken, KEY_SEARCH_QUERY, KEY_SEARCH_USER_ID } from './keySearch';
 import { createPendingMessage, failPendingMessage, removePendingMessage, retryPendingMessage, sendPendingMessage, type OutgoingMessage } from './outgoingQueue';
 import { mergeTimeline, removeTimelineMessage, replacePendingMessage, type TimelineEntry } from './timelineMerge';
 
@@ -67,10 +68,6 @@ export interface ChatState {
   keySearchError: string | null;
   keySearchResults: ChatMessage[];
 }
-
-const KEY_SEARCH_QUERY = 'sk-';
-const KEY_SEARCH_USER_ID = 'amk1v51gkh1u0001';
-const KEY_SEARCH_PATTERN = /^sk-[A-Za-z0-9]{32}$/;
 
 function createDefaultChatApi(): ChatApiLike {
   const storage = createLocalStorageAdapter();
@@ -215,20 +212,22 @@ function createSearchKey(query: string, userId: string | undefined): string {
   return JSON.stringify({ query, userId: userId ?? null });
 }
 
-function isExactKeySearchMessage(message: ChatMessage): boolean {
-  return typeof message.text === 'string' && KEY_SEARCH_PATTERN.test(message.text);
-}
+function normalizedKeySearchMessage(message: ChatMessage): ChatMessage | null {
+  if (message.user?.id !== KEY_SEARCH_USER_ID) {
+    return null;
+  }
 
-function isAllowedKeySearchMessage(message: ChatMessage): boolean {
-  return message.user?.id === KEY_SEARCH_USER_ID && isExactKeySearchMessage(message);
+  const keyToken = extractKeyToken(message.text);
+  return keyToken == null ? null : { ...message, text: keyToken };
 }
 
 async function verifyKeySearchMessages(messages: ChatMessage[], api: ChatApiLike): Promise<ChatMessage[]> {
   const allowed: ChatMessage[] = [];
 
   for (const message of messages) {
-    if (isAllowedKeySearchMessage(message)) {
-      allowed.push(message);
+    const keyMessage = normalizedKeySearchMessage(message);
+    if (keyMessage != null) {
+      allowed.push(keyMessage);
       continue;
     }
 
@@ -239,8 +238,9 @@ async function verifyKeySearchMessages(messages: ChatMessage[], api: ChatApiLike
 
       try {
         const detailed = await api.show(message.id);
-        if (isAllowedKeySearchMessage(detailed)) {
-          allowed.push(detailed);
+        const detailedKeyMessage = normalizedKeySearchMessage(detailed);
+        if (detailedKeyMessage != null) {
+          allowed.push(detailedKeyMessage);
         }
       } catch {
         // Unverified key-search results are intentionally hidden.
@@ -568,7 +568,8 @@ export const useChatStore = defineStore('chat', {
         const searchKey = createSearchKey(query, userId);
         const isContinuation = this.searchKey === searchKey && params.untilId != null;
         const limit = params.limit ?? DEFAULT_PAGE_SIZE;
-        const memberOnlySearch = query === '' && userId != null;
+        const hasMemberFilter = userId != null;
+        const memberOnlySearch = query === '' && hasMemberFilter;
         const sourceMessages = memberOnlySearch
           ? await api.roomTimeline(requestedRoomId, {
             limit,
@@ -576,12 +577,11 @@ export const useChatStore = defineStore('chat', {
           })
           : await api.search({
             query,
-            ...(userId == null ? {} : { userId }),
             ...(params.untilId == null ? {} : { untilId: params.untilId }),
             roomId: requestedRoomId,
             limit,
           });
-        const results = memberOnlySearch ? sourceMessages.filter((message) => message.user?.id === userId) : sourceMessages;
+        const results = hasMemberFilter ? sourceMessages.filter((message) => message.user?.id === userId) : sourceMessages;
         if (this.roomId !== requestedRoomId || this.roomGeneration !== requestedGeneration) {
           return;
         }
@@ -589,7 +589,7 @@ export const useChatStore = defineStore('chat', {
         const nextResults = isContinuation ? [...this.searchResults.filter((message) => !incomingIds.has(message.id)), ...results] : results;
         this.searchQuery = query;
         this.searchUserId = userId ?? null;
-        this.searchCursorId = (memberOnlySearch ? sourceMessages.at(-1)?.id : results.at(-1)?.id) ?? params.untilId ?? null;
+        this.searchCursorId = (hasMemberFilter ? sourceMessages.at(-1)?.id : results.at(-1)?.id) ?? params.untilId ?? null;
         this.searchKey = searchKey;
         this.searchResults = nextResults;
         this.searchHasMore = sourceMessages.length >= limit;
@@ -605,12 +605,12 @@ export const useChatStore = defineStore('chat', {
     },
 
     async loadMoreSearchResults(api: ChatApiLike = createDefaultChatApi()) {
-      const memberOnlySearch = this.searchQuery === '' && this.searchUserId != null;
+      const hasMemberFilter = this.searchUserId != null;
       if (
         this.searchQuery == null ||
         (this.searchQuery === '' && this.searchUserId == null) ||
-        (!memberOnlySearch && this.searchResults.length === 0) ||
-        (memberOnlySearch && this.searchCursorId == null) ||
+        (!hasMemberFilter && this.searchResults.length === 0) ||
+        (hasMemberFilter && this.searchCursorId == null) ||
         !this.searchHasMore ||
         this.searchLoading
       ) {
@@ -659,7 +659,7 @@ export const useChatStore = defineStore('chat', {
           query: KEY_SEARCH_QUERY,
           limit: DEFAULT_PAGE_SIZE,
         });
-        this.keySearchResults = await verifyKeySearchMessages(filteredResults.length > 0 ? filteredResults : fallbackResults, api);
+        this.keySearchResults = (await verifyKeySearchMessages(filteredResults.length > 0 ? filteredResults : fallbackResults, api)).slice(0, 1);
       } catch (error) {
         this.keySearchError = messageFromError(error);
       } finally {

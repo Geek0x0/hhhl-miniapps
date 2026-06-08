@@ -21,6 +21,8 @@ function createRoomApi(overrides: Partial<RoomApiLike> = {}): RoomApiLike {
     delete: vi.fn(async () => undefined),
     mute: vi.fn(async () => undefined),
     members: vi.fn(async () => [{ id: 'user-1', username: 'alice', name: 'Alice' }]),
+    createUserMute: vi.fn(async () => undefined),
+    userMutes: vi.fn(async () => [{ id: 'user-2', username: 'bob', name: 'Bob' }]),
     createInvitation: vi.fn(async () => ({ id: 'invite-2', roomId: 'room-1' })),
     invitationsOutbox: vi.fn(async () => [{ id: 'invite-2', roomId: 'room-1' }]),
     ...overrides,
@@ -199,6 +201,22 @@ describe('roomStore', () => {
     expect(api.createInvitation).toHaveBeenCalledWith('room-1');
     expect(store.membersByRoomId['room-1']).toEqual([{ id: 'user-1', username: 'alice', name: 'Alice' }]);
     expect(store.outboxInvitations).toEqual([{ id: 'invite-2', roomId: 'room-1' }]);
+  });
+
+  it('loads and creates room user mutes', async () => {
+    const api = createRoomApi();
+    const store = useRoomStore();
+
+    await store.loadUserMutes('room-1', api);
+    await store.muteUser('room-1', { id: 'user-3', username: 'dora', name: 'Dora' }, api);
+
+    expect(api.userMutes).toHaveBeenCalledWith('room-1', { limit: 30 });
+    expect(api.createUserMute).toHaveBeenCalledWith('room-1', 'user-3');
+    expect(store.userMutesByRoomId['room-1']).toEqual([
+      { id: 'user-2', username: 'bob', name: 'Bob' },
+      { id: 'user-3', username: 'dora', name: 'Dora' },
+    ]);
+    expect(store.userMutesLoadingByRoomId['room-1']).toBe(false);
   });
 
   it('auto-loads more members with untilId and stops at the end', async () => {

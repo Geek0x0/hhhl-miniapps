@@ -12,6 +12,8 @@ const expectedParams: Record<string, string[]> = {
   'chat/rooms/show': ['roomId'],
   'chat/rooms/join': ['roomId'],
   'chat/rooms/members': ['roomId', 'limit', 'sinceId', 'untilId'],
+  'chat/rooms/user-mutes/create': ['roomId', 'userId'],
+  'chat/rooms/user-mutes/list': ['roomId', 'limit', 'sinceId', 'untilId'],
   'chat/messages/search': ['query', 'limit', 'untilId', 'userId', 'roomId'],
   'chat/rooms/create': ['name', 'description', 'joinMode'],
   'drive/files/create': ['folderId', 'name', 'comment', 'isSensitive', 'force'],

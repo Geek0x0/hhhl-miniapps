@@ -26,6 +26,8 @@ export interface RoomApiLike {
   delete: (roomId: string) => Promise<unknown>;
   mute: (roomId: string) => Promise<unknown>;
   members: (roomId: string, params?: PaginationParams) => Promise<UserSummary[]>;
+  createUserMute: (roomId: string, userId: string) => Promise<unknown>;
+  userMutes: (roomId: string, params?: PaginationParams) => Promise<UserSummary[]>;
   createInvitation: (roomId: string) => Promise<RoomInvitation>;
   invitationsOutbox: (roomId: string, params?: PaginationParams) => Promise<RoomInvitation[]>;
 }
@@ -42,6 +44,9 @@ export interface RoomState {
   membersByRoomId: Record<string, UserSummary[]>;
   membersLoadingByRoomId: Record<string, boolean>;
   membersHasMoreByRoomId: Record<string, boolean>;
+  userMutesByRoomId: Record<string, UserSummary[]>;
+  userMutesLoadingByRoomId: Record<string, boolean>;
+  userMutesHasMoreByRoomId: Record<string, boolean>;
   outboxInvitations: RoomInvitation[];
 }
 
@@ -129,6 +134,9 @@ export const useRoomStore = defineStore('rooms', {
     membersByRoomId: {},
     membersLoadingByRoomId: {},
     membersHasMoreByRoomId: {},
+    userMutesByRoomId: {},
+    userMutesLoadingByRoomId: {},
+    userMutesHasMoreByRoomId: {},
     outboxInvitations: [],
   }),
   actions: {
@@ -334,6 +342,40 @@ export const useRoomStore = defineStore('rooms', {
           this.membersHasMoreByRoomId = { ...this.membersHasMoreByRoomId, [roomId]: false };
           break;
         }
+      }
+    },
+
+    async loadUserMutes(roomId: string, api: RoomApiLike = createDefaultRoomApi(), params: PaginationParams = {}) {
+      if (this.userMutesLoadingByRoomId[roomId] === true) {
+        return;
+      }
+
+      this.userMutesLoadingByRoomId = { ...this.userMutesLoadingByRoomId, [roomId]: true };
+
+      try {
+        const current = this.userMutesByRoomId[roomId] ?? [];
+        const userMutes = await api.userMutes(roomId, { limit: DEFAULT_PAGE_SIZE, ...params });
+        this.userMutesByRoomId = {
+          ...this.userMutesByRoomId,
+          [roomId]: mergeMembers(current, userMutes),
+        };
+        this.userMutesHasMoreByRoomId = { ...this.userMutesHasMoreByRoomId, [roomId]: userMutes.length >= DEFAULT_PAGE_SIZE };
+      } catch (error) {
+        this.error = messageFromError(error);
+      } finally {
+        this.userMutesLoadingByRoomId = { ...this.userMutesLoadingByRoomId, [roomId]: false };
+      }
+    },
+
+    async muteUser(roomId: string, user: UserSummary, api: RoomApiLike = createDefaultRoomApi()) {
+      try {
+        await api.createUserMute(roomId, user.id);
+        this.userMutesByRoomId = {
+          ...this.userMutesByRoomId,
+          [roomId]: mergeMembers(this.userMutesByRoomId[roomId] ?? [], [user]),
+        };
+      } catch (error) {
+        this.error = messageFromError(error);
       }
     },
 

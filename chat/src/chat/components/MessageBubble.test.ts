@@ -1,20 +1,28 @@
-import { fireEvent, render } from '@testing-library/vue';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageBubble from './MessageBubble.vue';
 
-function renderBubble(entry: TimelineEntry) {
+function renderBubble(entry: TimelineEntry, props: Partial<InstanceType<typeof MessageBubble>['$props']> = {}) {
   return render(MessageBubble, {
     props: {
       entry,
       currentUserId: 'me',
       favoriteUserIds: [],
+      mutedUserIds: [],
       mentionMembers: [],
+      ...props,
     },
   });
 }
 
 describe('MessageBubble', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+  });
+
   it('displays nested special tag wrappers as their inner message text', () => {
     const { container, queryByText } = renderBubble({
       kind: 'server',
@@ -111,5 +119,31 @@ describe('MessageBubble', () => {
     });
 
     expect(container.querySelector('.message-reference__preview')).toHaveTextContent('https://example.com/really/long/path');
+  });
+
+  it('opens a sender menu on avatar long press with favorite and mute actions', async () => {
+    vi.useFakeTimers();
+    const { container, emitted } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: 'hello',
+        user: { id: 'user-1', username: 'alice', name: 'Alice' },
+      },
+    });
+
+    await fireEvent.pointerDown(container.querySelector('.message-bubble__avatar') as Element);
+    await vi.advanceTimersByTimeAsync(500);
+
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Add favorite' }));
+    expect(emitted('toggleFavorite')).toEqual([['user-1']]);
+
+    await fireEvent.pointerDown(container.querySelector('.message-bubble__avatar') as Element);
+    await vi.advanceTimersByTimeAsync(500);
+
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Block this person' }));
+    expect(emitted('muteUser')).toEqual([['user-1']]);
   });
 });

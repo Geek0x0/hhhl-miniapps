@@ -12,17 +12,18 @@
       {{ i18n.t('common.loading') }}
     </p>
     <p
-      v-if="entries.length === 0"
+      v-if="visibleEntries.length === 0"
       class="app-copy"
     >
       {{ i18n.t('chat.empty') }}
     </p>
     <MessageBubble
-      v-for="entry in entries"
+      v-for="entry in visibleEntries"
       :key="entry.kind === 'pending' ? entry.localId : entry.message.id"
       :entry="entry"
       :current-user-id="currentUserId"
       :favorite-user-ids="favoriteUserIds"
+      :muted-user-ids="mutedUserIds"
       :mention-members="mentionMembers"
       @reply="$emit('reply', $event)"
       @quote="$emit('quote', $event)"
@@ -31,6 +32,7 @@
       @retry="$emit('retry', $event)"
       @remove="$emit('remove', $event)"
       @toggle-favorite="$emit('toggleFavorite', $event)"
+      @mute-user="$emit('muteUser', $event)"
       @mention-user="$emit('mentionUser', $event)"
     />
     <button
@@ -45,9 +47,10 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { i18n } from '@/i18n';
 import type { ChatMessage, UserSummary } from '@/shared/types';
+import { isMessageFromMutedUser } from '../messageFilters';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageBubble from './MessageBubble.vue';
 
@@ -57,6 +60,7 @@ const props = defineProps<{
   hasMoreOlder: boolean;
   currentUserId: string | null;
   favoriteUserIds: string[];
+  mutedUserIds: string[];
   mentionMembers: UserSummary[];
 }>();
 
@@ -69,16 +73,28 @@ const emit = defineEmits<{
   retry: [localId: string];
   remove: [localId: string];
   toggleFavorite: [userId: string];
+  muteUser: [userId: string];
   mentionUser: [username: string];
 }>();
 
 const timelineElement = ref<globalThis.HTMLElement | null>(null);
 const newMessageCount = ref(0);
-let previousScrollHeight = 0;
-let previousScrollTop = 0;
 let loadingFromScroll = false;
 let previousLastKey: string | null = null;
 const OLDER_LOAD_THRESHOLD_PX = 160;
+
+type ScrollAnchor = {
+  messageId: string | null;
+  top: number;
+  scrollHeight: number;
+  scrollTop: number;
+};
+
+let scrollAnchor: ScrollAnchor | null = null;
+
+const visibleEntries = computed(() => props.entries.filter((entry) => (
+  !isMessageFromMutedUser(entry.message, props.mutedUserIds, props.currentUserId)
+)));
 
 function entryKey(entry: TimelineEntry): string {
   return entry.kind === 'pending' ? entry.localId : entry.message.id;
@@ -115,7 +131,64 @@ function isNearBottom(element: globalThis.HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight <= 96;
 }
 
-async function handleScroll(): Promise<void> {
+function messageElements(element: globalThis.HTMLElement): globalThis.HTMLElement[] {
+  return Array.from(element.querySelectorAll<globalThis.HTMLElement>('[data-message-id]'));
+}
+
+function messageElementById(element: globalThis.HTMLElement, messageId: string): globalThis.HTMLElement | null {
+  return messageElements(element).find((messageElement) => messageElement.dataset.messageId === messageId) ?? null;
+}
+
+function relativeTop(container: globalThis.HTMLElement, target: globalThis.HTMLElement): number {
+  return target.getBoundingClientRect().top - container.getBoundingClientRect().top;
+}
+
+function captureScrollAnchor(element: globalThis.HTMLElement): ScrollAnchor {
+  const containerRect = element.getBoundingClientRect();
+  const anchorElement = messageElements(element).find((messageElement) => {
+    const rect = messageElement.getBoundingClientRect();
+    return rect.bottom > containerRect.top && rect.top < containerRect.bottom;
+  });
+
+  return {
+    messageId: anchorElement?.dataset.messageId ?? null,
+    top: anchorElement == null ? 0 : relativeTop(element, anchorElement),
+    scrollHeight: element.scrollHeight,
+    scrollTop: element.scrollTop,
+  };
+}
+
+function requestStableFrame(callback: () => void): void {
+  globalThis.requestAnimationFrame(() => {
+    globalThis.requestAnimationFrame(callback);
+  });
+}
+
+function restoreScrollAnchor(): void {
+  const element = timelineElement.value;
+  const anchor = scrollAnchor;
+  scrollAnchor = null;
+
+  if (element == null || anchor == null) {
+    loadingFromScroll = false;
+    return;
+  }
+
+  requestStableFrame(() => {
+    const anchorElement = anchor.messageId == null ? null : messageElementById(element, anchor.messageId);
+
+    if (anchorElement != null) {
+      element.scrollTop = anchor.scrollTop + relativeTop(element, anchorElement) - anchor.top;
+      loadingFromScroll = false;
+      return;
+    }
+
+    element.scrollTop = anchor.scrollTop + Math.max(0, element.scrollHeight - anchor.scrollHeight);
+    loadingFromScroll = false;
+  });
+}
+
+function handleScroll(): void {
   const element = timelineElement.value;
   if (element == null) {
     return;
@@ -132,33 +205,22 @@ async function handleScroll(): Promise<void> {
 
   if (element.scrollTop <= OLDER_LOAD_THRESHOLD_PX) {
     loadingFromScroll = true;
-    previousScrollHeight = element.scrollHeight;
-    previousScrollTop = element.scrollTop;
+    scrollAnchor = captureScrollAnchor(element);
     emit('loadOlder');
-    await nextTick();
-    if (!props.loadingOlder) {
-      loadingFromScroll = false;
-    }
   }
 }
 
 watch(() => props.loadingOlder, async (loading, wasLoading) => {
   if (!loading && wasLoading && loadingFromScroll) {
     await nextTick();
-    const element = timelineElement.value;
-    if (element != null) {
-      globalThis.requestAnimationFrame(() => {
-        element.scrollTop = previousScrollTop + Math.max(0, element.scrollHeight - previousScrollHeight);
-      });
-    }
-    loadingFromScroll = false;
+    restoreScrollAnchor();
   }
 });
 
-watch(() => props.entries.map(entryKey).join('|'), async () => {
+watch(() => visibleEntries.value.map(entryKey).join('|'), async () => {
   const element = timelineElement.value;
-  const nextLastKey = props.entries.at(-1) == null ? null : entryKey(props.entries.at(-1) as TimelineEntry);
-  const nextKeys = props.entries.map(entryKey);
+  const nextLastKey = visibleEntries.value.at(-1) == null ? null : entryKey(visibleEntries.value.at(-1) as TimelineEntry);
+  const nextKeys = visibleEntries.value.map(entryKey);
   const previousLastIndex = previousLastKey == null ? -1 : nextKeys.indexOf(previousLastKey);
   const appendedCount = previousLastKey == null || nextLastKey === previousLastKey
     ? 0
@@ -179,7 +241,7 @@ watch(() => props.entries.map(entryKey).join('|'), async () => {
 });
 
 onMounted(async () => {
-  previousLastKey = props.entries.at(-1) == null ? null : entryKey(props.entries.at(-1) as TimelineEntry);
+  previousLastKey = visibleEntries.value.at(-1) == null ? null : entryKey(visibleEntries.value.at(-1) as TimelineEntry);
   await nextTick();
   scrollToBottom();
 });

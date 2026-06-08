@@ -23,6 +23,20 @@ describe('roomApi', () => {
     ]);
   });
 
+  it('normalizes muted user response variants', async () => {
+    const api = createRoomApi({
+      callEndpoint: async () => [
+        { user: { id: 'user-1', displayName: 'Alice', image: '/avatar.png' } },
+        { member: { id: 'user-2', username: 'bob', name: 'Bob' } },
+      ] as never,
+    });
+
+    await expect(api.userMutes('room-1')).resolves.toEqual([
+      { id: 'user-1', username: 'Alice', name: 'Alice', avatarUrl: 'https://dc.hhhl.cc/avatar.png', avatarFallbackUrl: null },
+      { id: 'user-2', username: 'bob', name: 'Bob', avatarUrl: null, avatarFallbackUrl: null },
+    ]);
+  });
+
   it('calls room endpoints with exact payloads', async () => {
     const calls: Array<{ endpoint: string; params: unknown }> = [];
     const api = createRoomApi({
@@ -43,6 +57,8 @@ describe('roomApi', () => {
     await api.delete('room-1');
     await api.mute('room-1');
     await api.members('room-1', { limit: 30 });
+    await api.createUserMute('room-1', 'user-1');
+    await api.userMutes('room-1', { limit: 30 });
 
     expect(calls).toEqual([
       { endpoint: 'chat/rooms/joining', params: { limit: 20 } },
@@ -56,6 +72,8 @@ describe('roomApi', () => {
       { endpoint: 'chat/rooms/delete', params: { roomId: 'room-1' } },
       { endpoint: 'chat/rooms/mute', params: { roomId: 'room-1' } },
       { endpoint: 'chat/rooms/members', params: { roomId: 'room-1', limit: 30 } },
+      { endpoint: 'chat/rooms/user-mutes/create', params: { roomId: 'room-1', userId: 'user-1' } },
+      { endpoint: 'chat/rooms/user-mutes/list', params: { roomId: 'room-1', limit: 30 } },
     ]);
   });
 });

@@ -10,6 +10,7 @@
   >
     <img
       v-if="avatarUrl != null && !avatarLoadFailed"
+      ref="avatarButtonEl"
       class="message-bubble__avatar"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :src="avatarUrl"
@@ -27,6 +28,7 @@
     >
     <div
       v-else
+      ref="avatarButtonEl"
       class="message-bubble__avatar message-bubble__avatar--fallback"
       :class="{ 'message-bubble__avatar--clickable': !isOwnMessage }"
       :aria-hidden="isOwnMessage ? 'true' : undefined"
@@ -211,12 +213,40 @@
         </div>
       </div>
     </Teleport>
+    <Teleport to="body">
+      <div
+        v-if="senderMenuOpen"
+        ref="senderMenuEl"
+        class="sender-action-menu"
+        role="menu"
+        :style="senderMenuStyle"
+        @click.stop
+      >
+        <button
+          type="button"
+          role="menuitem"
+          @click="selectFavoriteAction"
+        >
+          <Star :size="16" />
+          <span>{{ favoriteActionLabel }}</span>
+        </button>
+        <button
+          v-if="canMuteSender"
+          type="button"
+          role="menuitem"
+          @click="selectMuteAction"
+        >
+          <UserX :size="16" />
+          <span>{{ i18n.t('chat.blockUser') }}</span>
+        </button>
+      </div>
+    </Teleport>
   </article>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { Heart, RefreshCw, X } from '@lucide/vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { Heart, RefreshCw, Star, UserX, X } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
 import { imageProxyUrl, previewProxyUrl } from '@/shared/mediaProxy';
@@ -231,6 +261,7 @@ const props = defineProps<{
   entry: TimelineEntry;
   currentUserId: string | null;
   favoriteUserIds: string[];
+  mutedUserIds: string[];
   mentionMembers: UserSummary[];
 }>();
 
@@ -242,6 +273,7 @@ const emit = defineEmits<{
   retry: [localId: string];
   remove: [localId: string];
   toggleFavorite: [userId: string];
+  muteUser: [userId: string];
   mentionUser: [username: string];
 }>();
 
@@ -256,6 +288,10 @@ const LONG_PRESS_DURATION_MS = 500;
 const imagePreviewOpen = ref(false);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
+const senderMenuOpen = ref(false);
+const senderMenuStyle = ref<Record<string, string>>({ left: '8px', top: '8px' });
+const avatarButtonEl = ref<globalThis.HTMLElement | null>(null);
+const senderMenuEl = ref<globalThis.HTMLElement | null>(null);
 const avatarLoadFailed = ref(false);
 const imageSourceIndex = ref(0);
 const imageLoadFailed = ref(false);
@@ -376,21 +412,98 @@ function handleAvatarLongPress(): void {
     return;
   }
 
-  const name = senderName.value;
-  const isFavorite = props.favoriteUserIds.includes(userId);
-  const message = isFavorite
-    ? i18n.t('chat.confirmRemoveFavorite', { name })
-    : i18n.t('chat.confirmAddFavorite', { name });
+  void openSenderMenu();
+}
 
-  if (globalThis.confirm(message)) {
+async function openSenderMenu(): Promise<void> {
+  senderMenuOpen.value = true;
+  await nextTick();
+  updateSenderMenuPosition();
+}
+
+function closeSenderMenu(): void {
+  senderMenuOpen.value = false;
+}
+
+function updateSenderMenuPosition(): void {
+  const avatar = avatarButtonEl.value;
+  if (avatar == null) {
+    return;
+  }
+
+  const rect = avatar.getBoundingClientRect();
+  const viewportWidth = globalThis.innerWidth || globalThis.document.documentElement.clientWidth || 320;
+  const viewportHeight = globalThis.innerHeight || globalThis.document.documentElement.clientHeight || 640;
+  const width = Math.min(220, Math.max(172, viewportWidth - 16));
+  const left = Math.min(Math.max(8, rect.left), Math.max(8, viewportWidth - width - 8));
+  const menuHeight = senderMenuEl.value?.offsetHeight ?? 88;
+  const topBelow = rect.bottom + 8;
+  const topAbove = rect.top - menuHeight - 8;
+  const top = topBelow + menuHeight + 8 > viewportHeight && topAbove >= 8 ? topAbove : topBelow;
+
+  senderMenuStyle.value = {
+    left: `${left}px`,
+    top: `${Math.max(8, top)}px`,
+    width: `${width}px`,
+  };
+}
+
+function selectFavoriteAction(): void {
+  const userId = props.entry.message.user?.id;
+  if (userId != null) {
     emit('toggleFavorite', userId);
   }
+  closeSenderMenu();
 }
+
+function selectMuteAction(): void {
+  const userId = props.entry.message.user?.id;
+  if (userId != null) {
+    emit('muteUser', userId);
+  }
+  closeSenderMenu();
+}
+
+function handleDocumentClick(event: globalThis.MouseEvent): void {
+  const target = event.target;
+  if (!(target instanceof globalThis.Node) || !senderMenuOpen.value) {
+    return;
+  }
+
+  if (senderMenuEl.value?.contains(target) === true || avatarButtonEl.value?.contains(target) === true) {
+    return;
+  }
+
+  closeSenderMenu();
+}
+
+function handleKeydown(event: globalThis.KeyboardEvent): void {
+  if (senderMenuOpen.value && event.key === 'Escape') {
+    closeSenderMenu();
+  }
+}
+
+function handleViewportChange(): void {
+  if (senderMenuOpen.value) {
+    updateSenderMenuPosition();
+  }
+}
+
+onMounted(() => {
+  globalThis.document.addEventListener('click', handleDocumentClick);
+  globalThis.document.addEventListener('keydown', handleKeydown);
+  globalThis.addEventListener('resize', handleViewportChange);
+  globalThis.addEventListener('scroll', handleViewportChange, true);
+});
 
 onBeforeUnmount(() => {
   if (longPressTimer.value != null) {
     globalThis.clearTimeout(longPressTimer.value);
   }
+  globalThis.document.removeEventListener('click', handleDocumentClick);
+  globalThis.document.removeEventListener('keydown', handleKeydown);
+  globalThis.removeEventListener('resize', handleViewportChange);
+  globalThis.removeEventListener('scroll', handleViewportChange, true);
 });
 
 const formattedTime = computed(() => formatMessageTimestamp(props.entry.message.createdAt));
@@ -406,6 +519,11 @@ function fallbackAvatarUrl(user: UserSummary | null | undefined): string | null 
 const senderName = computed(() => props.entry.message.user?.name ?? props.entry.message.user?.username ?? props.entry.message.user?.id ?? 'Unknown');
 const isOwnMessage = computed(() => props.currentUserId != null && props.entry.message.user?.id === props.currentUserId);
 const isFavoriteSender = computed(() => props.entry.message.user?.id != null && props.favoriteUserIds.includes(props.entry.message.user.id));
+const canMuteSender = computed(() => {
+  const userId = props.entry.message.user?.id;
+  return userId != null && !isOwnMessage.value && !props.mutedUserIds.includes(userId);
+});
+const favoriteActionLabel = computed(() => i18n.t(isFavoriteSender.value ? 'chat.removeFavorite' : 'chat.addFavorite'));
 const avatarUrl = computed(() => displayAvatarUrl(props.entry.message.user));
 const avatarFallbackUrl = computed(() => fallbackAvatarUrl(props.entry.message.user));
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');

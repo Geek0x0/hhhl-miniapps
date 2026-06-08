@@ -2,6 +2,36 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.0 - 2026-06-08
+
+### xbot
+
+#### Added
+
+- Added a new Cloudflare Worker subproject for bridging one authorized Telegram private chat user with one bound HHHL room.
+- Added Telegram webhook handling with shared-secret validation, `/bind`, `/unbind`, `/rename`, `/list`, `/status`, and `/help` command support, plus HHHL room membership validation before binding.
+- Added KV-backed binding, realtime status, and Telegram/HHHL message mapping state for reply, quote, dedupe, and unbind cleanup flows.
+- Added Telegram-to-HHHL text and media forwarding, including Telegram reply mapping to HHHL `replyId` and `quoteId`.
+- Added HHHL-to-Telegram realtime forwarding through a Durable Object WebSocket runtime with history backfill, reconnect alarms, persisted backoff, self-message filtering, media forwarding, replies, and quote fallbacks.
+- Added fast webhook acknowledgement for longer forwarding work via `waitUntil`, plus local development, secret, and deployment documentation for xbot.
+
+### chat
+
+#### Added
+
+- Added room member blocking with avatar action menus, muted-message filtering, and a block management panel backed by HHHL room mute endpoints.
+- Added a room header transport indicator that shows `WS` or `HP` with accent styling and subtle motion.
+- Added key search extraction for embedded `sk-...` tokens so only the newest matched key is displayed and copied.
+
+#### Changed
+
+- Moved key search to the primary room-header action row and moved member access into the secondary header menu.
+- Preserved the first visible chat message as a scroll anchor while loading older history, with a floating loading indicator to reduce viewport jumps.
+
+#### Fixed
+
+- Fixed selected-member message searches so sender filters still work with the same keyword that succeeds without a member filter.
+
 ## 0.5.6 - 2026-06-07
 
 ### chat

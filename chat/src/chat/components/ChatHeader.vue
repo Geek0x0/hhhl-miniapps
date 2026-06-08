@@ -12,12 +12,6 @@
       <strong>{{ title }}</strong>
       <small>{{ roomId }}</small>
     </div>
-    <span
-      v-if="degraded"
-      class="chat-header__status"
-    >
-      {{ i18n.t('realtime.polling') }}
-    </span>
     <div class="chat-header__actions">
       <button
         class="chat-icon-button"
@@ -30,10 +24,10 @@
       <button
         class="chat-icon-button"
         type="button"
-        :aria-label="i18n.t('rooms.members')"
-        @click="selectMembers"
+        :aria-label="i18n.t('chat.keySearch')"
+        @click="selectKeySearch"
       >
-        <Users :size="18" />
+        <KeyRound :size="18" />
       </button>
       <div
         ref="moreRoot"
@@ -68,13 +62,22 @@
             <span>{{ i18n.t('chat.favorites') }}</span>
           </button>
           <button
-            ref="keySearchMenuItem"
+            ref="membersMenuItem"
             type="button"
             role="menuitem"
-            @click="selectMore('keySearch')"
+            @click="selectMore('members')"
           >
-            <KeyRound :size="16" />
-            <span>{{ i18n.t('chat.keySearch') }}</span>
+            <Users :size="16" />
+            <span>{{ i18n.t('rooms.members') }}</span>
+          </button>
+          <button
+            ref="blockManagementMenuItem"
+            type="button"
+            role="menuitem"
+            @click="selectMore('blockManage')"
+          >
+            <ShieldOff :size="16" />
+            <span>{{ i18n.t('chat.blockManagement') }}</span>
           </button>
           <button
             v-if="canManageRoom"
@@ -88,13 +91,20 @@
           </button>
         </div>
       </div>
+      <span
+        class="chat-icon-button chat-header__status chat-header__status--accent chat-header__status--breathing"
+        :aria-label="degraded ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
+        :title="degraded ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
+      >
+        {{ degraded ? 'HP' : 'WS' }}
+      </span>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { ArrowLeft, EllipsisVertical, Heart, KeyRound, Search, Settings, Users } from '@lucide/vue';
+import { ArrowLeft, EllipsisVertical, Heart, KeyRound, Search, Settings, ShieldOff, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 
 defineProps<{
@@ -109,17 +119,19 @@ const emit = defineEmits<{
   search: [];
   keySearch: [];
   favorites: [];
+  blockManage: [];
   members: [];
   manage: [];
 }>();
 
-type MoreAction = 'keySearch' | 'favorites' | 'manage';
+type MoreAction = 'favorites' | 'members' | 'blockManage' | 'manage';
 
 const showMore = ref(false);
 const moreRoot = ref<globalThis.HTMLElement | null>(null);
 const moreButton = ref<globalThis.HTMLButtonElement | null>(null);
 const favoritesMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
-const keySearchMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
+const membersMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
+const blockManagementMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const manageMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 
 function closeMore(options: { restoreFocus?: boolean } = {}): void {
@@ -147,7 +159,7 @@ function toggleMore(): void {
 }
 
 function menuItems(): globalThis.HTMLButtonElement[] {
-  return [favoritesMenuItem.value, keySearchMenuItem.value, manageMenuItem.value]
+  return [favoritesMenuItem.value, membersMenuItem.value, blockManagementMenuItem.value, manageMenuItem.value]
     .filter((item): item is globalThis.HTMLButtonElement => item != null);
 }
 
@@ -180,18 +192,20 @@ function selectSearch(): void {
   emit('search');
 }
 
-function selectMembers(): void {
+function selectKeySearch(): void {
   closeMore();
-  emit('members');
+  emit('keySearch');
 }
 
 function selectMore(action: MoreAction): void {
   closeMore();
 
-  if (action === 'keySearch') {
-    emit('keySearch');
-  } else if (action === 'favorites') {
+  if (action === 'favorites') {
     emit('favorites');
+  } else if (action === 'members') {
+    emit('members');
+  } else if (action === 'blockManage') {
+    emit('blockManage');
   } else {
     emit('manage');
   }

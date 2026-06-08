@@ -11,6 +11,7 @@
         @key-search="handleKeySearch"
         @favorites="showFavorites"
         @members="showMembers"
+        @block-manage="showBlockManagement"
         @manage="toggleManage"
       />
       <SearchPanel
@@ -18,7 +19,7 @@
         :query="chatStore.searchQuery"
         :selected-user-id="chatStore.searchUserId"
         :members="allKnownMembers"
-        :results="chatStore.searchResults"
+        :results="visibleSearchResults"
         :loading="chatStore.searchLoading"
         :error="chatStore.searchError"
         :has-more="chatStore.searchHasMore"
@@ -28,7 +29,7 @@
       />
       <KeySearchPanel
         v-if="activePanel === 'keySearch'"
-        :results="chatStore.keySearchResults"
+        :results="visibleKeySearchResults"
         :loading="chatStore.keySearchLoading"
         :error="chatStore.keySearchError"
       />
@@ -46,6 +47,11 @@
         :members="allKnownMembers"
         :favorite-user-ids="settingsStore.favoriteUserIds"
         :loading="favoriteMembersResolving"
+      />
+      <BlockedUsersPanel
+        v-if="activePanel === 'blocks'"
+        :members="mutedUsers"
+        :loading="roomStore.userMutesLoadingByRoomId[roomId] === true"
       />
       <RoomManagementPanel
         v-if="activePanel === 'manage' && canManageRoom"
@@ -79,6 +85,7 @@
       :has-more-older="chatStore.hasMoreOlder"
       :current-user-id="authStore.user?.id ?? null"
       :favorite-user-ids="settingsStore.favoriteUserIds"
+      :muted-user-ids="mutedUserIds"
       :mention-members="allKnownMembers"
       @load-older="chatStore.loadOlder()"
       @reply="chatStore.setReplyTarget"
@@ -88,6 +95,7 @@
       @retry="chatStore.retryMessage"
       @remove="chatStore.removeFailedMessage"
       @toggle-favorite="toggleFavoriteUser"
+      @mute-user="muteUser"
       @mention-user="handleMentionUser"
     />
     <MessageComposer
@@ -119,10 +127,11 @@ import { createRealtimeClient } from '@/realtime/realtimeClient';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
 import { useRoomStore } from '@/rooms/roomStore';
 import { useSettingsStore } from '@/settings/settingsStore';
-import type { UserSummary } from '@/shared/types';
+import type { ChatMessage, UserSummary } from '@/shared/types';
 import { createUserApi } from '@/users/userApi';
 import { i18n } from '@/i18n';
 import RoomManagementPanel from '@/rooms/components/RoomManagementPanel.vue';
+import BlockedUsersPanel from './BlockedUsersPanel.vue';
 import ChatHeader from './ChatHeader.vue';
 import FavoritePanel from './FavoritePanel.vue';
 import MembersPanel from './MembersPanel.vue';
@@ -130,6 +139,7 @@ import MessageComposer from './MessageComposer.vue';
 import MessageTimeline from './MessageTimeline.vue';
 import SearchPanel from './SearchPanel.vue';
 import KeySearchPanel from './KeySearchPanel.vue';
+import { filterMutedMessages } from '../messageFilters';
 import { useChatStore } from '../chatStore';
 
 const route = useRoute();
@@ -146,7 +156,7 @@ const roomId = computed(() => String(route.params.roomId ?? ''));
 const activeRoomEntry = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value) ?? null);
 const roomTitle = computed(() => activeRoomEntry.value?.room.name ?? roomId.value);
 const canManageRoom = computed(() => activeRoomEntry.value?.sources.includes('owned') === true);
-const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'manage' | null>(null);
+const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'blocks' | 'manage' | null>(null);
 const favoriteMembersResolving = ref(false);
 const favoriteUsersById = ref<Record<string, UserSummary>>({});
 const mentionUsersByUsername = ref<Record<string, UserSummary>>({});
@@ -198,12 +208,22 @@ const allKnownMembers = computed(() => {
     addUser(user);
   }
 
+  for (const user of roomStore.userMutesByRoomId[roomId.value] ?? []) {
+    addUser(user);
+  }
+
   for (const user of Object.values(mentionUsersByUsername.value)) {
     addUser(user);
   }
 
   return [...usersById.values()];
 });
+
+const mutedUsers = computed(() => roomStore.userMutesByRoomId[roomId.value] ?? []);
+const mutedUserIds = computed(() => mutedUsers.value.map((user) => user.id));
+const currentUserId = computed(() => authStore.user?.id ?? null);
+const visibleSearchResults = computed<ChatMessage[]>(() => filterMutedMessages(chatStore.searchResults, mutedUserIds.value, currentUserId.value));
+const visibleKeySearchResults = computed<ChatMessage[]>(() => filterMutedMessages(chatStore.keySearchResults, mutedUserIds.value, currentUserId.value));
 
 function createUserApiClient() {
   const storage = createLocalStorageAdapter();
@@ -315,6 +335,22 @@ function toggleFavoriteUser(userId: string): void {
   showFeedback(i18n.t(wasFavorite ? 'chat.favoriteRemoved' : 'chat.favoriteAdded'));
 }
 
+function userSummaryForMute(userId: string): UserSummary {
+  const knownUser = allKnownMembers.value.find((member) => member.id === userId);
+  return knownUser ?? { id: userId, username: userId, name: null, avatarUrl: null, avatarFallbackUrl: null };
+}
+
+async function muteUser(userId: string): Promise<void> {
+  if (roomId.value === '' || mutedUserIds.value.includes(userId)) {
+    return;
+  }
+
+  await roomStore.muteUser(roomId.value, userSummaryForMute(userId));
+  if (mutedUserIds.value.includes(userId)) {
+    showFeedback(i18n.t('chat.blockedUserAdded'));
+  }
+}
+
 function restoreComposerDraft(): void {
   composerDraft.value = roomId.value === '' ? '' : readRoomDraft(localStorageAdapter, roomId.value);
 }
@@ -420,6 +456,13 @@ async function showFavorites(): Promise<void> {
   }
 }
 
+async function showBlockManagement(): Promise<void> {
+  activePanel.value = activePanel.value === 'blocks' ? null : 'blocks';
+  if (activePanel.value === 'blocks') {
+    await roomStore.loadUserMutes(roomId.value);
+  }
+}
+
 async function toggleSearch(): Promise<void> {
   activePanel.value = activePanel.value === 'search' ? null : 'search';
   if (activePanel.value === 'search') {
@@ -521,6 +564,7 @@ async function loadRoom(): Promise<void> {
     await chatStore.loadInitial(roomId.value);
     restoreComposerDraft();
     void ensureAllMembersLoaded();
+    void roomStore.loadUserMutes(roomId.value);
     startRealtime();
   }
 }

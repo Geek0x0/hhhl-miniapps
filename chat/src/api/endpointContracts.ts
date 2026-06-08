@@ -52,6 +52,8 @@ export const requiredEndpointNames = [
   'chat/rooms/owned',
   'chat/rooms/show',
   'chat/rooms/update',
+  'chat/rooms/user-mutes/create',
+  'chat/rooms/user-mutes/list',
   'chat/messages/context',
   'chat/messages/create-to-room',
   'chat/messages/delete',

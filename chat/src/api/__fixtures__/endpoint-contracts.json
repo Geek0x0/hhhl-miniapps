@@ -299,6 +299,40 @@
       }
     ]
   },
+  "chat/rooms/user-mutes/create": {
+    "endpoint": "chat/rooms/user-mutes/create",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "userId",
+        "type": "String"
+      }
+    ]
+  },
+  "chat/rooms/user-mutes/list": {
+    "endpoint": "chat/rooms/user-mutes/list",
+    "params": [
+      {
+        "name": "roomId",
+        "type": "String"
+      },
+      {
+        "name": "limit",
+        "type": "Integer"
+      },
+      {
+        "name": "sinceId",
+        "type": "String"
+      },
+      {
+        "name": "untilId",
+        "type": "String"
+      }
+    ]
+  },
   "chat/rooms/owned": {
     "endpoint": "chat/rooms/owned",
     "params": [

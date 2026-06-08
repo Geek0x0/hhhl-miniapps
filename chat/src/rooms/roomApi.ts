@@ -72,7 +72,21 @@ function normalizeUserSummary(value: unknown): UserSummary {
 }
 
 function normalizeMembers(values: unknown): UserSummary[] {
-  return Array.isArray(values) ? values.map(normalizeUserSummary).filter((member) => member.id !== '') : [];
+  if (Array.isArray(values)) {
+    return values.map(normalizeUserSummary).filter((member) => member.id !== '');
+  }
+
+  const raw = recordField(values);
+  if (raw != null) {
+    for (const key of ['users', 'members', 'mutes', 'items']) {
+      const list = raw[key];
+      if (Array.isArray(list)) {
+        return list.map(normalizeUserSummary).filter((member) => member.id !== '');
+      }
+    }
+  }
+
+  return [];
 }
 
 function normalizeInvitation(value: unknown) {
@@ -109,5 +123,8 @@ export function createRoomApi(client: EndpointCaller) {
     mute: (roomId: string) => client.callEndpoint('chat/rooms/mute', { roomId }),
     members: (roomId: string, params: PaginationParams = {}) =>
       client.callEndpoint<unknown>('chat/rooms/members', { roomId, ...params }).then(normalizeMembers),
+    createUserMute: (roomId: string, userId: string) => client.callEndpoint('chat/rooms/user-mutes/create', { roomId, userId }),
+    userMutes: (roomId: string, params: PaginationParams = {}) =>
+      client.callEndpoint<unknown>('chat/rooms/user-mutes/list', { roomId, ...params }).then(normalizeMembers),
   };
 }
