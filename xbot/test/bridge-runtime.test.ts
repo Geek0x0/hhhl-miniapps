@@ -399,4 +399,33 @@ describe('BridgeObject export', () => {
     expect(storage.deleteAlarm).toHaveBeenCalled();
     expect(storage.delete).toHaveBeenCalledWith('telegramUserId');
   });
+
+  it('clears persisted restart state and writes stopped status when start has no binding', async () => {
+    const { state, storage } = createFakeDurableObjectState();
+    const env = createTestEnv({
+      HHHL_ORIGIN: 'https://hhhl.example',
+      HHHL_API_BASE_URL: 'https://hhhl.example/api',
+    });
+    const store = new KvStateStore(env.XBOT_STATE, createKeys('xbot'));
+    const fetchImpl = vi.fn(async () => jsonResponse({ user: { id: 'bot-user', username: 'bridge-bot' } }));
+    vi.stubGlobal('fetch', fetchImpl);
+    vi.stubGlobal('WebSocket', FakeSocket);
+
+    const object = new DirectBridgeObject(state, env);
+
+    await object.start('42');
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(FakeSocket.instances).toEqual([]);
+    expect(storage.put).toHaveBeenCalledWith('telegramUserId', '42');
+    expect(storage.deleteAlarm).toHaveBeenCalled();
+    expect(storage.delete).toHaveBeenCalledWith('telegramUserId');
+    await expect(store.getStatus('42')).resolves.toEqual({
+      version: 1,
+      state: 'stopped',
+      connectedAt: null,
+      lastError: null,
+      nextReconnectAt: null,
+    });
+  });
 });

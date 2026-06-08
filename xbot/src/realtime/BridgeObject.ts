@@ -6,6 +6,7 @@ import { HhhlApiClient } from '../hhhl/apiClient';
 import { createHhhlChatApi } from '../hhhl/chatApi';
 import { createKeys } from '../state/keys';
 import { KvStateStore } from '../state/kvStore';
+import type { RealtimeStatusState } from '../state/schemas';
 import { TelegramApi } from '../telegram/api';
 import { BridgeRuntime } from './bridgeRuntime';
 
@@ -34,8 +35,9 @@ export class BridgeObject implements BridgeUserObject {
     const store = new KvStateStore(this.env.XBOT_STATE, createKeys(config.kvKeyPrefix));
     const binding = await store.getBinding(telegramUserId);
     if (binding == null) {
-      await this.runtime?.stop();
-      this.runtime = null;
+      await this.stopRuntime();
+      await store.setStatus(telegramUserId, stoppedStatus());
+      await this.clearPersistedStartState();
       return;
     }
 
@@ -46,7 +48,7 @@ export class BridgeObject implements BridgeUserObject {
     const chatApi = createHhhlChatApi(hhhlClient);
     const me = await chatApi.me();
 
-    await this.runtime?.stop();
+    await this.stopRuntime();
     const runtime = new BridgeRuntime({
       telegramUserId,
       chatId: telegramUserId,
@@ -75,10 +77,8 @@ export class BridgeObject implements BridgeUserObject {
   }
 
   async stop(_telegramUserId: string): Promise<void> {
-    await this.runtime?.stop();
-    this.runtime = null;
-    await (this.state.storage as StorageWithOptionalAlarm).deleteAlarm?.();
-    await this.state.storage.delete(STORAGE_TELEGRAM_USER_ID);
+    await this.stopRuntime();
+    await this.clearPersistedStartState();
   }
 
   async alarm(): Promise<void> {
@@ -89,4 +89,24 @@ export class BridgeObject implements BridgeUserObject {
 
     await this.start(telegramUserId);
   }
+
+  private async stopRuntime(): Promise<void> {
+    await this.runtime?.stop();
+    this.runtime = null;
+  }
+
+  private async clearPersistedStartState(): Promise<void> {
+    await (this.state.storage as StorageWithOptionalAlarm).deleteAlarm?.();
+    await this.state.storage.delete(STORAGE_TELEGRAM_USER_ID);
+  }
+}
+
+function stoppedStatus(): RealtimeStatusState {
+  return {
+    version: 1,
+    state: 'stopped',
+    connectedAt: null,
+    lastError: null,
+    nextReconnectAt: null,
+  };
 }

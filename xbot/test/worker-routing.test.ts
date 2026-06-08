@@ -1,5 +1,7 @@
 import worker from '../src/index';
 import type { Env } from '../src/env';
+import { createKeys } from '../src/state/keys';
+import { KvStateStore } from '../src/state/kvStore';
 import { commandHelpText } from '../src/telegram/commands';
 import { createTestEnv } from './fakes';
 
@@ -54,6 +56,21 @@ function createTelegramFetch(response: Response = jsonResponse({ ok: true, resul
 function requestBody(call: FetchCall): Record<string, unknown> {
   expect(typeof call.init?.body).toBe('string');
   return JSON.parse(call.init?.body as string) as Record<string, unknown>;
+}
+
+function storeFor(env: Env): KvStateStore {
+  return new KvStateStore(env.XBOT_STATE, createKeys(env.KV_KEY_PREFIX ?? 'xbot'));
+}
+
+async function seedBinding(env: Env): Promise<void> {
+  await storeFor(env).setBinding({
+    version: 1,
+    telegramUserId: '42',
+    roomId: 'room-1',
+    roomName: 'Ops',
+    boundAt: '2026-06-08T00:00:00.000Z',
+    lastSeenMessageId: null,
+  });
 }
 
 async function postUpdate(
@@ -248,5 +265,69 @@ describe('worker Telegram routing', () => {
     expect(logged).not.toContain('123456:telegram-secret');
     expect(logged).not.toContain('telegram-webhook-secret');
     expect(logged).not.toContain('/bot123456:telegram-secret');
+  });
+
+  it('uses waitUntil for ordinary message forwarding', async () => {
+    const env = createTestEnv({ HHHL_API_BASE_URL: 'https://hhhl.example/api' });
+    const store = storeFor(env);
+    await seedBinding(env);
+
+    let resolveCreate!: (response: Response) => void;
+    const pendingCreate = new Promise<Response>((resolve) => {
+      resolveCreate = resolve;
+    });
+    const calls: FetchCall[] = [];
+    const fetchImpl: typeof fetch = vi.fn(async (input, init) => {
+      const call = { url: input.toString(), init };
+      calls.push(call);
+      if (call.url === 'https://hhhl.example/api/chat/messages/create-to-room') {
+        return pendingCreate;
+      }
+      return jsonResponse({ ok: true, result: { message_id: 321 } });
+    });
+    const pendingWork: Promise<unknown>[] = [];
+    const waitUntil = vi.fn((promise: Promise<unknown>) => {
+      pendingWork.push(promise);
+    });
+    vi.stubGlobal('fetch', fetchImpl);
+
+    const headers = new Headers({
+      'content-type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.BOT_WEBHOOK_SECRET ?? '',
+    });
+    const responseOrTimeout = await Promise.race([
+      worker.fetch(
+        new Request('https://xbot.example.com/webhook', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(telegramUpdate({ text: 'hello HHHL' })),
+        }),
+        env,
+        { waitUntil } as unknown as ExecutionContext,
+      ),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 20)),
+    ]);
+
+    expect(responseOrTimeout).toBeInstanceOf(Response);
+    const response = responseOrTimeout as Response;
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(waitUntil).toHaveBeenCalledOnce();
+
+    resolveCreate(jsonResponse({ message: { id: 'hhhl-created-1', roomId: 'room-1', text: 'hello HHHL' } }));
+    await Promise.all(pendingWork);
+
+    const createCall = calls.find((call) => call.url === 'https://hhhl.example/api/chat/messages/create-to-room');
+    expect(createCall).toBeDefined();
+    expect(requestBody(createCall as FetchCall)).toEqual({
+      toRoomId: 'room-1',
+      text: 'hello HHHL',
+      i: 'hhhl-secret',
+    });
+    await expect(store.getMessageMapByTelegram('42', 10)).resolves.toMatchObject({
+      roomId: 'room-1',
+      hhhlMessageId: 'hhhl-created-1',
+      telegramMessageId: 10,
+    });
   });
 });
