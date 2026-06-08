@@ -1,19 +1,14 @@
 import worker from '../src/index';
 import type { Env } from '../src/env';
 import { commandHelpText } from '../src/telegram/commands';
+import { createTestEnv } from './fakes';
 
 type FetchCall = {
   url: string;
   init: RequestInit | undefined;
 };
 
-const baseEnv: Env = {
-  BOT_TOKEN: '123456:telegram-secret',
-  HHHL_TOKEN: 'hhhl-secret',
-  ALLOWED_TELEGRAM_USER_ID: '42',
-  XBOT_STATE: {} as KVNamespace,
-  BRIDGE: {} as DurableObjectNamespace,
-};
+const baseEnv: Env = createTestEnv();
 
 function telegramUpdate(options: {
   text?: string;
@@ -65,11 +60,17 @@ async function postUpdate(
   path: '/' | '/webhook',
   update: unknown,
   env: Env = baseEnv,
+  webhookSecret: string | null | undefined = env.BOT_WEBHOOK_SECRET,
 ): Promise<Response> {
+  const headers = new Headers({ 'content-type': 'application/json' });
+  if (webhookSecret !== null && webhookSecret !== undefined) {
+    headers.set('X-Telegram-Bot-Api-Secret-Token', webhookSecret);
+  }
+
   return worker.fetch(
     new Request(`https://xbot.example.com${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: typeof update === 'string' ? update : JSON.stringify(update),
     }),
     env,
@@ -120,8 +121,22 @@ describe('worker Telegram routing', () => {
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
       ok: false,
-      error: 'missing BOT_TOKEN, HHHL_TOKEN, ALLOWED_TELEGRAM_USER_ID',
+      error: 'missing BOT_TOKEN, BOT_WEBHOOK_SECRET, HHHL_TOKEN, ALLOWED_TELEGRAM_USER_ID',
     });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['missing', null],
+    ['wrong', 'wrong-secret'],
+  ] as const)('rejects webhook requests with %s secret header before parsing updates', async (_label, webhookSecret) => {
+    const { fetchImpl } = createTelegramFetch();
+    vi.stubGlobal('fetch', fetchImpl);
+
+    const response = await postUpdate('/webhook', telegramUpdate({ text: '/help' }), baseEnv, webhookSecret);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ ok: false, error: 'forbidden' });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -136,14 +151,14 @@ describe('worker Telegram routing', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('returns 400 for invalid Telegram updates', async () => {
+  it('acks unsupported Telegram updates without retrying', async () => {
     const { fetchImpl } = createTelegramFetch();
     vi.stubGlobal('fetch', fetchImpl);
 
     const response = await postUpdate('/webhook', { update_id: 2, message: { message_id: 20 } });
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ ok: false, error: 'invalid update' });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -232,6 +247,7 @@ describe('worker Telegram routing', () => {
     const logged = errorSpy.mock.calls.flat().map(String).join(' ');
     expect(logged).toContain('telegram send failed');
     expect(logged).not.toContain('123456:telegram-secret');
+    expect(logged).not.toContain('telegram-webhook-secret');
     expect(logged).not.toContain('/bot123456:telegram-secret');
   });
 });

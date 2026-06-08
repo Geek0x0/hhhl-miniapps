@@ -1,14 +1,14 @@
 import { readConfig } from '../src/config';
 import { redactSensitiveText } from '../src/security/redact';
 import type { Env } from '../src/env';
+import { createTestEnv } from './fakes';
 
-const baseEnv: Env = {
+const baseEnv: Env = createTestEnv({
   BOT_TOKEN: '123456:telegram-secret',
+  BOT_WEBHOOK_SECRET: 'telegram-webhook-secret',
   HHHL_TOKEN: 'hhhl-secret',
   ALLOWED_TELEGRAM_USER_ID: '42',
-  XBOT_STATE: {} as KVNamespace,
-  BRIDGE: {} as DurableObjectNamespace,
-};
+});
 
 describe('readConfig', () => {
   it('reads required secrets and default non-sensitive values', () => {
@@ -19,6 +19,7 @@ describe('readConfig', () => {
 
     expect(config.value).toMatchObject({
       botToken: '123456:telegram-secret',
+      botWebhookSecret: 'telegram-webhook-secret',
       hhhlToken: 'hhhl-secret',
       allowedTelegramUserId: '42',
       hhhlOrigin: 'https://dc.hhhl.cc',
@@ -38,7 +39,7 @@ describe('readConfig', () => {
 
     expect(config).toEqual({
       ok: false,
-      error: 'missing BOT_TOKEN, HHHL_TOKEN, ALLOWED_TELEGRAM_USER_ID',
+      error: 'missing BOT_TOKEN, BOT_WEBHOOK_SECRET, HHHL_TOKEN, ALLOWED_TELEGRAM_USER_ID',
     });
   });
 
@@ -54,10 +55,11 @@ describe('readConfig', () => {
 
 describe('redactSensitiveText', () => {
   it('redacts configured token values and token-like fields', () => {
-    const text = 'BOT_TOKEN=123456:telegram-secret HHHL_TOKEN=hhhl-secret i=hhhl-secret token=other';
+    const text =
+      'BOT_TOKEN=123456:telegram-secret BOT_WEBHOOK_SECRET=telegram-webhook-secret HHHL_TOKEN=hhhl-secret i=hhhl-secret token=other secret=plain';
 
-    expect(redactSensitiveText(text, ['123456:telegram-secret', 'hhhl-secret'])).toBe(
-      'BOT_TOKEN=[redacted] HHHL_TOKEN=[redacted] i=[redacted] token=[redacted]',
+    expect(redactSensitiveText(text, ['123456:telegram-secret', 'telegram-webhook-secret', 'hhhl-secret'])).toBe(
+      'BOT_TOKEN=[redacted] BOT_WEBHOOK_SECRET=[redacted] HHHL_TOKEN=[redacted] i=[redacted] token=[redacted] secret=[redacted]',
     );
   });
 

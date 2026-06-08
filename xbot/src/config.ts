@@ -22,10 +22,12 @@ function positiveInteger(name: string, value: string | undefined, fallback: numb
 export function readConfig(env: Env): ConfigResult {
   const missing: string[] = [];
   const botToken = nonEmpty(env.BOT_TOKEN);
+  const botWebhookSecret = nonEmpty(env.BOT_WEBHOOK_SECRET);
   const hhhlToken = nonEmpty(env.HHHL_TOKEN);
   const allowedTelegramUserId = nonEmpty(env.ALLOWED_TELEGRAM_USER_ID);
 
   if (botToken == null) missing.push('BOT_TOKEN');
+  if (botWebhookSecret == null) missing.push('BOT_WEBHOOK_SECRET');
   if (hhhlToken == null) missing.push('HHHL_TOKEN');
   if (allowedTelegramUserId == null) missing.push('ALLOWED_TELEGRAM_USER_ID');
 
@@ -48,6 +50,7 @@ export function readConfig(env: Env): ConfigResult {
 
   const value: AppConfig = {
     botToken: botToken as string,
+    botWebhookSecret: botWebhookSecret as string,
     hhhlToken: hhhlToken as string,
     allowedTelegramUserId: allowedTelegramUserId as string,
     hhhlOrigin,

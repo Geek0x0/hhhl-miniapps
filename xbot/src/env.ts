@@ -1,5 +1,6 @@
 export interface Env {
   BOT_TOKEN?: string;
+  BOT_WEBHOOK_SECRET?: string;
   HHHL_TOKEN?: string;
   ALLOWED_TELEGRAM_USER_ID?: string;
   HHHL_ORIGIN?: string;
@@ -14,6 +15,7 @@ export interface Env {
 
 export interface AppConfig {
   botToken: string;
+  botWebhookSecret: string;
   hhhlToken: string;
   allowedTelegramUserId: string;
   hhhlOrigin: string;

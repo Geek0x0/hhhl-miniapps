@@ -1,7 +1,7 @@
 const TOKEN_FIELD_PATTERN =
-  /\b((?:BOT_TOKEN|HHHL_TOKEN|botToken|hhhlToken|token|access_token|i)\s*[=:]\s*["']?)(?!\[redacted\])[^&\s"',;)}]+(["']?)/gi;
+  /\b((?:BOT_TOKEN|BOT_WEBHOOK_SECRET|HHHL_TOKEN|botToken|botWebhookSecret|hhhlToken|token|secret|access_token|i)\s*[=:]\s*["']?)(?!\[redacted\])[^&\s"',;)}]+(["']?)/gi;
 const JSON_TOKEN_FIELD_PATTERN =
-  /(["'](?:BOT_TOKEN|HHHL_TOKEN|botToken|hhhlToken|token|access_token|i)["']\s*:\s*)(["'])(?!\[redacted\])(?:\\.|(?!\2)[^\\])*\2/gi;
+  /(["'](?:BOT_TOKEN|BOT_WEBHOOK_SECRET|HHHL_TOKEN|botToken|botWebhookSecret|hhhlToken|token|secret|access_token|i)["']\s*:\s*)(["'])(?!\[redacted\])(?:\\.|(?!\2)[^\\])*\2/gi;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
