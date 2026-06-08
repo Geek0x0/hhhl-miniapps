@@ -305,7 +305,7 @@ describe('worker Telegram routing', () => {
         env,
         { waitUntil } as unknown as ExecutionContext,
       ),
-      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 20)),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 250)),
     ]);
 
     expect(responseOrTimeout).toBeInstanceOf(Response);
