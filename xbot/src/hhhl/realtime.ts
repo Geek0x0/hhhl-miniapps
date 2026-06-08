@@ -36,11 +36,7 @@ function recordField(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
-function stringLikeField(value: unknown): string | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value);
-  }
-
+function stringField(value: unknown): string | null {
   if (typeof value === 'string' && value.trim() !== '') {
     return value.trim();
   }
@@ -87,7 +83,7 @@ export function normalizeRealtimeEvent(value: unknown, subscribedRooms: Readonly
 
   const channelEnvelope = recordField(envelope.body);
   const body = recordField(channelEnvelope?.body);
-  const eventType = stringLikeField(channelEnvelope?.type);
+  const eventType = stringField(channelEnvelope?.type);
   if (body == null || eventType == null) {
     return null;
   }
@@ -99,17 +95,23 @@ export function normalizeRealtimeEvent(value: unknown, subscribedRooms: Readonly
     }
 
     const message = normalizeChatMessage(messageValue);
-    const roomId = stringLikeField(body.roomId) ?? message.roomId;
-    if (roomId === '' || !subscribedRooms.has(roomId) || message.id === '') {
+    const envelopeRoomId = stringField(body.roomId);
+    const messageRoomId = stringField(message.roomId);
+    const roomId = envelopeRoomId ?? messageRoomId;
+    if (roomId == null || !subscribedRooms.has(roomId) || message.id === '') {
       return null;
     }
 
-    return { type: 'message', roomId, message };
+    if (messageRoomId != null && messageRoomId !== roomId) {
+      return null;
+    }
+
+    return { type: 'message', roomId, message: { ...message, roomId } };
   }
 
   if (eventType === 'delete') {
-    const roomId = stringLikeField(body.roomId);
-    const messageId = stringLikeField(body.messageId);
+    const roomId = stringField(body.roomId);
+    const messageId = stringField(body.messageId);
     if (roomId == null || messageId == null || !subscribedRooms.has(roomId)) {
       return null;
     }
@@ -118,8 +120,8 @@ export function normalizeRealtimeEvent(value: unknown, subscribedRooms: Readonly
   }
 
   if (eventType === 'reaction') {
-    const roomId = stringLikeField(body.roomId);
-    const messageId = stringLikeField(body.messageId);
+    const roomId = stringField(body.roomId);
+    const messageId = stringField(body.messageId);
     if (roomId == null || messageId == null || !subscribedRooms.has(roomId)) {
       return null;
     }

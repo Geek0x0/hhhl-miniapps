@@ -58,6 +58,50 @@ describe('HHHL realtime helpers', () => {
     });
   });
 
+  it('hydrates message room id from the envelope and rejects mismatched message rooms', () => {
+    expect(
+      normalizeRealtimeEvent(
+        {
+          type: 'ch',
+          body: {
+            id: 'test-main:room-1',
+            type: 'message',
+            body: {
+              roomId: 'room-1',
+              message: { id: 'msg-1', text: 'room from envelope' },
+            },
+          },
+        },
+        new Set(['room-1']),
+      ),
+    ).toMatchObject({
+      type: 'message',
+      roomId: 'room-1',
+      message: {
+        id: 'msg-1',
+        roomId: 'room-1',
+        text: 'room from envelope',
+      },
+    });
+
+    expect(
+      normalizeRealtimeEvent(
+        {
+          type: 'ch',
+          body: {
+            id: 'test-main:room-1',
+            type: 'message',
+            body: {
+              roomId: 'room-1',
+              message: { id: 'msg-2', roomId: 'room-2', text: 'mismatch' },
+            },
+          },
+        },
+        new Set(['room-1']),
+      ),
+    ).toBeNull();
+  });
+
   it('normalizes delete and reaction events for subscribed rooms', () => {
     const subscribedRooms = new Set(['room-1']);
 
@@ -124,6 +168,8 @@ describe('HHHL realtime helpers', () => {
     expect(normalizeRealtimeEvent({ type: 'connect', body: {} }, subscribedRooms)).toBeNull();
     expect(normalizeRealtimeEvent({ type: 'ch', body: { type: 'message' } }, subscribedRooms)).toBeNull();
     expect(normalizeRealtimeEvent({ type: 'ch', body: { type: 'message', body: { message: { messageId: 'msg-3' } } } }, subscribedRooms)).toBeNull();
+    expect(normalizeRealtimeEvent({ type: 'ch', body: { type: 'delete', body: { roomId: 1, messageId: 'msg-4' } } }, subscribedRooms)).toBeNull();
+    expect(normalizeRealtimeEvent({ type: 'ch', body: { type: 'reaction', body: { roomId: 'room-1', messageId: 5 } } }, subscribedRooms)).toBeNull();
     expect(normalizeRealtimeEvent(null, subscribedRooms)).toBeNull();
   });
 });
