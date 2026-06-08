@@ -5,15 +5,19 @@
   "scripts": {
     "dev": "npm --prefix chat run dev",
     "dev:bot": "npm --prefix bot run dev",
+    "dev:xbot": "npm --prefix xbot run dev",
     "build": "npm --prefix chat run build",
     "typecheck:bot": "npm --prefix bot run typecheck",
+    "typecheck:xbot": "npm --prefix xbot run typecheck",
     "typecheck": "npm --prefix chat run typecheck",
     "lint": "npm --prefix chat run lint",
     "test:bot": "npm --prefix bot run test:run",
+    "test:xbot": "npm --prefix xbot run test:run",
     "test:run": "npm --prefix chat run test:run",
     "e2e": "npm --prefix chat run e2e",
     "verify:pages": "npm --prefix chat run verify:pages",
     "deploy": "npm --prefix chat run deploy",
-    "deploy:bot": "npm --prefix bot run deploy"
+    "deploy:bot": "npm --prefix bot run deploy",
+    "deploy:xbot": "npm --prefix xbot run deploy"
   }
 }
