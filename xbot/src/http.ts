@@ -4,11 +4,13 @@ import { forwardTelegramMessageToHhhl } from './bridge/inbound';
 import type { AppConfig, Env } from './env';
 import { HhhlApiClient } from './hhhl/apiClient';
 import { createHhhlChatApi } from './hhhl/chatApi';
+import { createHhhlDriveApi } from './hhhl/driveApi';
 import { redactSensitiveText } from './security/redact';
 import { createKeys } from './state/keys';
 import { KvStateStore } from './state/kvStore';
 import { TelegramApi } from './telegram/api';
 import { commandHelpText, parseCommand, type BotCommand } from './telegram/commands';
+import { downloadTelegramMedia } from './telegram/media';
 import type { TelegramMessage } from './telegram/types';
 import { parseTelegramUpdate } from './telegram/updates';
 
@@ -119,17 +121,22 @@ async function sendRoutedReply(message: TelegramMessage, env: Env, config: AppCo
 }
 
 async function forwardInboundMessage(message: TelegramMessage, env: Env, config: AppConfig): Promise<void> {
+  const telegram = new TelegramApi(config.botToken);
+  const hhhlClient = new HhhlApiClient({
+    baseUrl: config.hhhlApiBaseUrl,
+    token: config.hhhlToken,
+  });
+
   try {
     await forwardTelegramMessageToHhhl({
       state: new KvStateStore(env.XBOT_STATE, createKeys(config.kvKeyPrefix)),
-      chatApi: createHhhlChatApi(
-        new HhhlApiClient({
-          baseUrl: config.hhhlApiBaseUrl,
-          token: config.hhhlToken,
-        }),
-      ),
-      telegram: new TelegramApi(config.botToken),
-      driveApi: null,
+      chatApi: createHhhlChatApi(hhhlClient),
+      telegram,
+      driveApi: createHhhlDriveApi(hhhlClient),
+      mediaDownloader: (downloadMessage) => {
+        if (downloadMessage.media == null) throw new Error('Telegram 消息没有媒体文件。');
+        return downloadTelegramMedia(telegram, downloadMessage.media, downloadMessage.kind);
+      },
       telegramUserId: String(message.fromId),
       message,
     });
