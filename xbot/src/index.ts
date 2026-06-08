@@ -3,6 +3,10 @@ import { handleRequest } from './http';
 
 export class BridgeObject {
   constructor(_state: DurableObjectState, _env: Env) {}
+
+  async start(_telegramUserId: string): Promise<void> {}
+
+  async stop(_telegramUserId: string): Promise<void> {}
 }
 
 export default {

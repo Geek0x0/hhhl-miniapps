@@ -164,7 +164,7 @@ describe('command flow', () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(hhhlEndpoints).toEqual(['i', 'chat/rooms/show', 'chat/rooms/members']);
     expect(bridge.getByName).toHaveBeenCalledWith('telegram:42');
-    expect(bridge.start).toHaveBeenCalledTimes(1);
+    expect(bridge.start).toHaveBeenCalledWith('42');
     expect(telegramTexts(telegramCalls)[0]).toContain('已绑定');
     expect(telegramTexts(telegramCalls)[0]).toContain('手动显示名');
 
@@ -306,7 +306,7 @@ describe('command flow', () => {
     expect(telegramTexts(telegramCalls).at(-1)).toContain('last websocket error');
 
     await expect((await postUpdate('/unbind', env)).json()).resolves.toEqual({ ok: true });
-    expect(bridge.stop).toHaveBeenCalledTimes(1);
+    expect(bridge.stop).toHaveBeenCalledWith('42');
     expect(telegramTexts(telegramCalls).at(-1)).toContain('已解绑');
     await expect(store.getBinding('42')).resolves.toBeNull();
     await expect(store.getMessageMapByTelegram('42', 100)).resolves.toBeNull();

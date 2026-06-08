@@ -14,8 +14,8 @@ export type BridgeCommand = Extract<
 >;
 
 interface BridgeUserObject {
-  start(): Promise<void>;
-  stop(): Promise<void>;
+  start(telegramUserId: string): Promise<void>;
+  stop(telegramUserId: string): Promise<void>;
 }
 
 interface CommandContext {
@@ -137,7 +137,7 @@ async function bind(command: Extract<BridgeCommand, { type: 'bind' }>, context: 
 
   await store.setBinding(bindingFrom(context.telegramUserId, command.roomId, validation.room, command.roomName));
   try {
-    await bridgeUserObject(context.env, context.telegramUserId).start();
+    await bridgeUserObject(context.env, context.telegramUserId).start(context.telegramUserId);
   } catch (error) {
     await store.clearBinding(context.telegramUserId).catch(() => undefined);
     throw error;
@@ -155,7 +155,7 @@ async function unbind(context: CommandContext): Promise<string> {
 
   await store.clearBinding(context.telegramUserId);
   await store.clearRoomMaps(context.telegramUserId, binding.roomId);
-  await bridgeUserObject(context.env, context.telegramUserId).stop();
+  await bridgeUserObject(context.env, context.telegramUserId).stop(context.telegramUserId);
 
   return `已解绑：${binding.roomName}（房间 ID：${binding.roomId}）。`;
 }
