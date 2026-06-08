@@ -36,11 +36,20 @@ export async function downloadTelegramMedia(
 }
 
 export function selectTelegramDownloadName(media: TelegramMedia, kind: TelegramMessageKind = 'document'): string {
-  const explicitName = media.fileName?.trim();
+  const explicitName = sanitizeTelegramFileName(media.fileName);
   if (explicitName) return explicitName;
 
   const downloadKind = downloadKindFrom(kind);
   return `${downloadKind}-${safeNamePart(media.fileId)}.${downloadExtensions[downloadKind]}`;
+}
+
+function sanitizeTelegramFileName(fileName: string | undefined): string | null {
+  const trimmed = fileName?.trim();
+  if (!trimmed) return null;
+
+  const baseName = trimmed.split(/[\\/]+/).filter(Boolean).pop() ?? '';
+  const safe = baseName.replace(/[\x00-\x1F\x7F]+/g, '_').replace(/^_+|_+$/g, '');
+  return safe || null;
 }
 
 function safeNamePart(value: string): string {

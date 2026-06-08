@@ -59,8 +59,8 @@ describe('TelegramApi', () => {
     ]);
     const api = new TelegramApi('secret-token', fetchImpl);
 
-    await expect(api.sendPhoto('@room', 'photo-file', 'photo caption')).resolves.toEqual({ messageId: 1 });
-    await expect(api.sendDocument('@room', 'doc-file', 'doc caption', { replyToMessageId: 10 })).resolves.toEqual({
+    await expect(api.sendPhoto('@room', 'photo-file', { caption: 'photo caption' })).resolves.toEqual({ messageId: 1 });
+    await expect(api.sendDocument('@room', 'doc-file', { caption: 'doc caption', replyToMessageId: 10 })).resolves.toEqual({
       messageId: 2,
     });
 
@@ -87,8 +87,8 @@ describe('TelegramApi', () => {
     ]);
     const api = new TelegramApi('secret-token', fetchImpl);
 
-    await expect(api.sendVideo(123, 'video-file', 'video caption')).resolves.toEqual({ messageId: 3 });
-    await expect(api.sendVoice(123, 'voice-file', 'voice caption', { replyToMessageId: 11 })).resolves.toEqual({
+    await expect(api.sendVideo(123, 'video-file', { caption: 'video caption' })).resolves.toEqual({ messageId: 3 });
+    await expect(api.sendVoice(123, 'voice-file', { caption: 'voice caption', replyToMessageId: 11 })).resolves.toEqual({
       messageId: 4,
     });
 
@@ -108,6 +108,28 @@ describe('TelegramApi', () => {
     });
   });
 
+  it('omits caption from media sends when no non-empty caption is provided', async () => {
+    const { fetchImpl, calls } = createFetch([
+      jsonResponse({ ok: true, result: { message_id: 5 } }),
+      jsonResponse({ ok: true, result: { message_id: 6 } }),
+    ]);
+    const api = new TelegramApi('secret-token', fetchImpl);
+
+    await expect(api.sendPhoto('@room', 'photo-file')).resolves.toEqual({ messageId: 5 });
+    await expect(api.sendDocument('@room', 'doc-file', { caption: '' })).resolves.toEqual({ messageId: 6 });
+
+    expect(requestBody(calls[0])).toEqual({
+      chat_id: '@room',
+      photo: 'photo-file',
+    });
+    expect(requestBody(calls[0])).not.toHaveProperty('caption');
+    expect(requestBody(calls[1])).toEqual({
+      chat_id: '@room',
+      document: 'doc-file',
+    });
+    expect(requestBody(calls[1])).not.toHaveProperty('caption');
+  });
+
   it('resolves getFile paths and Telegram file URLs', async () => {
     const { fetchImpl, calls } = createFetch([
       jsonResponse({ ok: true, result: { file_path: 'documents/file.txt' } }),
@@ -118,6 +140,36 @@ describe('TelegramApi', () => {
     expect(api.fileUrl('documents/file.txt')).toBe('https://api.telegram.org/file/botsecret-token/documents/file.txt');
     expect(calls[0].url).toBe('https://api.telegram.org/botsecret-token/getFile');
     expect(requestBody(calls[0])).toEqual({ file_id: 'file-id' });
+  });
+
+  it('throws sanitized errors for successful send envelopes without a message id', async () => {
+    const token = 'secret-token';
+    const { fetchImpl } = createFetch([jsonResponse({ ok: true, result: {} })]);
+    const api = new TelegramApi(token, fetchImpl);
+
+    const error = await api.sendMessage(123, 'hello').catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe('sendMessage failed with invalid response');
+    expect((error as Error).message).not.toContain(token);
+  });
+
+  it('throws sanitized errors for successful getFile envelopes without a usable file path', async () => {
+    const token = 'secret-token';
+    const missingPath = new TelegramApi(token, createFetch([jsonResponse({ ok: true, result: {} })]).fetchImpl);
+    const blankPath = new TelegramApi(
+      token,
+      createFetch([jsonResponse({ ok: true, result: { file_path: '   ' } })]).fetchImpl,
+    );
+
+    const missingError = await missingPath.getFilePath('file-id').catch((caught: unknown) => caught);
+    expect(missingError).toBeInstanceOf(Error);
+    expect((missingError as Error).message).toBe('getFile failed with invalid response');
+    expect((missingError as Error).message).not.toContain(token);
+
+    const blankError = await blankPath.getFilePath('file-id').catch((caught: unknown) => caught);
+    expect(blankError).toBeInstanceOf(Error);
+    expect((blankError as Error).message).toBe('getFile failed with invalid response');
+    expect((blankError as Error).message).not.toContain(token);
   });
 
   it('downloads Telegram files and throws sanitized errors for non-ok responses', async () => {
@@ -188,6 +240,19 @@ describe('Telegram media downloads', () => {
     expect(selectTelegramDownloadName({ fileId: 'video-1' }, 'video')).toBe('video-video-1.mp4');
     expect(selectTelegramDownloadName({ fileId: 'voice-1' }, 'voice')).toBe('voice-voice-1.ogg');
     expect(selectTelegramDownloadName({ fileId: 'doc-1' }, 'document')).toBe('document-doc-1.bin');
+  });
+
+  it('sanitizes explicit Telegram filenames before using them', () => {
+    expect(selectTelegramDownloadName({ fileId: 'doc-1', fileName: '../bad/name.txt' }, 'document')).toBe('name.txt');
+    expect(selectTelegramDownloadName({ fileId: 'voice-1', fileName: 'C:\\temp\\voice.ogg' }, 'voice')).toBe(
+      'voice.ogg',
+    );
+    expect(selectTelegramDownloadName({ fileId: 'doc-2', fileName: 'bad\u0000\nname.txt' }, 'document')).toBe(
+      'bad_name.txt',
+    );
+    expect(selectTelegramDownloadName({ fileId: 'doc-3', fileName: '\u0000\n\t' }, 'document')).toBe(
+      'document-doc-3.bin',
+    );
   });
 
   it('downloads media with resolved name, type, and blob', async () => {

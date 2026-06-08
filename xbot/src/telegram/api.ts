@@ -3,6 +3,7 @@ type FetchImpl = typeof fetch;
 type TelegramChatId = number | string;
 
 export interface TelegramSendOptions {
+  caption?: string;
   replyToMessageId?: number;
 }
 
@@ -31,7 +32,9 @@ function messageIdFrom(result: unknown): number | null {
 
 function filePathFrom(result: unknown): string | null {
   if (!isRecord(result)) return null;
-  return typeof result.file_path === 'string' && result.file_path !== '' ? result.file_path : null;
+  if (typeof result.file_path !== 'string') return null;
+  const filePath = result.file_path.trim();
+  return filePath !== '' ? filePath : null;
 }
 
 export class TelegramApi {
@@ -57,13 +60,12 @@ export class TelegramApi {
   async sendPhoto(
     chatId: TelegramChatId,
     photo: string,
-    caption?: string,
     options?: TelegramSendOptions,
   ): Promise<TelegramSendResult> {
     return this.postMessage('sendPhoto', {
       chat_id: chatId,
       photo,
-      caption,
+      ...captionPayload(options),
       ...replyPayload(options),
     });
   }
@@ -71,13 +73,12 @@ export class TelegramApi {
   async sendDocument(
     chatId: TelegramChatId,
     document: string,
-    caption?: string,
     options?: TelegramSendOptions,
   ): Promise<TelegramSendResult> {
     return this.postMessage('sendDocument', {
       chat_id: chatId,
       document,
-      caption,
+      ...captionPayload(options),
       ...replyPayload(options),
     });
   }
@@ -85,13 +86,12 @@ export class TelegramApi {
   async sendVideo(
     chatId: TelegramChatId,
     video: string,
-    caption?: string,
     options?: TelegramSendOptions,
   ): Promise<TelegramSendResult> {
     return this.postMessage('sendVideo', {
       chat_id: chatId,
       video,
-      caption,
+      ...captionPayload(options),
       ...replyPayload(options),
     });
   }
@@ -99,13 +99,12 @@ export class TelegramApi {
   async sendVoice(
     chatId: TelegramChatId,
     voice: string,
-    caption?: string,
     options?: TelegramSendOptions,
   ): Promise<TelegramSendResult> {
     return this.postMessage('sendVoice', {
       chat_id: chatId,
       voice,
-      caption,
+      ...captionPayload(options),
       ...replyPayload(options),
     });
   }
@@ -171,6 +170,11 @@ export class TelegramApi {
 
     return envelope;
   }
+}
+
+function captionPayload(options?: TelegramSendOptions): Record<string, unknown> {
+  if (options?.caption == null || options.caption === '') return {};
+  return { caption: options.caption };
 }
 
 function replyPayload(options?: TelegramSendOptions): Record<string, unknown> {
