@@ -35,14 +35,18 @@ export class HhhlApiClient implements HhhlEndpointCaller {
   }
 
   async uploadFile<TResponse = unknown>(formData: FormData): Promise<TResponse> {
-    formData.set('i', this.token);
-    formData.set('force', 'true');
+    const uploadData = new FormData();
+    for (const [key, value] of formData.entries()) {
+      uploadData.append(key, value);
+    }
+    uploadData.set('i', this.token);
+    uploadData.set('force', 'true');
 
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.baseUrl}/drive/files/create`, {
         method: 'POST',
-        body: formData,
+        body: uploadData,
       });
     } catch {
       throw new Error('HHHL upload failed');

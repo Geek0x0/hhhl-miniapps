@@ -69,6 +69,9 @@ describe('HhhlApiClient', () => {
     expect(calls[0].init?.headers).toBeUndefined();
     expect(calls[0].init?.body).toBeInstanceOf(FormData);
     const posted = calls[0].init?.body as FormData;
+    expect(posted).not.toBe(formData);
+    expect(formData.get('i')).toBe('old-token');
+    expect(formData.has('force')).toBe(false);
     expect(posted.get('i')).toBe('secret-token');
     expect(posted.get('force')).toBe('true');
     expect(posted.get('file')).toBeInstanceOf(Blob);
@@ -212,7 +215,7 @@ describe('HHHL drive upload and normalization', () => {
           filename: 'report.txt',
           mimeType: 'text/plain',
           webUrl: '/files/file-1',
-          thumbnailURL: '/thumbs/file-1',
+          thumbnailURL: '/thumb/file-1',
         };
       },
     };
@@ -223,8 +226,8 @@ describe('HHHL drive upload and normalization', () => {
       id: 'file-1',
       name: 'report.txt',
       type: 'text/plain',
-      url: '/files/file-1',
-      thumbnailUrl: '/thumbs/file-1',
+      url: 'https://dc.hhhl.cc/files/file-1',
+      thumbnailUrl: 'https://dc.hhhl.cc/thumb/file-1',
     });
 
     const posted = uploads[0];
@@ -278,12 +281,20 @@ describe('HHHL drive upload and normalization', () => {
     })).toMatchObject({
       id: 'attachment-1',
       name: 'fallback.bin',
-      url: '/download/attachment-1',
-      thumbnailUrl: '/thumb/attachment-1',
+      url: 'https://dc.hhhl.cc/download/attachment-1',
+      thumbnailUrl: 'https://dc.hhhl.cc/thumb/attachment-1',
     });
     expect(normalizeDriveFile({ id: 'file-2', name: 'src.png', src: 'blob:src', downloadUrl: 'ignored' })).toMatchObject({
       id: 'file-2',
       url: 'blob:src',
+    });
+    expect(normalizeDriveFile({ id: 'file-3', name: 'data.png', src: 'data:image/png;base64,abc' })).toMatchObject({
+      id: 'file-3',
+      url: 'data:image/png;base64,abc',
+    });
+    expect(normalizeDriveFile({ id: 'file-4', name: 'http.png', thumbnail: 'http://cdn.example/thumb.png' })).toMatchObject({
+      id: 'file-4',
+      thumbnailUrl: 'http://cdn.example/thumb.png',
     });
   });
 });

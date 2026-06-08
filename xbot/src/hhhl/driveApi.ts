@@ -1,5 +1,7 @@
 import type { DriveUploadParams, HhhlDriveFile, HhhlUploadClient } from './types';
 
+const HHHL_DRIVE_BASE_URL = 'https://dc.hhhl.cc';
+
 function recordField(value: unknown): Record<string, unknown> | null {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
@@ -59,11 +61,15 @@ function urlFrom(raw: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
     const value = stringField(raw[key]);
     if (value != null) {
-      return value;
+      return normalizeDriveUrl(value);
     }
   }
 
   return null;
+}
+
+function normalizeDriveUrl(value: string): string {
+  return value.startsWith('/') ? `${HHHL_DRIVE_BASE_URL}${value}` : value;
 }
 
 function normalizeDriveFileProperties(source: Record<string, unknown>): HhhlDriveFile['properties'] {
