@@ -55,14 +55,19 @@ function photoFrom(raw: Record<string, unknown>): TelegramMedia | null {
   if (!Array.isArray(photos)) return null;
 
   let largest: Record<string, unknown> | null = null;
-  let largestSize = -1;
+  let largestRank: number | undefined;
 
   for (const photo of photos) {
     if (!isRecord(photo)) continue;
-    const fileSize = positiveIntegerField(photo.file_size) ?? 0;
-    if (largest == null || fileSize > largestSize) {
+    if (stringField(photo.file_id) == null) continue;
+
+    const fileSize = positiveIntegerField(photo.file_size);
+    const width = positiveIntegerField(photo.width);
+    const height = positiveIntegerField(photo.height);
+    const rank = fileSize ?? (width != null && height != null ? width * height : undefined);
+    if (largest == null || largestRank == null || (rank != null && rank >= largestRank)) {
       largest = photo;
-      largestSize = fileSize;
+      largestRank = rank;
     }
   }
 

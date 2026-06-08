@@ -21,6 +21,11 @@ export const commandHelpText = [
 
 const bindUsage = '用法：/bind <roomId> [显示名]';
 const renameUsage = '用法：/rename <显示名>';
+const unbindUsage = '用法：/unbind';
+const listUsage = '用法：/list';
+const statusUsage = '用法：/status';
+const helpUsage = '用法：/help';
+const startUsage = '用法：/start';
 
 function splitCommand(text: string): { command: string; rest: string } | null {
   const trimmed = text.trim();
@@ -55,10 +60,30 @@ export function parseCommand(text: string): BotCommand | null {
     return { type: 'rename', roomName: parsed.rest };
   }
 
-  if (parsed.command === '/unbind') return { type: 'unbind' };
-  if (parsed.command === '/list') return { type: 'list' };
-  if (parsed.command === '/status') return { type: 'status' };
-  if (parsed.command === '/help' || parsed.command === '/start') return { type: 'help' };
+  if (parsed.command === '/unbind') {
+    if (parsed.rest !== '') return { type: 'invalid', reason: unbindUsage };
+    return { type: 'unbind' };
+  }
+
+  if (parsed.command === '/list') {
+    if (parsed.rest !== '') return { type: 'invalid', reason: listUsage };
+    return { type: 'list' };
+  }
+
+  if (parsed.command === '/status') {
+    if (parsed.rest !== '') return { type: 'invalid', reason: statusUsage };
+    return { type: 'status' };
+  }
+
+  if (parsed.command === '/help') {
+    if (parsed.rest !== '') return { type: 'invalid', reason: helpUsage };
+    return { type: 'help' };
+  }
+
+  if (parsed.command === '/start') {
+    if (parsed.rest !== '') return { type: 'invalid', reason: startUsage };
+    return { type: 'help' };
+  }
 
   return { type: 'unknown' };
 }

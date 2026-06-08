@@ -16,6 +16,11 @@ describe('parseCommand', () => {
   it('reports invalid commands with Chinese usage text', () => {
     expect(parseCommand('/bind')).toEqual({ type: 'invalid', reason: '用法：/bind <roomId> [显示名]' });
     expect(parseCommand('/rename')).toEqual({ type: 'invalid', reason: '用法：/rename <显示名>' });
+    expect(parseCommand('/unbind room-2')).toEqual({ type: 'invalid', reason: '用法：/unbind' });
+    expect(parseCommand('/list extra')).toEqual({ type: 'invalid', reason: '用法：/list' });
+    expect(parseCommand('/status extra')).toEqual({ type: 'invalid', reason: '用法：/status' });
+    expect(parseCommand('/help extra')).toEqual({ type: 'invalid', reason: '用法：/help' });
+    expect(parseCommand('/start extra')).toEqual({ type: 'invalid', reason: '用法：/start' });
   });
 
   it('returns unknown for unsupported slash commands', () => {
@@ -146,11 +151,37 @@ describe('parseTelegramUpdate', () => {
     });
   });
 
-  it('normalizes video and voice media metadata', () => {
-    const video = parseTelegramUpdate({
+  it('chooses the largest photo by dimensions when file sizes are missing', () => {
+    const parsed = parseTelegramUpdate({
       update_id: 5,
       message: {
         message_id: 14,
+        photo: [
+          { width: 4096, height: 4096 },
+          { file_id: 'small', width: 90, height: 90 },
+          { file_id: 'medium', width: 640, height: 360 },
+          { file_id: 'large', width: 1280, height: 720 },
+        ],
+        from: { id: 42, is_bot: false, first_name: 'K' },
+        chat: { id: 42, type: 'private' },
+      },
+    });
+
+    expect(parsed?.message).toMatchObject({
+      kind: 'photo',
+      media: {
+        fileId: 'large',
+        width: 1280,
+        height: 720,
+      },
+    });
+  });
+
+  it('normalizes video and voice media metadata', () => {
+    const video = parseTelegramUpdate({
+      update_id: 6,
+      message: {
+        message_id: 15,
         video: {
           file_id: 'video-file',
           file_name: 'clip.mp4',
@@ -165,9 +196,9 @@ describe('parseTelegramUpdate', () => {
       },
     });
     const voice = parseTelegramUpdate({
-      update_id: 6,
+      update_id: 7,
       message: {
-        message_id: 15,
+        message_id: 16,
         voice: {
           file_id: 'voice-file',
           mime_type: 'audio/ogg',
@@ -204,27 +235,27 @@ describe('parseTelegramUpdate', () => {
 
   it('returns unsupported for messages without text or media', () => {
     const parsed = parseTelegramUpdate({
-      update_id: 7,
+      update_id: 8,
       message: {
-        message_id: 16,
+        message_id: 17,
         from: { id: 42, is_bot: false, first_name: 'K' },
         chat: { id: 42, type: 'private' },
       },
     });
 
     expect(parsed?.message).toMatchObject({
-      messageId: 16,
+      messageId: 17,
       chatType: 'private',
       kind: 'unsupported',
     });
   });
 
   it('returns an update id object for updates without messages', () => {
-    expect(parseTelegramUpdate({ update_id: 8, edited_message: { message_id: 17 } })).toEqual({ updateId: 8 });
+    expect(parseTelegramUpdate({ update_id: 9, edited_message: { message_id: 18 } })).toEqual({ updateId: 9 });
   });
 
   it('returns null for invalid updates', () => {
     expect(parseTelegramUpdate(null)).toBeNull();
-    expect(parseTelegramUpdate({ update_id: 9, message: { message_id: 18 } })).toBeNull();
+    expect(parseTelegramUpdate({ update_id: 10, message: { message_id: 19 } })).toBeNull();
   });
 });
