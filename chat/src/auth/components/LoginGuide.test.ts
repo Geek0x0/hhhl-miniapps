@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import LoginGuide from './LoginGuide.vue';
 
 describe('LoginGuide', () => {
+  it('shows the app version at the bottom of the login panel', () => {
+    render(LoginGuide);
+
+    expect(screen.getByText(/^v\d+\.\d+\.\d+/)).toBeInTheDocument();
+  });
+
   it('shows auth errors in a floating alert', () => {
     render(LoginGuide, {
       props: {

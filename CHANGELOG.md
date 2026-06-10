@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.11 - 2026-06-10
+
+### chat
+
+#### Added
+
+- Added the current app version to the bottom of the dc.hhhl.cc login guide.
+
 ## 0.6.10 - 2026-06-10
 
 ### chat

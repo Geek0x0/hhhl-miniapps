@@ -65,6 +65,12 @@
   margin-top: 20px;
 }
 
+.login-guide__version {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
 .settings-actions {
   align-items: stretch;
 }

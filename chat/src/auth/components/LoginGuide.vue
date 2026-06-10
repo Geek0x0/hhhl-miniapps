@@ -37,11 +37,16 @@
         {{ i18n.t('auth.loginAction') }}
       </button>
     </div>
+    <p class="app-copy login-guide__version">
+      v{{ appVersion }}
+    </p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { i18n } from '@/i18n';
+
+const appVersion = __APP_VERSION__;
 
 defineProps<{
   error?: string | null;
