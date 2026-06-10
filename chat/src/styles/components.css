@@ -58,6 +58,112 @@
   line-height: 1.5;
 }
 
+.ui-surface {
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-subtle);
+}
+
+.ui-surface--glass {
+  background: var(--tg-surface-glass);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.ui-notice {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-subtle);
+  color: var(--tg-text);
+}
+
+.ui-notice--error {
+  border-color: color-mix(in srgb, var(--tg-danger) 38%, var(--tg-border));
+  background: var(--tg-surface-danger);
+}
+
+.ui-notice--warning {
+  border-color: color-mix(in srgb, var(--tg-warning) 42%, var(--tg-border));
+  background: var(--tg-surface-warning);
+}
+
+.ui-notice--success {
+  border-color: color-mix(in srgb, var(--tg-success) 36%, var(--tg-border));
+  background: var(--tg-surface-success);
+}
+
+.ui-empty-state {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 18px;
+  border: 1px dashed color-mix(in srgb, var(--tg-button) 28%, var(--tg-border));
+  border-radius: var(--tg-radius-md);
+  background:
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--tg-button) 12%, transparent), transparent 34%),
+    var(--tg-bg);
+  color: var(--tg-hint);
+}
+
+.ui-empty-state strong {
+  color: var(--tg-text);
+}
+
+.ui-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-skeleton-base);
+}
+
+.ui-skeleton::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--tg-skeleton-sheen), transparent);
+  content: "";
+  transform: translateX(-100%);
+  animation: ui-skeleton-shimmer 1400ms var(--tg-ease-standard) infinite;
+}
+
+@keyframes ui-skeleton-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ui-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ui-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .app-actions {
   display: flex;
   flex-wrap: wrap;

@@ -32,3 +32,38 @@ textarea,
 select {
   font: inherit;
 }
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--tg-focus-ring);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  transition:
+    background-color var(--tg-motion-fast) var(--tg-ease-standard),
+    border-color var(--tg-motion-fast) var(--tg-ease-standard),
+    box-shadow var(--tg-motion-fast) var(--tg-ease-standard),
+    color var(--tg-motion-fast) var(--tg-ease-standard),
+    opacity var(--tg-motion-fast) var(--tg-ease-standard),
+    transform var(--tg-motion-fast) var(--tg-ease-standard);
+}
+
+button:active:not(:disabled),
+a:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -12,6 +12,31 @@
   --tg-message-own-border: rgba(42, 171, 238, 0.2);
   --tg-shadow: 0 1px 2px rgba(20, 32, 43, 0.1);
   --tg-danger: #ef4444;
+  --tg-success: #16a34a;
+  --tg-warning: #f59e0b;
+  --tg-info: #2aabee;
+  --tg-soft-bg: color-mix(in srgb, var(--tg-button) 7%, var(--tg-bg));
+  --tg-surface-raised: color-mix(in srgb, var(--tg-panel) 94%, var(--tg-button) 6%);
+  --tg-surface-glass: color-mix(in srgb, var(--tg-panel) 86%, transparent);
+  --tg-surface-danger: color-mix(in srgb, var(--tg-danger) 10%, var(--tg-panel));
+  --tg-surface-warning: color-mix(in srgb, var(--tg-warning) 12%, var(--tg-panel));
+  --tg-surface-success: color-mix(in srgb, var(--tg-success) 10%, var(--tg-panel));
+  --tg-focus-ring: 0 0 0 3px color-mix(in srgb, var(--tg-button) 28%, transparent);
+  --tg-radius-xs: 6px;
+  --tg-radius-sm: 10px;
+  --tg-radius-md: 14px;
+  --tg-radius-lg: 20px;
+  --tg-radius-pill: 999px;
+  --tg-shadow-subtle: 0 1px 2px rgba(20, 32, 43, 0.08);
+  --tg-shadow-raised: 0 10px 28px rgba(20, 32, 43, 0.12);
+  --tg-shadow-floating: 0 18px 48px rgba(20, 32, 43, 0.18);
+  --tg-motion-fast: 120ms;
+  --tg-motion-normal: 220ms;
+  --tg-motion-slow: 420ms;
+  --tg-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --tg-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --tg-skeleton-base: color-mix(in srgb, var(--tg-hint) 12%, transparent);
+  --tg-skeleton-sheen: color-mix(in srgb, var(--tg-button) 14%, transparent);
 }
 
 :root[data-theme='dark'] {
@@ -21,6 +46,10 @@
   --tg-message-own: #15344a;
   --tg-message-own-border: rgba(42, 171, 238, 0.32);
   --tg-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --tg-shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --tg-shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.32);
+  --tg-shadow-floating: 0 18px 54px rgba(0, 0, 0, 0.42);
+  --tg-surface-glass: color-mix(in srgb, var(--tg-panel) 82%, transparent);
 }
 
 body {
