@@ -255,6 +255,7 @@
 
 .rooms-entry-hub {
   position: relative;
+  isolation: isolate;
   width: min(100%, 820px);
 }
 

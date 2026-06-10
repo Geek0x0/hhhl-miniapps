@@ -6,7 +6,7 @@
     <span class="room-list-item__main">
       <strong>{{ entry.room.name }}</strong>
       <span class="room-list-item__meta">
-        <small>{{ entry.room.description ?? entry.room.id }}</small>
+        <small v-if="entry.room.description != null && entry.room.description !== ''">{{ entry.room.description }}</small>
         <small class="room-list-item__id">{{ entry.room.id }}</small>
       </span>
     </span>

@@ -47,7 +47,10 @@ describe('RoomListItem', () => {
       sources: ['manual'],
     });
 
-    expect(container.querySelector('.room-list-item__meta')).toHaveTextContent('room-fallback');
+    const metadata = container.querySelector('.room-list-item__meta');
+
+    expect(metadata).toHaveTextContent('room-fallback');
+    expect(metadata?.textContent?.match(/room-fallback/g)).toHaveLength(1);
     expect(container.querySelector('.room-list-item__id')).toHaveTextContent('room-fallback');
   });
 
