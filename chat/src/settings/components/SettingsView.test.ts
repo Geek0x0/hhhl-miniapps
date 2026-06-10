@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   route: {
     name: 'settings' as string | null,
     path: '/settings',
+    params: {} as Record<string, unknown>,
   },
   auth: {
     status: 'authorized',
@@ -130,6 +131,7 @@ describe('SettingsView', () => {
     });
     mocks.route.name = 'settings';
     mocks.route.path = '/settings';
+    mocks.route.params = {};
     mocks.auth.status = 'authorized';
     mocks.auth.user = null;
     mocks.auth.error = null;
@@ -210,6 +212,7 @@ describe('SettingsView', () => {
   it('collects rich diagnostics context when diagnostics open', async () => {
     mocks.route.name = 'room';
     mocks.route.path = '/rooms/room-route';
+    mocks.route.params = { roomId: 'room-route' };
     mocks.auth.user = { id: 'user-secret', username: 'alice', name: 'Alice' };
     mocks.auth.error = 'auth error';
     mocks.settings.favoriteUserIds = ['favorite-user'];
@@ -282,6 +285,7 @@ describe('SettingsView', () => {
       route: {
         name: 'room',
         path: '/rooms/room-route',
+        roomId: 'room-route',
       },
       realtime: {
         status: 'connected',
@@ -301,6 +305,11 @@ describe('SettingsView', () => {
       chat: {
         loading: true,
         roomId: 'room-chat',
+        documentVisibility: 'visible',
+        visibleCatchUpIntervalMs: 3000,
+        chatRoomMatchesRoute: false,
+        realtimeRoomMatchesRoute: false,
+        visibleCatchUpEligible: false,
         olderLoading: true,
         newerLoading: false,
         hasMoreOlder: true,
@@ -324,6 +333,7 @@ describe('SettingsView', () => {
         { value: 'alice', caseInsensitive: true },
         { value: 'Alice', caseInsensitive: true },
         { value: 'favorite-user', caseInsensitive: false },
+        { value: 'room-route', caseInsensitive: false },
         { value: 'room-realtime', caseInsensitive: false },
         { value: 'room-active', caseInsensitive: false },
         { value: 'Active Room', caseInsensitive: true },

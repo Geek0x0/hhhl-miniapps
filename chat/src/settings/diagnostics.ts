@@ -43,6 +43,7 @@ export interface DiagnosticsAuthInput {
 export interface DiagnosticsRouteInput {
   name?: string | null;
   path?: string;
+  roomId?: string | null;
 }
 
 export interface DiagnosticsRealtimeInput {
@@ -69,6 +70,11 @@ export interface DiagnosticsRoomsInput {
 export interface DiagnosticsChatInput {
   loading?: boolean;
   roomId?: string | null;
+  documentVisibility?: string | null;
+  visibleCatchUpIntervalMs?: number | null;
+  chatRoomMatchesRoute?: boolean;
+  realtimeRoomMatchesRoute?: boolean;
+  visibleCatchUpEligible?: boolean;
   olderLoading?: boolean;
   newerLoading?: boolean;
   hasMoreOlder?: boolean;
@@ -137,6 +143,7 @@ export interface DiagnosticsAuthSnapshot {
 export interface DiagnosticsRouteSnapshot {
   name: string;
   path: string;
+  roomId: string | null;
   type: DiagnosticsRouteType;
   isRoomRoute: boolean;
 }
@@ -164,6 +171,11 @@ export interface DiagnosticsRoomsSnapshot {
 export interface DiagnosticsChatSnapshot {
   loading: boolean;
   roomId: string | null;
+  documentVisibility: string;
+  visibleCatchUpIntervalMs: number | null;
+  chatRoomMatchesRoute: boolean;
+  realtimeRoomMatchesRoute: boolean;
+  visibleCatchUpEligible: boolean;
   olderLoading: boolean;
   newerLoading: boolean;
   hasMoreOlder: boolean;
@@ -248,6 +260,8 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
   const chat = input.chat ?? {};
   const errors = input.errors ?? {};
   const routePath = requiredText(route.path);
+  const routeRoomId = optionalText(route.roomId) ?? roomIdFromRoutePath(routePath);
+  const routeType = routeTypeFromPath(routePath);
   const userId = optionalText(auth.userId);
   const username = optionalText(auth.username);
 
@@ -269,8 +283,9 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
     route: {
       name: requiredText(route.name),
       path: routePath,
-      type: routeTypeFromPath(routePath),
-      isRoomRoute: routeTypeFromPath(routePath) === 'room',
+      roomId: routeRoomId,
+      type: routeType,
+      isRoomRoute: routeType === 'room',
     },
     realtime: {
       status: requiredText(realtime.status ?? input.realtimeStatus),
@@ -292,6 +307,11 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
     chat: {
       loading: chat.loading ?? false,
       roomId: optionalText(chat.roomId),
+      documentVisibility: requiredText(chat.documentVisibility),
+      visibleCatchUpIntervalMs: chat.visibleCatchUpIntervalMs ?? null,
+      chatRoomMatchesRoute: chat.chatRoomMatchesRoute ?? false,
+      realtimeRoomMatchesRoute: chat.realtimeRoomMatchesRoute ?? false,
+      visibleCatchUpEligible: chat.visibleCatchUpEligible ?? false,
       olderLoading: chat.olderLoading ?? false,
       newerLoading: chat.newerLoading ?? false,
       hasMoreOlder: chat.hasMoreOlder ?? false,
@@ -337,6 +357,7 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
     `routeName=${snapshot.route.name}`,
     `routeType=${snapshot.route.type}`,
     `isRoomRoute=${snapshot.route.isRoomRoute}`,
+    `routeRoomPresent=${snapshot.route.roomId != null}`,
     '',
     '[realtime]',
     `realtimeStatus=${snapshot.realtime.status}`,
@@ -351,6 +372,11 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
     '',
     '[chat]',
     `chatLoading=${snapshot.chat.loading}`,
+    `documentVisibility=${snapshot.chat.documentVisibility}`,
+    `visibleCatchUpIntervalMs=${diagnosticValue(snapshot.chat.visibleCatchUpIntervalMs)}`,
+    `chatRoomMatchesRoute=${snapshot.chat.chatRoomMatchesRoute}`,
+    `realtimeRoomMatchesRoute=${snapshot.chat.realtimeRoomMatchesRoute}`,
+    `visibleCatchUpEligible=${snapshot.chat.visibleCatchUpEligible}`,
     `chatOlderLoading=${snapshot.chat.olderLoading}`,
     `chatNewerLoading=${snapshot.chat.newerLoading}`,
     `chatHasMoreOlder=${snapshot.chat.hasMoreOlder}`,
@@ -383,11 +409,17 @@ export function renderDetailedDiagnostics(snapshot: DiagnosticsSnapshot): string
     '[details]',
     `userId=${detailDiagnosticValue(snapshot.auth.userId)}`,
     `username=${detailDiagnosticValue(snapshot.auth.username)}`,
+    `routeRoomId=${detailDiagnosticValue(snapshot.route.roomId)}`,
     `realtimeRoomId=${detailDiagnosticValue(snapshot.realtime.roomId)}`,
     `activeRoomId=${detailDiagnosticValue(snapshot.rooms.activeRoomId)}`,
     `activeRoomName=${detailDiagnosticValue(snapshot.rooms.activeRoomName)}`,
     `pendingStartRoomId=${detailDiagnosticValue(snapshot.rooms.pendingStartRoomId)}`,
     `chatRoomId=${detailDiagnosticValue(snapshot.chat.roomId)}`,
+    `documentVisibility=${snapshot.chat.documentVisibility}`,
+    `visibleCatchUpIntervalMs=${diagnosticValue(snapshot.chat.visibleCatchUpIntervalMs)}`,
+    `chatRoomMatchesRoute=${snapshot.chat.chatRoomMatchesRoute}`,
+    `realtimeRoomMatchesRoute=${snapshot.chat.realtimeRoomMatchesRoute}`,
+    `visibleCatchUpEligible=${snapshot.chat.visibleCatchUpEligible}`,
     `memberCount=${detailDiagnosticValue(snapshot.rooms.memberCount)}`,
     `outboxInvitationCount=${detailDiagnosticValue(snapshot.rooms.outboxInvitationCount)}`,
     `chatOlderLoading=${snapshot.chat.olderLoading}`,
@@ -679,6 +711,7 @@ function knownIdentifiers(snapshot: DiagnosticsSnapshot): KnownIdentifier[] {
   const identifiers = [
     knownIdentifier(snapshot.auth.userId, false),
     knownIdentifier(snapshot.auth.username, true),
+    knownIdentifier(snapshot.route.roomId, false),
     knownIdentifier(roomIdFromRoutePath(snapshot.route.path), false),
     knownIdentifier(snapshot.realtime.roomId, false),
     knownIdentifier(snapshot.rooms.activeRoomId, false),

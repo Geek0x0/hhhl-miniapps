@@ -142,6 +142,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, Monitor, Moon, Sun } from '@lucide/vue';
 import { createAuthDependencies, useAuthStore } from '@/auth/authStore';
 import { useChatStore } from '@/chat/chatStore';
+import { VISIBLE_CATCH_UP_INTERVAL_MS } from '@/chat/visibleCatchUp';
 import { i18n, type MessageKey } from '@/i18n';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
 import type { RoomSummary, UserSummary } from '@/shared/types';
@@ -191,6 +192,59 @@ function routeName(): string | null {
     return route.name;
   }
   return route.name == null ? null : String(route.name);
+}
+
+function routeRoomId(): string | null {
+  const param = route.params.roomId;
+  if (typeof param === 'string' && param.trim() !== '') {
+    return param;
+  }
+  if (Array.isArray(param)) {
+    const first = param.find((entry) => typeof entry === 'string' && entry.trim() !== '');
+    if (first != null) {
+      return first;
+    }
+  }
+
+  return roomIdFromRoutePath(route.path);
+}
+
+function roomIdFromRoutePath(path: string): string | null {
+  const normalizedPath = path.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+  const match = /^\/rooms\/([^/]+)(?:\/|$)/.exec(normalizedPath);
+  const roomId = match?.[1]?.trim();
+
+  if (roomId == null || roomId === '') {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(roomId);
+  } catch {
+    return roomId;
+  }
+}
+
+function documentVisibility(): string {
+  return globalThis.document.visibilityState;
+}
+
+function chatRoomMatchesRoute(routeRoomId: string | null): boolean {
+  return routeRoomId != null && chatStore.roomId === routeRoomId;
+}
+
+function realtimeRoomMatchesRoute(routeRoomId: string | null): boolean {
+  return routeRoomId != null && realtimeStore.roomId === routeRoomId;
+}
+
+function visibleCatchUpEligible(routeRoomId: string | null, visibility: string): boolean {
+  return (
+    routeRoomId != null &&
+    chatStore.roomId === routeRoomId &&
+    !chatStore.loading &&
+    realtimeStore.status === 'connected' &&
+    visibility === 'visible'
+  );
 }
 
 function activeRoomName(): string | null {
@@ -333,6 +387,7 @@ function redactionIdentifiers(): DiagnosticsRedactionIdentifierInput[] {
   }
 
   addRedactionIdentifier(identifiers, realtimeStore.roomId);
+  addRedactionIdentifier(identifiers, routeRoomId());
   addRedactionIdentifier(identifiers, roomStore.activeRoomId);
   addRedactionIdentifier(identifiers, roomStore.pendingStartRoomId);
   addRedactionIdentifier(identifiers, chatStore.roomId);
@@ -356,6 +411,9 @@ function redactionIdentifiers(): DiagnosticsRedactionIdentifierInput[] {
 }
 
 function collectSettingsDiagnostics(): void {
+  const currentRouteRoomId = routeRoomId();
+  const currentDocumentVisibility = documentVisibility();
+
   settings.collectDiagnostics({
     environment: {
       appVersion,
@@ -375,6 +433,7 @@ function collectSettingsDiagnostics(): void {
     route: {
       name: routeName(),
       path: route.path,
+      roomId: currentRouteRoomId,
     },
     realtime: {
       status: realtimeStore.status,
@@ -394,6 +453,11 @@ function collectSettingsDiagnostics(): void {
     chat: {
       loading: chatStore.loading,
       roomId: chatStore.roomId,
+      documentVisibility: currentDocumentVisibility,
+      visibleCatchUpIntervalMs: VISIBLE_CATCH_UP_INTERVAL_MS,
+      chatRoomMatchesRoute: chatRoomMatchesRoute(currentRouteRoomId),
+      realtimeRoomMatchesRoute: realtimeRoomMatchesRoute(currentRouteRoomId),
+      visibleCatchUpEligible: visibleCatchUpEligible(currentRouteRoomId, currentDocumentVisibility),
       olderLoading: chatStore.olderLoading,
       newerLoading: chatStore.newerLoading,
       hasMoreOlder: chatStore.hasMoreOlder,

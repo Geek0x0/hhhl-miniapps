@@ -21,6 +21,7 @@ function richDiagnosticsInput() {
     route: {
       name: 'room-detail',
       path: '/rooms/room-secret?i=query-token',
+      roomId: 'room-secret',
     },
     realtime: {
       status: 'degraded',
@@ -43,6 +44,11 @@ function richDiagnosticsInput() {
     chat: {
       loading: false,
       roomId: 'room-secret',
+      documentVisibility: 'visible',
+      visibleCatchUpIntervalMs: 3000,
+      chatRoomMatchesRoute: true,
+      realtimeRoomMatchesRoute: true,
+      visibleCatchUpEligible: false,
       olderLoading: true,
       newerLoading: false,
       hasMoreOlder: true,
@@ -83,6 +89,7 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('routeName=room-detail');
     expect(safe).toContain('routeType=room');
     expect(safe).toContain('isRoomRoute=true');
+    expect(safe).toContain('routeRoomPresent=true');
     expect(safe).toContain('[realtime]');
     expect(safe).toContain('realtimeStatus=degraded');
     expect(safe).toContain('[storage]');
@@ -93,6 +100,11 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('invitationCount=2');
     expect(safe).toContain('[chat]');
     expect(safe).toContain('chatLoading=false');
+    expect(safe).toContain('documentVisibility=visible');
+    expect(safe).toContain('visibleCatchUpIntervalMs=3000');
+    expect(safe).toContain('chatRoomMatchesRoute=true');
+    expect(safe).toContain('realtimeRoomMatchesRoute=true');
+    expect(safe).toContain('visibleCatchUpEligible=false');
     expect(safe).toContain('chatOlderLoading=true');
     expect(safe).toContain('chatNewerLoading=false');
     expect(safe).toContain('chatHasMoreOlder=true');
@@ -126,10 +138,16 @@ describe('diagnostics renderer', () => {
     expect(detailed).toContain('[details]');
     expect(detailed).toContain('userId=user-secret');
     expect(detailed).toContain('username=alice');
+    expect(detailed).toContain('routeRoomId=room-secret');
     expect(detailed).toContain('activeRoomId=room-secret');
     expect(detailed).toContain('activeRoomName=Secret Room');
     expect(detailed).toContain('pendingStartRoomId=room-pending');
     expect(detailed).toContain('chatRoomId=room-secret');
+    expect(detailed).toContain('documentVisibility=visible');
+    expect(detailed).toContain('visibleCatchUpIntervalMs=3000');
+    expect(detailed).toContain('chatRoomMatchesRoute=true');
+    expect(detailed).toContain('realtimeRoomMatchesRoute=true');
+    expect(detailed).toContain('visibleCatchUpEligible=false');
     expect(detailed).toContain('memberCount=7');
     expect(detailed).toContain('outboxInvitationCount=4');
     expect(detailed).toContain('chatOlderLoading=true');

@@ -194,6 +194,7 @@ describe('settingsStore', () => {
       route: {
         name: 'room-detail',
         path: '/rooms/room-secret',
+        roomId: 'room-secret',
       },
       realtime: {
         status: 'degraded',
@@ -216,6 +217,11 @@ describe('settingsStore', () => {
       chat: {
         loading: false,
         roomId: 'room-secret',
+        documentVisibility: 'visible',
+        visibleCatchUpIntervalMs: 3000,
+        chatRoomMatchesRoute: true,
+        realtimeRoomMatchesRoute: true,
+        visibleCatchUpEligible: false,
         olderLoading: false,
         newerLoading: true,
         hasMoreOlder: true,
@@ -239,6 +245,12 @@ describe('settingsStore', () => {
     expect(store.safeDiagnostics).toContain('authStatus=authorized');
     expect(store.safeDiagnostics).toContain('roomCount=2');
     expect(store.safeDiagnostics).toContain('timelineCount=9');
+    expect(store.safeDiagnostics).toContain('routeRoomPresent=true');
+    expect(store.safeDiagnostics).toContain('documentVisibility=visible');
+    expect(store.safeDiagnostics).toContain('visibleCatchUpIntervalMs=3000');
+    expect(store.safeDiagnostics).toContain('chatRoomMatchesRoute=true');
+    expect(store.safeDiagnostics).toContain('realtimeRoomMatchesRoute=true');
+    expect(store.safeDiagnostics).toContain('visibleCatchUpEligible=false');
     expect(store.safeDiagnostics).toContain('chatNewerLoading=true');
     expect(store.safeDiagnostics).toContain('chatHasMoreOlder=true');
     expect(store.safeDiagnostics).toContain('serverTimelineCount=8');
@@ -257,6 +269,7 @@ describe('settingsStore', () => {
     expect(store.safeDiagnostics).not.toContain('secret3');
     expect(store.detailedDiagnostics).toContain('userId=user-secret');
     expect(store.detailedDiagnostics).toContain('username=alice');
+    expect(store.detailedDiagnostics).toContain('routeRoomId=room-secret');
     expect(store.detailedDiagnostics).toContain('activeRoomId=room-secret');
     expect(store.detailedDiagnostics).toContain('activeRoomName=Secret Room');
     expect(store.detailedDiagnostics).not.toContain('secret-chat-token');

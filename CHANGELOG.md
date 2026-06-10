@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.8 - 2026-06-10
+
+### chat
+
+#### Added
+
+- Added richer message-update diagnostics for the visible-room catch-up path, including document visibility, the shared catch-up interval, route-room presence, chat/realtime room match checks, and whether catch-up is currently eligible without exposing message text or IDs.
+
 ## 0.6.7 - 2026-06-10
 
 ### chat

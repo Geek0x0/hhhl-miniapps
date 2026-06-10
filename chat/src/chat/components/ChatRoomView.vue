@@ -142,6 +142,7 @@ import SearchPanel from './SearchPanel.vue';
 import KeySearchPanel from './KeySearchPanel.vue';
 import { filterMutedMessages } from '../messageFilters';
 import { useChatStore } from '../chatStore';
+import { VISIBLE_CATCH_UP_INTERVAL_MS } from '../visibleCatchUp';
 
 const route = useRoute();
 const router = useRouter();
@@ -165,7 +166,6 @@ const resolvingMentionUsernames = ref(new Set<string>());
 const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
 const composerComponent = ref<{ appendMention: (username: string) => void } | null>(null);
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
-const VISIBLE_CATCH_UP_INTERVAL_MS = 3000;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 const draftRevisionsByRoomId = new Map<string, number>();
 let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
