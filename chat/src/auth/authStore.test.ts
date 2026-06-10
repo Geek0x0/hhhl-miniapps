@@ -252,6 +252,7 @@ describe('authStore', () => {
     expect(store.status).toBe('anonymous');
     expect(store.token).toBeNull();
     expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
+    expect(store.error).toBe('session expired');
   });
 
   it('clears pending session from storage on successful completeCallback', async () => {

@@ -101,13 +101,15 @@ export const useAuthStore = defineStore('auth', {
       const token = dependencies.storage.getToken();
 
       if (token == null) {
+        let pendingSessionError: string | null = null;
         const pendingSession = dependencies.storage.getJson<string | null>(PENDING_SESSION_KEY, null);
 
         if (pendingSession != null) {
           try {
             await this.completeCallback(pendingSession, dependencies);
             return;
-          } catch {
+          } catch (error) {
+            pendingSessionError = this.error ?? messageFromUnknown(error);
             // Session completion failed; fall through to anonymous state.
           }
         }
@@ -132,7 +134,7 @@ export const useAuthStore = defineStore('auth', {
         this.status = 'anonymous';
         this.token = null;
         this.user = null;
-        this.error = null;
+        this.error = pendingSessionError;
         return;
       }
 

@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.10 - 2026-06-10
+
+### chat
+
+#### Fixed
+
+- Fixed hhhl authorization callback failures clearing the floating error alert too quickly by preserving pending-session errors when returning to the login guide.
+
 ## 0.6.9 - 2026-06-10
 
 ### chat
