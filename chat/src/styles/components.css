@@ -67,6 +67,7 @@
 
 .ui-surface--glass {
   background: var(--tg-surface-glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
   backdrop-filter: blur(16px) saturate(1.2);
 }
 
@@ -82,16 +83,19 @@
 }
 
 .ui-notice--error {
+  border-color: rgba(239, 68, 68, 0.45);
   border-color: color-mix(in srgb, var(--tg-danger) 38%, var(--tg-border));
   background: var(--tg-surface-danger);
 }
 
 .ui-notice--warning {
+  border-color: rgba(245, 158, 11, 0.48);
   border-color: color-mix(in srgb, var(--tg-warning) 42%, var(--tg-border));
   background: var(--tg-surface-warning);
 }
 
 .ui-notice--success {
+  border-color: rgba(22, 163, 74, 0.43);
   border-color: color-mix(in srgb, var(--tg-success) 36%, var(--tg-border));
   background: var(--tg-surface-success);
 }
@@ -101,8 +105,10 @@
   gap: 8px;
   justify-items: start;
   padding: 18px;
+  border: 1px dashed rgba(42, 171, 238, 0.36);
   border: 1px dashed color-mix(in srgb, var(--tg-button) 28%, var(--tg-border));
   border-radius: var(--tg-radius-md);
+  background: var(--tg-bg);
   background:
     radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--tg-button) 12%, transparent), transparent 34%),
     var(--tg-bg);
@@ -132,6 +138,12 @@
 @keyframes ui-skeleton-shimmer {
   to {
     transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton::after {
+    animation: none;
   }
 }
 
@@ -472,7 +484,6 @@
 .chat-header__more-menu button:hover,
 .chat-header__more-menu button:focus-visible {
   background: rgba(42, 171, 238, 0.12);
-  outline: none;
 }
 
 .side-panel {

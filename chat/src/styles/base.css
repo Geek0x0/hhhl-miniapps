@@ -34,15 +34,13 @@ select {
 }
 
 :focus-visible {
-  outline: none;
-  box-shadow: var(--tg-focus-ring);
+  outline: 2px solid var(--tg-button, #2aabee);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(42, 171, 238, 0.28);
+  box-shadow: var(--tg-focus-ring, 0 0 0 3px rgba(42, 171, 238, 0.28));
 }
 
-button,
-a,
-input,
-textarea,
-select {
+:where(button, a, input, textarea, select) {
   transition:
     background-color var(--tg-motion-fast) var(--tg-ease-standard),
     border-color var(--tg-motion-fast) var(--tg-ease-standard),
