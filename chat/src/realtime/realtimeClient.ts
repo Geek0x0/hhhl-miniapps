@@ -49,31 +49,58 @@ function channelId(roomId: string): string {
   return `${getRuntimeContracts().streamChannelEnvelope.body.id}:${roomId}`;
 }
 
+function recordField(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringField(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
 function normalizeEvent(raw: unknown, subscribedRooms: Set<string>): RealtimeEvent | null {
-  const envelope = raw as { type?: string; body?: { type?: string; body?: Record<string, unknown> } };
-  if (envelope.type !== 'ch' || envelope.body?.body == null) {
+  const envelope = recordField(raw);
+  if (envelope?.type !== 'ch') {
     return null;
   }
 
-  const body = envelope.body.body;
-  const eventType = envelope.body.type;
-  const message = body.message as ChatMessage | undefined;
-  const roomId = typeof body.roomId === 'string' ? body.roomId : message?.roomId;
+  const channelEnvelope = recordField(envelope.body);
+  const body = recordField(channelEnvelope?.body);
+  const eventType = stringField(channelEnvelope?.type);
+  if (body == null || eventType == null) {
+    return null;
+  }
 
+  if (eventType === 'message') {
+    if (body.message == null) {
+      return null;
+    }
+
+    const message = normalizeChatMessage(body.message);
+    const envelopeRoomId = stringField(body.roomId);
+    const messageRoomId = stringField(message.roomId);
+    const roomId = envelopeRoomId ?? messageRoomId;
+    if (roomId == null || !subscribedRooms.has(roomId) || message.id === '') {
+      return null;
+    }
+    if (messageRoomId != null && messageRoomId !== roomId) {
+      return null;
+    }
+
+    return { type: 'message', roomId, message: { ...message, roomId } };
+  }
+
+  const roomId = stringField(body.roomId);
   if (roomId == null || !subscribedRooms.has(roomId)) {
     return null;
   }
 
-  if (eventType === 'message' && message != null) {
-    return { type: 'message', roomId, message: normalizeChatMessage(message) };
+  const messageId = stringField(body.messageId);
+  if (eventType === 'delete' && messageId != null) {
+    return { type: 'delete', roomId, messageId };
   }
 
-  if (eventType === 'delete' && typeof body.messageId === 'string') {
-    return { type: 'delete', roomId, messageId: body.messageId };
-  }
-
-  if (eventType === 'reaction' && typeof body.messageId === 'string') {
-    return { type: 'reaction', roomId, messageId: body.messageId, reaction: typeof body.reaction === 'string' ? body.reaction : null };
+  if (eventType === 'reaction' && messageId != null) {
+    return { type: 'reaction', roomId, messageId, reaction: typeof body.reaction === 'string' ? body.reaction : null };
   }
 
   return null;

@@ -105,6 +105,46 @@ describe('RealtimeClient', () => {
     });
   });
 
+  it('normalizes nested HHHL message payloads before filtering subscribed rooms', () => {
+    FakeWebSocket.instances = [];
+    const onEvent = vi.fn();
+    const client = createRealtimeClient({ tokenProvider: () => 'secret-token', WebSocketImpl: FakeWebSocket });
+
+    client.onEvent(onEvent);
+    client.connect();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    client.subscribeRoom('room-1');
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: 'ch',
+        body: {
+          id: 'test-main:room-1',
+          type: 'message',
+          body: {
+            message: {
+              message: {
+                messageId: 'm3',
+                toRoomId: 'room-1',
+                body: 'nested realtime',
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'message',
+      roomId: 'room-1',
+      message: expect.objectContaining({
+        id: 'm3',
+        roomId: 'room-1',
+        text: 'nested realtime',
+      }),
+    });
+  });
+
   it('ignores malformed websocket messages without breaking the client', () => {
     FakeWebSocket.instances = [];
     const onEvent = vi.fn();

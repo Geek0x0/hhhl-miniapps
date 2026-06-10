@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.6 - 2026-06-10
+
+### chat
+
+#### Fixed
+
+- Added a floating error toast on the hhhl authorization screen when authorization startup or callback errors occur.
+- Fixed realtime new-message delivery for nested HHHL message payloads by normalizing messages before room filtering, preventing valid WebSocket events from being ignored until a later catch-up fetch.
+
 ## 0.6.5 - 2026-06-10
 
 ### chat

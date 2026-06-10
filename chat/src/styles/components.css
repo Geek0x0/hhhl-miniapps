@@ -720,6 +720,12 @@
   transform: translateX(-50%);
 }
 
+.key-copy-toast--error {
+  border: 1px solid color-mix(in srgb, var(--tg-danger) 62%, transparent);
+  background: color-mix(in srgb, var(--tg-danger) 92%, var(--tg-panel));
+  color: #fff;
+}
+
 .app-update-banner {
   position: fixed;
   right: 12px;

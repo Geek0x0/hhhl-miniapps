@@ -18,13 +18,16 @@
     <p class="app-copy">
       {{ i18n.t('auth.loginBody') }}
     </p>
-    <p
-      v-if="error != null"
-      class="chat-error"
-      role="alert"
-    >
-      {{ error }}
-    </p>
+    <Teleport to="body">
+      <p
+        v-if="error != null"
+        class="key-copy-toast key-copy-toast--error"
+        role="alert"
+        aria-live="assertive"
+      >
+        {{ error }}
+      </p>
+    </Teleport>
     <div class="app-actions">
       <button
         class="app-button"

@@ -80,6 +80,10 @@ async function clearCloudAuthToken(cloudAuthStorage: CloudAuthStorage | null | u
   }
 }
 
+function messageFromUnknown(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     status: 'idle',
@@ -150,14 +154,24 @@ export const useAuthStore = defineStore('auth', {
     },
 
     startLogin(dependencies: AuthDependencies = createDefaultDependencies()) {
-      const session = dependencies.createSession();
-      const callbackUrl = buildCallbackUrl(dependencies.currentUrl(), session);
-      const authUrl = dependencies.buildAuthUrl(session, callbackUrl);
+      try {
+        const session = dependencies.createSession();
+        const callbackUrl = buildCallbackUrl(dependencies.currentUrl(), session);
+        const authUrl = dependencies.buildAuthUrl(session, callbackUrl);
 
-      this.status = 'authorizing';
-      this.pendingSession = session;
-      dependencies.storage.setJson(PENDING_SESSION_KEY, session);
-      dependencies.openAuthUrl(authUrl);
+        this.status = 'authorizing';
+        this.error = null;
+        this.pendingSession = session;
+        dependencies.storage.setJson(PENDING_SESSION_KEY, session);
+        dependencies.openAuthUrl(authUrl);
+      } catch (error) {
+        dependencies.storage.remove(PENDING_SESSION_KEY);
+        this.status = 'anonymous';
+        this.token = null;
+        this.user = null;
+        this.pendingSession = null;
+        this.error = messageFromUnknown(error);
+      }
     },
 
     async completeCallback(session: string, dependencies: AuthDependencies = createDefaultDependencies()) {
@@ -179,7 +193,7 @@ export const useAuthStore = defineStore('auth', {
         this.token = null;
         this.user = null;
         this.status = 'token-invalid';
-        this.error = error instanceof Error ? error.message : String(error);
+        this.error = messageFromUnknown(error);
         throw error;
       }
     },

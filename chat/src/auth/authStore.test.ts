@@ -210,6 +210,23 @@ describe('authStore', () => {
     expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBe('session-1');
   });
 
+  it('returns to login state and reports an error when starting auth fails', () => {
+    const deps = createDeps({
+      openAuthUrl: vi.fn(() => {
+        throw new Error('authorization window blocked');
+      }),
+    });
+    const store = useAuthStore();
+
+    expect(() => store.startLogin(deps)).not.toThrow();
+
+    expect(store.status).toBe('anonymous');
+    expect(store.needsLogin).toBe(true);
+    expect(store.error).toBe('authorization window blocked');
+    expect(store.pendingSession).toBeNull();
+    expect(deps.storage.getJson('hhhl-chat:pending-session', null)).toBeNull();
+  });
+
   it('recovers auth from persisted pending session on restore', async () => {
     const deps = createDeps();
     deps.storage.setJson('hhhl-chat:pending-session', 'session-1');
