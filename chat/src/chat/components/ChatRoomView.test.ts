@@ -202,4 +202,37 @@ describe('ChatRoomView', () => {
       });
     });
   });
+
+  it('periodically catches up newer messages while visible when websocket stays connected', async () => {
+    vi.useFakeTimers();
+    const visibilityDescriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible',
+    });
+
+    try {
+      const { unmount } = render(ChatRoomView);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mocks.chatStore.loadNewer).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(mocks.chatStore.loadNewer).toHaveBeenCalledTimes(1);
+
+      unmount();
+      await vi.advanceTimersByTimeAsync(3000);
+
+      expect(mocks.chatStore.loadNewer).toHaveBeenCalledTimes(1);
+    } finally {
+      if (visibilityDescriptor == null) {
+        Reflect.deleteProperty(document, 'visibilityState');
+      } else {
+        Object.defineProperty(document, 'visibilityState', visibilityDescriptor);
+      }
+      vi.useRealTimers();
+    }
+  });
 });

@@ -43,7 +43,14 @@ function richDiagnosticsInput() {
     chat: {
       loading: false,
       roomId: 'room-secret',
+      olderLoading: true,
+      newerLoading: false,
+      hasMoreOlder: true,
       timelineCount: 12,
+      serverTimelineCount: 10,
+      pendingTimelineCount: 2,
+      lastServerMessageAt: '2026-06-10T04:05:06.000Z',
+      lastTimelineEntryKind: 'server',
       outgoingCount: 2,
       failedOutgoingCount: 1,
       searchResultCount: 5,
@@ -86,7 +93,14 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('invitationCount=2');
     expect(safe).toContain('[chat]');
     expect(safe).toContain('chatLoading=false');
+    expect(safe).toContain('chatOlderLoading=true');
+    expect(safe).toContain('chatNewerLoading=false');
+    expect(safe).toContain('chatHasMoreOlder=true');
     expect(safe).toContain('timelineCount=12');
+    expect(safe).toContain('serverTimelineCount=10');
+    expect(safe).toContain('pendingTimelineCount=2');
+    expect(safe).toContain('lastServerMessageAt=2026-06-10T04:05:06.000Z');
+    expect(safe).toContain('lastTimelineEntryKind=server');
     expect(safe).toContain('outgoingCount=2');
     expect(safe).toContain('searchResultCount=5');
     expect(safe).toContain('keySearchResultCount=1');
@@ -118,6 +132,13 @@ describe('diagnostics renderer', () => {
     expect(detailed).toContain('chatRoomId=room-secret');
     expect(detailed).toContain('memberCount=7');
     expect(detailed).toContain('outboxInvitationCount=4');
+    expect(detailed).toContain('chatOlderLoading=true');
+    expect(detailed).toContain('chatNewerLoading=false');
+    expect(detailed).toContain('chatHasMoreOlder=true');
+    expect(detailed).toContain('serverTimelineCount=10');
+    expect(detailed).toContain('pendingTimelineCount=2');
+    expect(detailed).toContain('lastServerMessageAt=2026-06-10T04:05:06.000Z');
+    expect(detailed).toContain('lastTimelineEntryKind=server');
     expect(detailed).toContain('replyTargetPresent=true');
     expect(detailed).toContain('quoteTargetPresent=false');
     expect(detailed).toContain('failedOutgoingCount=1');

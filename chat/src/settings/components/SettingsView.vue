@@ -216,6 +216,63 @@ function failedOutgoingCount(): number {
   return chatStore.outgoing.filter((item) => item.status === 'failed').length;
 }
 
+function recordFrom(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function timelineEntryKind(entry: unknown): string | null {
+  const kind = recordFrom(entry)?.kind;
+  return typeof kind === 'string' && kind.trim() !== '' ? kind : null;
+}
+
+function isServerTimelineEntry(entry: unknown): boolean {
+  const kind = timelineEntryKind(entry);
+  return kind == null || kind === 'server';
+}
+
+function messageRecordFromTimelineEntry(entry: unknown): Record<string, unknown> | null {
+  const record = recordFrom(entry);
+  if (record == null) {
+    return null;
+  }
+
+  return recordFrom(record.message) ?? record;
+}
+
+function timelineEntryCreatedAt(entry: unknown): string | null {
+  const createdAt = messageRecordFromTimelineEntry(entry)?.createdAt;
+  return typeof createdAt === 'string' && createdAt.trim() !== '' ? createdAt : null;
+}
+
+function serverTimelineEntries(): unknown[] {
+  return chatStore.timeline.filter(isServerTimelineEntry);
+}
+
+function pendingTimelineCount(): number {
+  return chatStore.timeline.filter((entry) => timelineEntryKind(entry) === 'pending').length;
+}
+
+function lastServerMessageAt(): string | null {
+  const serverEntries = serverTimelineEntries();
+  for (let index = serverEntries.length - 1; index >= 0; index -= 1) {
+    const createdAt = timelineEntryCreatedAt(serverEntries[index]);
+    if (createdAt != null) {
+      return createdAt;
+    }
+  }
+
+  return null;
+}
+
+function lastTimelineEntryKind(): string | null {
+  const lastEntry = chatStore.timeline.at(-1);
+  if (lastEntry == null) {
+    return null;
+  }
+
+  return timelineEntryKind(lastEntry) ?? 'server';
+}
+
 function addRedactionIdentifier(
   identifiers: DiagnosticsRedactionIdentifierInput[],
   value: string | null | undefined,
@@ -337,7 +394,14 @@ function collectSettingsDiagnostics(): void {
     chat: {
       loading: chatStore.loading,
       roomId: chatStore.roomId,
+      olderLoading: chatStore.olderLoading,
+      newerLoading: chatStore.newerLoading,
+      hasMoreOlder: chatStore.hasMoreOlder,
       timelineCount: chatStore.timeline.length,
+      serverTimelineCount: serverTimelineEntries().length,
+      pendingTimelineCount: pendingTimelineCount(),
+      lastServerMessageAt: lastServerMessageAt(),
+      lastTimelineEntryKind: lastTimelineEntryKind(),
       outgoingCount: chatStore.outgoing.length,
       failedOutgoingCount: failedOutgoingCount(),
       searchResultCount: chatStore.searchResults.length,

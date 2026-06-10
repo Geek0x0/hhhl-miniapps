@@ -216,7 +216,14 @@ describe('settingsStore', () => {
       chat: {
         loading: false,
         roomId: 'room-secret',
+        olderLoading: false,
+        newerLoading: true,
+        hasMoreOlder: true,
         timelineCount: 9,
+        serverTimelineCount: 8,
+        pendingTimelineCount: 1,
+        lastServerMessageAt: '2026-06-10T04:05:06.000Z',
+        lastTimelineEntryKind: 'pending',
         outgoingCount: 2,
         failedOutgoingCount: 1,
         searchResultCount: 4,
@@ -232,6 +239,12 @@ describe('settingsStore', () => {
     expect(store.safeDiagnostics).toContain('authStatus=authorized');
     expect(store.safeDiagnostics).toContain('roomCount=2');
     expect(store.safeDiagnostics).toContain('timelineCount=9');
+    expect(store.safeDiagnostics).toContain('chatNewerLoading=true');
+    expect(store.safeDiagnostics).toContain('chatHasMoreOlder=true');
+    expect(store.safeDiagnostics).toContain('serverTimelineCount=8');
+    expect(store.safeDiagnostics).toContain('pendingTimelineCount=1');
+    expect(store.safeDiagnostics).toContain('lastServerMessageAt=2026-06-10T04:05:06.000Z');
+    expect(store.safeDiagnostics).toContain('lastTimelineEntryKind=pending');
     expect(store.safeDiagnostics).toContain('roomsError=[redacted]');
     expect(store.safeDiagnostics).toContain('chatError=[redacted]');
     expect(store.safeDiagnostics).toContain('[raw]\n[redacted]');

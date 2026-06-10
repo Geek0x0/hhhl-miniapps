@@ -165,9 +165,11 @@ const resolvingMentionUsernames = ref(new Set<string>());
 const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
 const composerComponent = ref<{ appendMention: (username: string) => void } | null>(null);
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
+const VISIBLE_CATCH_UP_INTERVAL_MS = 3000;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 const draftRevisionsByRoomId = new Map<string, number>();
 let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+let visibleCatchUpTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 let lastAutoKeySearchRouteKey: string | null = null;
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
@@ -588,12 +590,27 @@ async function catchUpVisibleRoom(): Promise<void> {
     roomId.value === '' ||
     chatStore.roomId !== roomId.value ||
     chatStore.loading ||
+    realtimeStore.status !== 'connected' ||
     globalThis.document.visibilityState !== 'visible'
   ) {
     return;
   }
 
   await chatStore.loadNewer();
+}
+
+function clearVisibleCatchUpTimer(): void {
+  if (visibleCatchUpTimer != null) {
+    globalThis.clearInterval(visibleCatchUpTimer);
+    visibleCatchUpTimer = null;
+  }
+}
+
+function startVisibleCatchUpTimer(): void {
+  clearVisibleCatchUpTimer();
+  visibleCatchUpTimer = globalThis.setInterval(() => {
+    void catchUpVisibleRoom();
+  }, VISIBLE_CATCH_UP_INTERVAL_MS);
 }
 
 function handleVisibilityChange(): void {
@@ -621,6 +638,7 @@ async function loadRoom(): Promise<void> {
 
 onMounted(() => {
   void loadRoom();
+  startVisibleCatchUpTimer();
   globalThis.document.addEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.addEventListener('visibilitychange', handleVisibilityChange);
 });
@@ -631,6 +649,7 @@ watch(() => route.query.autoKeySearch, () => {
 watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.message.text ?? ''}`).join('|'), ensureMentionUsersLoaded);
 onBeforeUnmount(() => {
   realtimeStore.stopRoom();
+  clearVisibleCatchUpTimer();
   globalThis.document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.removeEventListener('visibilitychange', handleVisibilityChange);
   if (feedbackTimer != null) {

@@ -59,6 +59,9 @@ const mocks = vi.hoisted(() => ({
   },
   chatStore: {
     loading: false,
+    olderLoading: false,
+    newerLoading: false,
+    hasMoreOlder: false,
     roomId: null as string | null,
     timeline: [] as unknown[],
     outgoing: [] as Array<{ status: string }>,
@@ -145,6 +148,9 @@ describe('SettingsView', () => {
     mocks.roomStore.outboxInvitations = [];
     mocks.roomStore.error = null;
     mocks.chatStore.loading = false;
+    mocks.chatStore.olderLoading = false;
+    mocks.chatStore.newerLoading = false;
+    mocks.chatStore.hasMoreOlder = false;
     mocks.chatStore.roomId = null;
     mocks.chatStore.timeline = [];
     mocks.chatStore.outgoing = [];
@@ -233,11 +239,14 @@ describe('SettingsView', () => {
     ];
     mocks.roomStore.error = 'room error';
     mocks.chatStore.loading = true;
+    mocks.chatStore.olderLoading = true;
+    mocks.chatStore.newerLoading = false;
+    mocks.chatStore.hasMoreOlder = true;
     mocks.chatStore.roomId = 'room-chat';
     mocks.chatStore.timeline = [
-      { id: 'message-secret-1', text: 'hidden message text' },
-      { id: 'message-secret-2', file: { url: 'https://dc.hhhl.cc/files/secret.png' } },
-      { id: 'message-secret-3' },
+      { kind: 'server', message: { id: 'message-secret-1', createdAt: '2026-06-10T04:00:00.000Z', text: 'hidden message text' } },
+      { kind: 'pending', localId: 'message-secret-local', status: 'pending', message: { id: 'message-secret-2', createdAt: '2026-06-10T04:02:00.000Z', file: { url: 'https://dc.hhhl.cc/files/secret.png' } } },
+      { kind: 'server', message: { id: 'message-secret-3', createdAt: '2026-06-10T04:05:06.000Z' } },
     ];
     mocks.chatStore.outgoing = [{ status: 'failed' }, { status: 'sending' }, { status: 'failed' }];
     mocks.chatStore.searchResults = [{ id: 'search-1' }];
@@ -292,7 +301,14 @@ describe('SettingsView', () => {
       chat: {
         loading: true,
         roomId: 'room-chat',
+        olderLoading: true,
+        newerLoading: false,
+        hasMoreOlder: true,
         timelineCount: 3,
+        serverTimelineCount: 2,
+        pendingTimelineCount: 1,
+        lastServerMessageAt: '2026-06-10T04:05:06.000Z',
+        lastTimelineEntryKind: 'server',
         outgoingCount: 3,
         failedOutgoingCount: 2,
         searchResultCount: 1,

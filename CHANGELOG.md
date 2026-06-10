@@ -2,6 +2,18 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.7 - 2026-06-10
+
+### chat
+
+#### Added
+
+- Added message-update diagnostics to the settings diagnostics output, including newer/older loading state, history availability, timeline counts, and last server-message timing without exposing message text or IDs.
+
+#### Fixed
+
+- Fixed rooms that show `WS` but stop receiving pushed messages by adding a visible-room catch-up fetch every 3 seconds while the WebSocket remains connected.
+
 ## 0.6.6 - 2026-06-10
 
 ### chat

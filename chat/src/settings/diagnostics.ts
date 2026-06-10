@@ -69,7 +69,14 @@ export interface DiagnosticsRoomsInput {
 export interface DiagnosticsChatInput {
   loading?: boolean;
   roomId?: string | null;
+  olderLoading?: boolean;
+  newerLoading?: boolean;
+  hasMoreOlder?: boolean;
   timelineCount?: number;
+  serverTimelineCount?: number;
+  pendingTimelineCount?: number;
+  lastServerMessageAt?: string | null;
+  lastTimelineEntryKind?: string | null;
   outgoingCount?: number;
   failedOutgoingCount?: number;
   searchResultCount?: number;
@@ -157,7 +164,14 @@ export interface DiagnosticsRoomsSnapshot {
 export interface DiagnosticsChatSnapshot {
   loading: boolean;
   roomId: string | null;
+  olderLoading: boolean;
+  newerLoading: boolean;
+  hasMoreOlder: boolean;
   timelineCount: number;
+  serverTimelineCount: number;
+  pendingTimelineCount: number;
+  lastServerMessageAt: string | null;
+  lastTimelineEntryKind: string | null;
   outgoingCount: number;
   failedOutgoingCount: number;
   searchResultCount: number;
@@ -278,7 +292,14 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
     chat: {
       loading: chat.loading ?? false,
       roomId: optionalText(chat.roomId),
+      olderLoading: chat.olderLoading ?? false,
+      newerLoading: chat.newerLoading ?? false,
+      hasMoreOlder: chat.hasMoreOlder ?? false,
       timelineCount: chat.timelineCount ?? 0,
+      serverTimelineCount: chat.serverTimelineCount ?? 0,
+      pendingTimelineCount: chat.pendingTimelineCount ?? 0,
+      lastServerMessageAt: optionalText(chat.lastServerMessageAt),
+      lastTimelineEntryKind: optionalText(chat.lastTimelineEntryKind),
       outgoingCount: chat.outgoingCount ?? 0,
       failedOutgoingCount: chat.failedOutgoingCount ?? 0,
       searchResultCount: chat.searchResultCount ?? 0,
@@ -330,7 +351,14 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
     '',
     '[chat]',
     `chatLoading=${snapshot.chat.loading}`,
+    `chatOlderLoading=${snapshot.chat.olderLoading}`,
+    `chatNewerLoading=${snapshot.chat.newerLoading}`,
+    `chatHasMoreOlder=${snapshot.chat.hasMoreOlder}`,
     `timelineCount=${snapshot.chat.timelineCount}`,
+    `serverTimelineCount=${snapshot.chat.serverTimelineCount}`,
+    `pendingTimelineCount=${snapshot.chat.pendingTimelineCount}`,
+    `lastServerMessageAt=${diagnosticValue(snapshot.chat.lastServerMessageAt)}`,
+    `lastTimelineEntryKind=${diagnosticValue(snapshot.chat.lastTimelineEntryKind)}`,
     `outgoingCount=${snapshot.chat.outgoingCount}`,
     `searchResultCount=${snapshot.chat.searchResultCount}`,
     `keySearchResultCount=${snapshot.chat.keySearchResultCount}`,
@@ -362,6 +390,13 @@ export function renderDetailedDiagnostics(snapshot: DiagnosticsSnapshot): string
     `chatRoomId=${detailDiagnosticValue(snapshot.chat.roomId)}`,
     `memberCount=${detailDiagnosticValue(snapshot.rooms.memberCount)}`,
     `outboxInvitationCount=${detailDiagnosticValue(snapshot.rooms.outboxInvitationCount)}`,
+    `chatOlderLoading=${snapshot.chat.olderLoading}`,
+    `chatNewerLoading=${snapshot.chat.newerLoading}`,
+    `chatHasMoreOlder=${snapshot.chat.hasMoreOlder}`,
+    `serverTimelineCount=${snapshot.chat.serverTimelineCount}`,
+    `pendingTimelineCount=${snapshot.chat.pendingTimelineCount}`,
+    `lastServerMessageAt=${detailDiagnosticValue(snapshot.chat.lastServerMessageAt)}`,
+    `lastTimelineEntryKind=${detailDiagnosticValue(snapshot.chat.lastTimelineEntryKind)}`,
     `replyTargetPresent=${snapshot.chat.replyTargetPresent}`,
     `quoteTargetPresent=${snapshot.chat.quoteTargetPresent}`,
     `failedOutgoingCount=${snapshot.chat.failedOutgoingCount}`,
