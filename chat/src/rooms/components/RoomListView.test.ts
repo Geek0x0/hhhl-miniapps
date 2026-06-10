@@ -65,4 +65,27 @@ describe('RoomListView', () => {
     expect(headline).toContainElement(logo);
     expect(headline).toContainElement(title);
   });
+
+  it('renders three room card skeletons while loading without rendering the empty state', () => {
+    mocks.roomStore.loading = true;
+
+    const { container } = render(RoomListView);
+
+    expect(container.querySelector('.room-list-skeleton')).toHaveAccessibleName('Loading...');
+    expect(container.querySelector('.room-list-skeleton')).toHaveAttribute('role', 'status');
+    expect(container.querySelectorAll('.room-list-skeleton .room-card-skeleton')).toHaveLength(3);
+    expect(container.querySelector('.rooms-empty-state')).not.toBeInTheDocument();
+    expect(screen.queryByText('No messages yet')).not.toBeInTheDocument();
+  });
+
+  it('renders a friendly empty state when no rooms are available', () => {
+    const { container } = render(RoomListView);
+
+    const emptyState = container.querySelector('.rooms-empty-state');
+
+    expect(emptyState).toBeInTheDocument();
+    expect(emptyState).toHaveClass('ui-empty-state');
+    expect(emptyState).toHaveTextContent('No messages yet');
+    expect(emptyState).toHaveTextContent('Join by room ID');
+  });
 });

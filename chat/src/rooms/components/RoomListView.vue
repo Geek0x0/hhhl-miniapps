@@ -1,5 +1,5 @@
 <template>
-  <main class="rooms-shell">
+  <main class="rooms-shell rooms-entry-hub">
     <header class="rooms-header">
       <div class="rooms-header__title">
         <p class="app-eyebrow">
@@ -33,18 +33,27 @@
 
     <section class="room-panel">
       <h2>{{ i18n.t('rooms.joined') }}</h2>
-      <p
+      <div
         v-if="roomStore.loading"
-        class="app-copy"
+        class="room-list-skeleton"
+        role="status"
+        aria-live="polite"
+        :aria-label="i18n.t('common.loading')"
       >
-        {{ i18n.t('common.loading') }}
-      </p>
-      <p
+        <span
+          v-for="index in 3"
+          :key="index"
+          class="room-card-skeleton ui-skeleton"
+          aria-hidden="true"
+        />
+      </div>
+      <div
         v-else-if="roomStore.rooms.length === 0"
-        class="app-copy"
+        class="rooms-empty-state ui-empty-state"
       >
-        {{ i18n.t('chat.empty') }}
-      </p>
+        <strong>{{ i18n.t('chat.empty') }}</strong>
+        <span>{{ i18n.t('rooms.directJoin') }}</span>
+      </div>
       <div
         v-else
         class="room-list"

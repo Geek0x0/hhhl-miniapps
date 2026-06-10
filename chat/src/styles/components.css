@@ -253,6 +253,22 @@
   padding-top: calc(20px + var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)));
 }
 
+.rooms-entry-hub {
+  position: relative;
+  width: min(100%, 820px);
+}
+
+.rooms-entry-hub::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 20% 8%, color-mix(in srgb, var(--tg-button) 14%, transparent), transparent 32%),
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--tg-success) 9%, transparent), transparent 30%),
+    var(--tg-bg);
+  content: "";
+}
+
 .rooms-header h1,
 .room-panel h2 {
   margin: 0;
@@ -264,7 +280,8 @@
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  padding: 6px 2px;
 }
 
 .rooms-header__title {
@@ -341,17 +358,52 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--tg-soft-border);
-  border-radius: 8px;
-  background: var(--tg-bg);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-subtle);
   color: var(--tg-text);
   text-decoration: none;
+}
+
+.room-list-item {
+  animation: ui-enter-up var(--tg-motion-normal) var(--tg-ease-spring) both;
+}
+
+.room-list-item:hover,
+.room-list-item:focus-visible {
+  border-color: color-mix(in srgb, var(--tg-button) 34%, var(--tg-border));
+  box-shadow: var(--tg-shadow-raised);
+  transform: translateY(-2px);
 }
 
 .room-list-item__main {
   display: grid;
   min-width: 0;
+}
+
+.room-list-item__meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.room-list-item__id {
+  opacity: 0.74;
+}
+
+.room-list-skeleton {
+  display: grid;
+  gap: 8px;
+}
+
+.room-card-skeleton {
+  height: 68px;
+}
+
+.rooms-empty-state {
+  min-height: 96px;
 }
 
 .room-list-item__main small {

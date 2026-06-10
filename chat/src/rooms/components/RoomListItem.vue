@@ -5,7 +5,10 @@
   >
     <span class="room-list-item__main">
       <strong>{{ entry.room.name }}</strong>
-      <small>{{ entry.room.description ?? entry.room.id }}</small>
+      <span class="room-list-item__meta">
+        <small>{{ entry.room.description ?? entry.room.id }}</small>
+        <small class="room-list-item__id">{{ entry.room.id }}</small>
+      </span>
     </span>
     <span
       v-if="visibleSources.length > 0"
