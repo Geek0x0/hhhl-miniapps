@@ -218,10 +218,11 @@ describe('settingsStore', () => {
         loading: false,
         roomId: 'room-secret',
         documentVisibility: 'visible',
-        visibleCatchUpIntervalMs: 3000,
+        messageUpdateMode: 'http-polling',
+        messagePollingIntervalMs: 1000,
+        messagePollingEligible: true,
         chatRoomMatchesRoute: true,
         realtimeRoomMatchesRoute: true,
-        visibleCatchUpEligible: false,
         olderLoading: false,
         newerLoading: true,
         hasMoreOlder: true,
@@ -247,10 +248,11 @@ describe('settingsStore', () => {
     expect(store.safeDiagnostics).toContain('timelineCount=9');
     expect(store.safeDiagnostics).toContain('routeRoomPresent=true');
     expect(store.safeDiagnostics).toContain('documentVisibility=visible');
-    expect(store.safeDiagnostics).toContain('visibleCatchUpIntervalMs=3000');
+    expect(store.safeDiagnostics).toContain('messageUpdateMode=http-polling');
+    expect(store.safeDiagnostics).toContain('messagePollingIntervalMs=1000');
+    expect(store.safeDiagnostics).toContain('messagePollingEligible=true');
     expect(store.safeDiagnostics).toContain('chatRoomMatchesRoute=true');
     expect(store.safeDiagnostics).toContain('realtimeRoomMatchesRoute=true');
-    expect(store.safeDiagnostics).toContain('visibleCatchUpEligible=false');
     expect(store.safeDiagnostics).toContain('chatNewerLoading=true');
     expect(store.safeDiagnostics).toContain('chatHasMoreOlder=true');
     expect(store.safeDiagnostics).toContain('serverTimelineCount=8');

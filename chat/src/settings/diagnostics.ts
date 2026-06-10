@@ -71,10 +71,11 @@ export interface DiagnosticsChatInput {
   loading?: boolean;
   roomId?: string | null;
   documentVisibility?: string | null;
-  visibleCatchUpIntervalMs?: number | null;
+  messageUpdateMode?: string | null;
+  messagePollingIntervalMs?: number | null;
+  messagePollingEligible?: boolean;
   chatRoomMatchesRoute?: boolean;
   realtimeRoomMatchesRoute?: boolean;
-  visibleCatchUpEligible?: boolean;
   olderLoading?: boolean;
   newerLoading?: boolean;
   hasMoreOlder?: boolean;
@@ -172,10 +173,11 @@ export interface DiagnosticsChatSnapshot {
   loading: boolean;
   roomId: string | null;
   documentVisibility: string;
-  visibleCatchUpIntervalMs: number | null;
+  messageUpdateMode: string;
+  messagePollingIntervalMs: number | null;
+  messagePollingEligible: boolean;
   chatRoomMatchesRoute: boolean;
   realtimeRoomMatchesRoute: boolean;
-  visibleCatchUpEligible: boolean;
   olderLoading: boolean;
   newerLoading: boolean;
   hasMoreOlder: boolean;
@@ -308,10 +310,11 @@ export function createDiagnosticsSnapshot(input: DiagnosticsInput = {}): Diagnos
       loading: chat.loading ?? false,
       roomId: optionalText(chat.roomId),
       documentVisibility: requiredText(chat.documentVisibility),
-      visibleCatchUpIntervalMs: chat.visibleCatchUpIntervalMs ?? null,
+      messageUpdateMode: requiredText(chat.messageUpdateMode),
+      messagePollingIntervalMs: chat.messagePollingIntervalMs ?? null,
+      messagePollingEligible: chat.messagePollingEligible ?? false,
       chatRoomMatchesRoute: chat.chatRoomMatchesRoute ?? false,
       realtimeRoomMatchesRoute: chat.realtimeRoomMatchesRoute ?? false,
-      visibleCatchUpEligible: chat.visibleCatchUpEligible ?? false,
       olderLoading: chat.olderLoading ?? false,
       newerLoading: chat.newerLoading ?? false,
       hasMoreOlder: chat.hasMoreOlder ?? false,
@@ -373,10 +376,11 @@ export function renderSafeDiagnostics(snapshot: DiagnosticsSnapshot): string {
     '[chat]',
     `chatLoading=${snapshot.chat.loading}`,
     `documentVisibility=${snapshot.chat.documentVisibility}`,
-    `visibleCatchUpIntervalMs=${diagnosticValue(snapshot.chat.visibleCatchUpIntervalMs)}`,
+    `messageUpdateMode=${snapshot.chat.messageUpdateMode}`,
+    `messagePollingIntervalMs=${diagnosticValue(snapshot.chat.messagePollingIntervalMs)}`,
+    `messagePollingEligible=${snapshot.chat.messagePollingEligible}`,
     `chatRoomMatchesRoute=${snapshot.chat.chatRoomMatchesRoute}`,
     `realtimeRoomMatchesRoute=${snapshot.chat.realtimeRoomMatchesRoute}`,
-    `visibleCatchUpEligible=${snapshot.chat.visibleCatchUpEligible}`,
     `chatOlderLoading=${snapshot.chat.olderLoading}`,
     `chatNewerLoading=${snapshot.chat.newerLoading}`,
     `chatHasMoreOlder=${snapshot.chat.hasMoreOlder}`,
@@ -416,10 +420,11 @@ export function renderDetailedDiagnostics(snapshot: DiagnosticsSnapshot): string
     `pendingStartRoomId=${detailDiagnosticValue(snapshot.rooms.pendingStartRoomId)}`,
     `chatRoomId=${detailDiagnosticValue(snapshot.chat.roomId)}`,
     `documentVisibility=${snapshot.chat.documentVisibility}`,
-    `visibleCatchUpIntervalMs=${diagnosticValue(snapshot.chat.visibleCatchUpIntervalMs)}`,
+    `messageUpdateMode=${snapshot.chat.messageUpdateMode}`,
+    `messagePollingIntervalMs=${diagnosticValue(snapshot.chat.messagePollingIntervalMs)}`,
+    `messagePollingEligible=${snapshot.chat.messagePollingEligible}`,
     `chatRoomMatchesRoute=${snapshot.chat.chatRoomMatchesRoute}`,
     `realtimeRoomMatchesRoute=${snapshot.chat.realtimeRoomMatchesRoute}`,
-    `visibleCatchUpEligible=${snapshot.chat.visibleCatchUpEligible}`,
     `memberCount=${detailDiagnosticValue(snapshot.rooms.memberCount)}`,
     `outboxInvitationCount=${detailDiagnosticValue(snapshot.rooms.outboxInvitationCount)}`,
     `chatOlderLoading=${snapshot.chat.olderLoading}`,

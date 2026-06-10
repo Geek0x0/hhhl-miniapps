@@ -1,0 +1,3 @@
+export const WEBSOCKET_MESSAGE_UPDATES_ENABLED = false;
+export const MESSAGE_POLLING_INTERVAL_MS = 1000;
+export const MESSAGE_UPDATE_MODE = WEBSOCKET_MESSAGE_UPDATES_ENABLED ? 'websocket' : 'http-polling';

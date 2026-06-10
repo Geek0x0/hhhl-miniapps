@@ -96,12 +96,12 @@
         :class="{
           'chat-header__status--accent': connectionStatus === 'connected',
           'chat-header__status--breathing': connectionStatus === 'connected',
-          'chat-header__status--degraded': connectionStatus === 'degraded',
+          'chat-header__status--degraded': connectionStatus !== 'connected',
         }"
-        :aria-label="connectionStatus === 'degraded' ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
-        :title="connectionStatus === 'degraded' ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
+        :aria-label="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
+        :title="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
       >
-        {{ connectionStatus === 'degraded' ? 'HP' : 'WS' }}
+        {{ connectionStatus === 'connected' ? 'WS' : 'HP' }}
       </span>
     </div>
   </header>

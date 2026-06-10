@@ -142,7 +142,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, Monitor, Moon, Sun } from '@lucide/vue';
 import { createAuthDependencies, useAuthStore } from '@/auth/authStore';
 import { useChatStore } from '@/chat/chatStore';
-import { VISIBLE_CATCH_UP_INTERVAL_MS } from '@/chat/visibleCatchUp';
+import { MESSAGE_POLLING_INTERVAL_MS, MESSAGE_UPDATE_MODE } from '@/chat/messageUpdates';
 import { i18n, type MessageKey } from '@/i18n';
 import { DC_HHHL_ORIGIN } from '@/shared/config';
 import type { RoomSummary, UserSummary } from '@/shared/types';
@@ -237,13 +237,11 @@ function realtimeRoomMatchesRoute(routeRoomId: string | null): boolean {
   return routeRoomId != null && realtimeStore.roomId === routeRoomId;
 }
 
-function visibleCatchUpEligible(routeRoomId: string | null, visibility: string): boolean {
+function messagePollingEligible(routeRoomId: string | null): boolean {
   return (
     routeRoomId != null &&
     chatStore.roomId === routeRoomId &&
-    !chatStore.loading &&
-    realtimeStore.status === 'connected' &&
-    visibility === 'visible'
+    !chatStore.loading
   );
 }
 
@@ -454,10 +452,11 @@ function collectSettingsDiagnostics(): void {
       loading: chatStore.loading,
       roomId: chatStore.roomId,
       documentVisibility: currentDocumentVisibility,
-      visibleCatchUpIntervalMs: VISIBLE_CATCH_UP_INTERVAL_MS,
+      messageUpdateMode: MESSAGE_UPDATE_MODE,
+      messagePollingIntervalMs: MESSAGE_POLLING_INTERVAL_MS,
+      messagePollingEligible: messagePollingEligible(currentRouteRoomId),
       chatRoomMatchesRoute: chatRoomMatchesRoute(currentRouteRoomId),
       realtimeRoomMatchesRoute: realtimeRoomMatchesRoute(currentRouteRoomId),
-      visibleCatchUpEligible: visibleCatchUpEligible(currentRouteRoomId, currentDocumentVisibility),
       olderLoading: chatStore.olderLoading,
       newerLoading: chatStore.newerLoading,
       hasMoreOlder: chatStore.hasMoreOlder,

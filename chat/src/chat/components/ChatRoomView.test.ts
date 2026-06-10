@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/vue';
+import { render, screen, waitFor } from '@testing-library/vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChatRoomView from './ChatRoomView.vue';
 
@@ -150,7 +150,10 @@ vi.mock('@/bot/keyDelivery', () => ({
 }));
 
 vi.mock('@/chat/components/ChatHeader.vue', () => ({
-  default: { template: '<header data-testid="chat-header" />' },
+  default: {
+    props: ['connectionStatus'],
+    template: '<header data-testid="chat-header">{{ connectionStatus }}</header>',
+  },
 }));
 vi.mock('@/chat/components/SearchPanel.vue', () => ({ default: { template: '<section />' } }));
 vi.mock('@/chat/components/KeySearchPanel.vue', () => ({ default: { template: '<section data-testid="key-search-panel" />' } }));
@@ -203,35 +206,31 @@ describe('ChatRoomView', () => {
     });
   });
 
-  it('periodically catches up newer messages while visible when websocket stays connected', async () => {
+  it('polls newer messages every second without starting websocket realtime', async () => {
     vi.useFakeTimers();
-    const visibilityDescriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      value: 'visible',
-    });
 
     try {
       const { unmount } = render(ChatRoomView);
       await Promise.resolve();
       await Promise.resolve();
 
+      expect(screen.getByTestId('chat-header')).toHaveTextContent('degraded');
+      expect(mocks.realtimeStore.startRoom).not.toHaveBeenCalled();
       expect(mocks.chatStore.loadNewer).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(3000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(mocks.chatStore.loadNewer).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(mocks.chatStore.loadNewer).toHaveBeenCalledTimes(2);
 
       unmount();
-      await vi.advanceTimersByTimeAsync(3000);
+      await vi.advanceTimersByTimeAsync(1000);
 
-      expect(mocks.chatStore.loadNewer).toHaveBeenCalledTimes(1);
+      expect(mocks.chatStore.loadNewer).toHaveBeenCalledTimes(2);
     } finally {
-      if (visibilityDescriptor == null) {
-        Reflect.deleteProperty(document, 'visibilityState');
-      } else {
-        Object.defineProperty(document, 'visibilityState', visibilityDescriptor);
-      }
       vi.useRealTimers();
     }
   });

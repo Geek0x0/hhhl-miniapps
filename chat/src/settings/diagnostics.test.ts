@@ -45,10 +45,11 @@ function richDiagnosticsInput() {
       loading: false,
       roomId: 'room-secret',
       documentVisibility: 'visible',
-      visibleCatchUpIntervalMs: 3000,
+      messageUpdateMode: 'http-polling',
+      messagePollingIntervalMs: 1000,
+      messagePollingEligible: true,
       chatRoomMatchesRoute: true,
       realtimeRoomMatchesRoute: true,
-      visibleCatchUpEligible: false,
       olderLoading: true,
       newerLoading: false,
       hasMoreOlder: true,
@@ -101,10 +102,11 @@ describe('diagnostics renderer', () => {
     expect(safe).toContain('[chat]');
     expect(safe).toContain('chatLoading=false');
     expect(safe).toContain('documentVisibility=visible');
-    expect(safe).toContain('visibleCatchUpIntervalMs=3000');
+    expect(safe).toContain('messageUpdateMode=http-polling');
+    expect(safe).toContain('messagePollingIntervalMs=1000');
+    expect(safe).toContain('messagePollingEligible=true');
     expect(safe).toContain('chatRoomMatchesRoute=true');
     expect(safe).toContain('realtimeRoomMatchesRoute=true');
-    expect(safe).toContain('visibleCatchUpEligible=false');
     expect(safe).toContain('chatOlderLoading=true');
     expect(safe).toContain('chatNewerLoading=false');
     expect(safe).toContain('chatHasMoreOlder=true');
@@ -144,10 +146,11 @@ describe('diagnostics renderer', () => {
     expect(detailed).toContain('pendingStartRoomId=room-pending');
     expect(detailed).toContain('chatRoomId=room-secret');
     expect(detailed).toContain('documentVisibility=visible');
-    expect(detailed).toContain('visibleCatchUpIntervalMs=3000');
+    expect(detailed).toContain('messageUpdateMode=http-polling');
+    expect(detailed).toContain('messagePollingIntervalMs=1000');
+    expect(detailed).toContain('messagePollingEligible=true');
     expect(detailed).toContain('chatRoomMatchesRoute=true');
     expect(detailed).toContain('realtimeRoomMatchesRoute=true');
-    expect(detailed).toContain('visibleCatchUpEligible=false');
     expect(detailed).toContain('memberCount=7');
     expect(detailed).toContain('outboxInvitationCount=4');
     expect(detailed).toContain('chatOlderLoading=true');

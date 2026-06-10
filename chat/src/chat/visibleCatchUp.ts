@@ -1,1 +1,0 @@
-export const VISIBLE_CATCH_UP_INTERVAL_MS = 3000;

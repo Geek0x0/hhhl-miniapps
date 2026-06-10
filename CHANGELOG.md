@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.9 - 2026-06-10
+
+### chat
+
+#### Changed
+
+- Changed room message updates to use one-second HTTP polling of the room timeline while keeping the WebSocket update path in the codebase but disabled.
+- Updated the room transport indicator and diagnostics to report HTTP polling mode, polling interval, and polling eligibility.
+
 ## 0.6.8 - 2026-06-10
 
 ### chat

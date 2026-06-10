@@ -4,7 +4,7 @@
       <ChatHeader
         :room-id="roomId"
         :title="roomTitle"
-        :connection-status="realtimeStore.status"
+        :connection-status="connectionStatus"
         :can-manage-room="canManageRoom"
         @back="router.push('/rooms')"
         @search="toggleSearch"
@@ -142,7 +142,7 @@ import SearchPanel from './SearchPanel.vue';
 import KeySearchPanel from './KeySearchPanel.vue';
 import { filterMutedMessages } from '../messageFilters';
 import { useChatStore } from '../chatStore';
-import { VISIBLE_CATCH_UP_INTERVAL_MS } from '../visibleCatchUp';
+import { MESSAGE_POLLING_INTERVAL_MS, WEBSOCKET_MESSAGE_UPDATES_ENABLED } from '../messageUpdates';
 
 const route = useRoute();
 const router = useRouter();
@@ -165,11 +165,12 @@ const mentionUsersByUsername = ref<Record<string, UserSummary>>({});
 const resolvingMentionUsernames = ref(new Set<string>());
 const timelineComponent = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
 const composerComponent = ref<{ appendMention: (username: string) => void } | null>(null);
+const connectionStatus = computed(() => WEBSOCKET_MESSAGE_UPDATES_ENABLED ? realtimeStore.status : 'degraded');
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 const draftRevisionsByRoomId = new Map<string, number>();
 let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
-let visibleCatchUpTimer: ReturnType<typeof globalThis.setInterval> | null = null;
+let messagePollingTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 let lastAutoKeySearchRouteKey: string | null = null;
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
@@ -585,13 +586,11 @@ function startRealtime(): void {
   });
 }
 
-async function catchUpVisibleRoom(): Promise<void> {
+async function pollCurrentRoomTimeline(): Promise<void> {
   if (
     roomId.value === '' ||
     chatStore.roomId !== roomId.value ||
-    chatStore.loading ||
-    realtimeStore.status !== 'connected' ||
-    globalThis.document.visibilityState !== 'visible'
+    chatStore.loading
   ) {
     return;
   }
@@ -599,27 +598,29 @@ async function catchUpVisibleRoom(): Promise<void> {
   await chatStore.loadNewer();
 }
 
-function clearVisibleCatchUpTimer(): void {
-  if (visibleCatchUpTimer != null) {
-    globalThis.clearInterval(visibleCatchUpTimer);
-    visibleCatchUpTimer = null;
+function clearMessagePollingTimer(): void {
+  if (messagePollingTimer != null) {
+    globalThis.clearInterval(messagePollingTimer);
+    messagePollingTimer = null;
   }
 }
 
-function startVisibleCatchUpTimer(): void {
-  clearVisibleCatchUpTimer();
-  visibleCatchUpTimer = globalThis.setInterval(() => {
-    void catchUpVisibleRoom();
-  }, VISIBLE_CATCH_UP_INTERVAL_MS);
+function startMessagePollingTimer(): void {
+  clearMessagePollingTimer();
+  messagePollingTimer = globalThis.setInterval(() => {
+    void pollCurrentRoomTimeline();
+  }, MESSAGE_POLLING_INTERVAL_MS);
 }
 
 function handleVisibilityChange(): void {
   if (globalThis.document.visibilityState === 'visible') {
-    // When returning to the page, catch up on missed messages and reconnect realtime if needed
-    if (realtimeStore.status === 'degraded' || realtimeStore.status === 'idle') {
+    if (
+      WEBSOCKET_MESSAGE_UPDATES_ENABLED &&
+      (realtimeStore.status === 'degraded' || realtimeStore.status === 'idle')
+    ) {
       startRealtime();
     }
-    void catchUpVisibleRoom();
+    void pollCurrentRoomTimeline();
   }
 }
 
@@ -631,14 +632,16 @@ async function loadRoom(): Promise<void> {
     restoreComposerDraft();
     void ensureAllMembersLoaded();
     void roomStore.loadUserMutes(roomId.value);
-    startRealtime();
+    if (WEBSOCKET_MESSAGE_UPDATES_ENABLED) {
+      startRealtime();
+    }
     void maybeAutoKeySearch();
   }
 }
 
 onMounted(() => {
   void loadRoom();
-  startVisibleCatchUpTimer();
+  startMessagePollingTimer();
   globalThis.document.addEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.addEventListener('visibilitychange', handleVisibilityChange);
 });
@@ -649,7 +652,7 @@ watch(() => route.query.autoKeySearch, () => {
 watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.message.text ?? ''}`).join('|'), ensureMentionUsersLoaded);
 onBeforeUnmount(() => {
   realtimeStore.stopRoom();
-  clearVisibleCatchUpTimer();
+  clearMessagePollingTimer();
   globalThis.document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.removeEventListener('visibilitychange', handleVisibilityChange);
   if (feedbackTimer != null) {
