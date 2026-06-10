@@ -95,9 +95,10 @@
         class="chat-icon-button chat-header__status"
         :class="{
           'chat-header__status--accent': connectionStatus === 'connected',
-          'chat-header__status--breathing': connectionStatus === 'connected',
+          'chat-header__status--breathing': true,
           'chat-header__status--degraded': connectionStatus !== 'connected',
         }"
+        :style="{ '--chat-status-breathe-duration': statusBreatheDuration }"
         :aria-label="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
         :title="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
       >
@@ -111,6 +112,9 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { ArrowLeft, EllipsisVertical, Heart, KeyRound, Search, Settings, ShieldOff, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
+import { MESSAGE_POLLING_INTERVAL_MS } from '../messageUpdates';
+
+const statusBreatheDuration = `${MESSAGE_POLLING_INTERVAL_MS}ms`;
 
 defineProps<{
   roomId: string;

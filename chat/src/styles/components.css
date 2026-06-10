@@ -286,17 +286,19 @@
 }
 
 .chat-header__status--accent {
+  --chat-status-breathe-color: var(--tg-button);
   border-color: color-mix(in srgb, var(--tg-button) 38%, var(--tg-border));
   color: var(--tg-button);
 }
 
 .chat-header__status--degraded {
+  --chat-status-breathe-color: #f59e0b;
   border-color: color-mix(in srgb, #f59e0b 38%, var(--tg-border));
   color: #f59e0b;
 }
 
 .chat-header__status--breathing {
-  animation: chat-status-breathe 2.4s ease-in-out infinite;
+  animation: chat-status-breathe var(--chat-status-breathe-duration, 1000ms) ease-in-out infinite;
   will-change: box-shadow, opacity, transform;
 }
 
@@ -309,7 +311,7 @@
   }
 
   50% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tg-button) 18%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--chat-status-breathe-color, var(--tg-button)) 18%, transparent);
     opacity: 1;
     transform: scale(1.03);
   }

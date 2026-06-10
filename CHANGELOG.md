@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.12 - 2026-06-10
+
+### chat
+
+#### Changed
+
+- Changed the room HTTP pull status indicator to use the same breathing effect cadence as the one-second message polling interval.
+
 ## 0.6.11 - 2026-06-10
 
 ### chat

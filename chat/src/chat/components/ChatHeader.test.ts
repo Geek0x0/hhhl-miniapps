@@ -29,12 +29,15 @@ describe('ChatHeader', () => {
     expect(screen.getByText('HP')).toBeInTheDocument();
     expect(actions?.lastElementChild).toHaveTextContent('HP');
     expect(actions?.lastElementChild).toHaveClass('chat-header__status--degraded');
+    expect(actions?.lastElementChild).toHaveClass('chat-header__status--breathing');
+    expect(actions?.lastElementChild).toHaveStyle({ '--chat-status-breathe-duration': '1000ms' });
 
     await rerender({ connectionStatus: 'idle' });
 
     expect(screen.getByText('HP')).toBeInTheDocument();
     expect(actions?.lastElementChild).toHaveTextContent('HP');
     expect(actions?.lastElementChild).toHaveClass('chat-header__status--degraded');
+    expect(actions?.lastElementChild).toHaveClass('chat-header__status--breathing');
   });
 
   it('hides room management when the active user cannot manage the room', async () => {
