@@ -3,11 +3,14 @@
   <LoginGate v-else />
   <aside
     v-if="updatePromptVisible"
-    class="app-update-banner"
+    class="app-update-banner ui-notice ui-notice--success"
     role="status"
     aria-live="polite"
   >
-    <span>{{ i18n.t('appUpdate.available', { version: remoteUpdateVersion ?? '' }) }}</span>
+    <span>
+      {{ i18n.t('appUpdate.available') }}
+      <span v-if="remoteUpdateVersion != null">{{ remoteUpdateVersion }}</span>
+    </span>
     <button
       class="app-update-banner__button"
       type="button"
@@ -21,7 +24,7 @@
       :aria-label="i18n.t('appUpdate.dismiss')"
       @click="dismissUpdatePrompt"
     >
-      x
+      ×
     </button>
   </aside>
 </template>

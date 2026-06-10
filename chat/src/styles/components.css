@@ -204,25 +204,45 @@
 }
 
 .app-button {
-  min-height: 42px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--tg-button);
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--tg-button) 18%, transparent);
+  border-radius: var(--tg-radius-sm);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 14%, transparent), transparent),
+    var(--tg-button);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--tg-button) 20%, transparent);
   color: var(--tg-button-text);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
+}
+
+.app-button:hover:not(:disabled),
+.app-button:focus-visible:not(:disabled) {
+  box-shadow:
+    var(--tg-focus-ring),
+    0 12px 26px color-mix(in srgb, var(--tg-button) 24%, transparent);
+  transform: translateY(-1px);
 }
 
 .app-button-secondary {
   border: 1px solid var(--tg-border);
-  background: transparent;
+  background: color-mix(in srgb, var(--tg-panel) 72%, transparent);
+  box-shadow: var(--tg-shadow-subtle);
   color: var(--tg-text);
+}
+
+.app-button-secondary:hover:not(:disabled),
+.app-button-secondary:focus-visible:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tg-button) 42%, var(--tg-border));
+  background: color-mix(in srgb, var(--tg-button) 9%, var(--tg-panel));
 }
 
 .app-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+  transform: none;
+  box-shadow: none;
 }
 
 .rooms-shell {
@@ -255,12 +275,16 @@
 
 .room-panel {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   margin: 14px 0;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--tg-soft-border);
-  border-radius: 8px;
-  background: var(--tg-panel);
+  border-radius: var(--tg-radius-lg);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--tg-button) 5%, transparent), transparent 42%),
+    var(--tg-surface-raised);
+  box-shadow: var(--tg-shadow-subtle);
+  animation: ui-enter-up var(--tg-motion-normal) var(--tg-ease-spring) both;
 }
 
 .room-direct-join__label {
@@ -278,12 +302,18 @@
 
 .room-direct-join__input {
   min-width: 0;
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 0 13px;
   border: 1px solid var(--tg-border);
-  border-radius: 8px;
-  background: var(--tg-bg);
+  border-radius: var(--tg-radius-sm);
+  background: color-mix(in srgb, var(--tg-bg) 82%, var(--tg-panel));
   color: var(--tg-text);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+}
+
+.room-direct-join__input:focus-visible {
+  border-color: color-mix(in srgb, var(--tg-button) 58%, var(--tg-border));
+  background: var(--tg-panel);
 }
 
 .room-create-dialog__row {
@@ -859,44 +889,38 @@
 
 .app-update-banner {
   position: fixed;
-  right: 12px;
-  bottom: max(84px, calc(72px + env(safe-area-inset-bottom, 0px)));
-  left: 12px;
-  z-index: 25;
-  display: grid;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: 14px;
+  z-index: 50;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  max-width: 520px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--tg-button) 35%, var(--tg-soft-border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--tg-panel) 96%, transparent);
-  color: var(--tg-text);
-  box-shadow: var(--tg-shadow);
-  font-size: 0.9rem;
-  line-height: 1.25;
+  animation: ui-pop-in var(--tg-motion-normal) var(--tg-ease-spring) both;
 }
 
 .app-update-banner__button,
 .app-update-banner__dismiss {
-  min-height: 34px;
-  border: 1px solid var(--tg-button);
-  border-radius: 8px;
-  background: var(--tg-button);
-  color: var(--tg-button-text);
-  font: inherit;
-  font-weight: 700;
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--tg-radius-pill);
+  cursor: pointer;
+  font-weight: 800;
 }
 
 .app-update-banner__button {
-  padding: 0 12px;
+  padding: 0 14px;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
 }
 
 .app-update-banner__dismiss {
-  width: 34px;
-  padding: 0;
+  width: 36px;
+  background: color-mix(in srgb, var(--tg-text) 8%, transparent);
+  color: var(--tg-text);
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .message-timeline {

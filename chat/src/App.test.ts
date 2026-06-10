@@ -58,6 +58,25 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   });
 
+  it('renders the app update prompt as a floating notice with refresh and dismiss actions', async () => {
+    installMockTelegram();
+    vi.spyOn(window, 'fetch').mockResolvedValue(Response.json({ version: '9.9.9' }));
+    router.push('/');
+    await router.isReady();
+
+    render(App, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    const notice = await screen.findByRole('status');
+    expect(notice).toHaveClass('app-update-banner', 'ui-notice');
+    expect(notice).toHaveTextContent('9.9.9');
+    expect(screen.getByRole('button', { name: /refresh/i })).toHaveClass('app-update-banner__button');
+    expect(screen.getByRole('button', { name: /dismiss/i })).toHaveClass('app-update-banner__dismiss');
+  });
+
   it('renders the Telegram-only prompt outside Telegram', () => {
     uninstallMockTelegram();
 
