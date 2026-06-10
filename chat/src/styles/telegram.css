@@ -40,6 +40,14 @@
 }
 
 :root[data-theme='dark'] {
+  --tg-soft-bg: #162b3a;
+  --tg-surface-raised: #1b2a35;
+  --tg-surface-danger: #351b1f;
+  --tg-surface-warning: #332716;
+  --tg-surface-success: #173022;
+  --tg-skeleton-base: rgba(143, 161, 175, 0.14);
+  --tg-skeleton-sheen: rgba(42, 171, 238, 0.18);
+  --tg-surface-glass: rgba(31, 44, 56, 0.82);
   --tg-border: rgba(238, 245, 251, 0.14);
   --tg-soft-border: rgba(238, 245, 251, 0.08);
   --tg-message-incoming: #1f2c38;
@@ -49,7 +57,6 @@
   --tg-shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.28);
   --tg-shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.32);
   --tg-shadow-floating: 0 18px 54px rgba(0, 0, 0, 0.42);
-  --tg-surface-glass: rgba(31, 44, 56, 0.82);
 }
 
 @supports (color: color-mix(in srgb, white, black)) {

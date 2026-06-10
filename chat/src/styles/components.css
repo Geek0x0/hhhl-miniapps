@@ -71,6 +71,12 @@
   backdrop-filter: blur(16px) saturate(1.2);
 }
 
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .ui-surface--glass {
+    background: var(--tg-surface-raised);
+  }
+}
+
 .ui-notice {
   display: grid;
   gap: 4px;

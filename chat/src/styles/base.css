@@ -42,12 +42,12 @@ select {
 
 :where(button, a, input, textarea, select) {
   transition:
-    background-color var(--tg-motion-fast) var(--tg-ease-standard),
-    border-color var(--tg-motion-fast) var(--tg-ease-standard),
-    box-shadow var(--tg-motion-fast) var(--tg-ease-standard),
-    color var(--tg-motion-fast) var(--tg-ease-standard),
-    opacity var(--tg-motion-fast) var(--tg-ease-standard),
-    transform var(--tg-motion-fast) var(--tg-ease-standard);
+    background-color var(--tg-motion-fast, 120ms) var(--tg-ease-standard, ease),
+    border-color var(--tg-motion-fast, 120ms) var(--tg-ease-standard, ease),
+    box-shadow var(--tg-motion-fast, 120ms) var(--tg-ease-standard, ease),
+    color var(--tg-motion-fast, 120ms) var(--tg-ease-standard, ease),
+    opacity var(--tg-motion-fast, 120ms) var(--tg-ease-standard, ease),
+    transform var(--tg-motion-fast, 120ms) var(--tg-ease-standard, ease);
 }
 
 button:active:not(:disabled),
@@ -63,5 +63,10 @@ a:active {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.001ms !important;
+  }
+
+  button:active:not(:disabled),
+  a:active {
+    transform: none;
   }
 }
