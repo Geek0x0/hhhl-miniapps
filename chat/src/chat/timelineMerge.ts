@@ -51,6 +51,26 @@ export function mergeTimeline(current: Array<ChatMessage | TimelineEntry>, incom
   return sortTimeline([...byServerId.values(), ...pendingEntries]);
 }
 
+export function mergeTimelineWithUpdate(current: Array<ChatMessage | TimelineEntry>, incoming: ChatMessage[]): TimelineEntry[] {
+  const byServerId = new Map<string, TimelineEntry>();
+  const pendingEntries: TimelineEntry[] = [];
+
+  for (const item of current.map(toEntry)) {
+    if (item.kind === 'server') {
+      byServerId.set(item.message.id, item);
+    } else {
+      pendingEntries.push(item);
+    }
+  }
+
+  for (const message of incoming) {
+    // Always use the incoming version for realtime updates (newer data)
+    byServerId.set(message.id, { kind: 'server', message });
+  }
+
+  return sortTimeline([...byServerId.values(), ...pendingEntries]);
+}
+
 export function replacePendingMessage(current: Array<ChatMessage | TimelineEntry>, localId: string, serverMessage: ChatMessage): TimelineEntry[] {
   const withoutPending = current.map(toEntry).filter((entry) => entry.kind !== 'pending' || entry.localId !== localId);
   return mergeTimeline(withoutPending, [serverMessage]);

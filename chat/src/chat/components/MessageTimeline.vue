@@ -158,12 +158,6 @@ function captureScrollAnchor(element: globalThis.HTMLElement): ScrollAnchor {
   };
 }
 
-function requestStableFrame(callback: () => void): void {
-  globalThis.requestAnimationFrame(() => {
-    globalThis.requestAnimationFrame(callback);
-  });
-}
-
 function restoreScrollAnchor(): void {
   const element = timelineElement.value;
   const anchor = scrollAnchor;
@@ -174,18 +168,17 @@ function restoreScrollAnchor(): void {
     return;
   }
 
-  requestStableFrame(() => {
-    const anchorElement = anchor.messageId == null ? null : messageElementById(element, anchor.messageId);
+  // Synchronously restore scroll position immediately after DOM update
+  // to minimize visual jump. The nextTick in the watcher already waited for the DOM.
+  const anchorElement = anchor.messageId == null ? null : messageElementById(element, anchor.messageId);
 
-    if (anchorElement != null) {
-      element.scrollTop = anchor.scrollTop + relativeTop(element, anchorElement) - anchor.top;
-      loadingFromScroll = false;
-      return;
-    }
-
+  if (anchorElement != null) {
+    element.scrollTop = anchor.scrollTop + relativeTop(element, anchorElement) - anchor.top;
+  } else {
     element.scrollTop = anchor.scrollTop + Math.max(0, element.scrollHeight - anchor.scrollHeight);
-    loadingFromScroll = false;
-  });
+  }
+
+  loadingFromScroll = false;
 }
 
 function handleScroll(): void {

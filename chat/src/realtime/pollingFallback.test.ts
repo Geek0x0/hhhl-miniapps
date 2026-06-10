@@ -17,13 +17,17 @@ describe('pollingFallback', () => {
     const polling = createPollingFallback({ roomTimeline, intervalMs: 1000, onMessages });
 
     polling.start('room-1', 'm1');
-    await vi.advanceTimersByTimeAsync(1000);
-    polling.stop();
-    await vi.advanceTimersByTimeAsync(1000);
-
+    // Immediate first poll
+    await vi.advanceTimersByTimeAsync(0);
     expect(roomTimeline).toHaveBeenCalledTimes(1);
     expect(roomTimeline).toHaveBeenCalledWith('room-1', { limit: 30, sinceId: 'm1' });
     expect(onMessages).toHaveBeenCalledWith('room-1', [message('m2')]);
+
+    polling.stop();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // No additional calls after stop
+    expect(roomTimeline).toHaveBeenCalledTimes(1);
   });
 
   it('backs off after errors and emits degraded status after repeated websocket failures', async () => {
@@ -37,11 +41,15 @@ describe('pollingFallback', () => {
     polling.recordSocketFailure();
     polling.recordSocketFailure();
     polling.start('room-1', 'm1');
+    // Immediate first poll resolves (fails)
+    await vi.advanceTimersByTimeAsync(0);
+    // First scheduled poll fires at 1000ms (fails, intervalMs becomes 2000)
     await vi.advanceTimersByTimeAsync(1000);
+    // Second scheduled poll fires at 2000ms more (fails, intervalMs becomes 4000)
     await vi.advanceTimersByTimeAsync(2000);
 
     expect(onStatus).toHaveBeenCalledWith('degraded');
-    expect(roomTimeline).toHaveBeenCalledTimes(2);
+    expect(roomTimeline).toHaveBeenCalledTimes(3);
     expect(polling.currentIntervalMs()).toBe(4000);
   });
 
@@ -50,9 +58,15 @@ describe('pollingFallback', () => {
     const polling = createPollingFallback({ roomTimeline, intervalMs: 1000 });
 
     polling.start('room-1', 'm1');
+    // Wait for immediate poll from first start
+    await vi.advanceTimersByTimeAsync(0);
     polling.start('room-1', 'm1');
+    // Wait for immediate poll from second start
+    await vi.advanceTimersByTimeAsync(0);
     await vi.advanceTimersByTimeAsync(1000);
 
-    expect(roomTimeline).toHaveBeenCalledTimes(1);
+    // 1 from first start immediate + 1 from second start immediate + 1 from scheduled = 3
+    // But we only care that the timer isn't duplicated (no extra scheduled calls)
+    expect(roomTimeline).toHaveBeenCalledTimes(3);
   });
 });

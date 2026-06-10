@@ -26,6 +26,9 @@ export interface RealtimeClientOptions {
   tokenProvider: () => string | null | undefined;
   WebSocketImpl?: WebSocketConstructorLike | typeof WebSocket;
   logger?: Pick<Logger, 'warn'>;
+  reconnectBaseMs?: number;
+  reconnectMaxMs?: number;
+  maxReconnectAttempts?: number;
 }
 
 export interface RealtimeClient {
@@ -79,6 +82,9 @@ function normalizeEvent(raw: unknown, subscribedRooms: Set<string>): RealtimeEve
 export function createRealtimeClient(options: RealtimeClientOptions): RealtimeClient {
   const WebSocketImpl = (options.WebSocketImpl ?? WebSocket) as WebSocketConstructorLike;
   const logger = options.logger ?? createLogger(console);
+  const reconnectBaseMs = options.reconnectBaseMs ?? 1000;
+  const reconnectMaxMs = options.reconnectMaxMs ?? 30000;
+  const maxReconnectAttempts = options.maxReconnectAttempts ?? 10;
   const listeners = new Set<(event: RealtimeEvent) => void>();
   const openListeners = new Set<() => void>();
   const socketFailureListeners = new Set<() => void>();
@@ -88,6 +94,8 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   let socketOpen = false;
   let pendingSends: string[] = [];
   let disconnecting = false;
+  let reconnectAttempts = 0;
+  let reconnectTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
   function send(value: unknown): void {
     const message = JSON.stringify(value);
@@ -109,56 +117,97 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     }
   }
 
-  return {
-    connect: () => {
-      const token = options.tokenProvider();
-      if (token == null || token === '') {
+  function clearReconnectTimer(): void {
+    if (reconnectTimer != null) {
+      globalThis.clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function resubscribeRooms(): void {
+    for (const roomId of subscribedRooms) {
+      send({
+        type: getRuntimeContracts().streamChannelEnvelope.type,
+        body: { id: channelId(roomId), type: 'connect', body: { roomId } },
+      });
+    }
+  }
+
+  function connectInternal(): void {
+    const token = options.tokenProvider();
+    if (token == null || token === '') {
+      return;
+    }
+
+    socketUrl = createUrl(token);
+    const nextSocket = new WebSocketImpl(socketUrl);
+    socket = nextSocket;
+    socketOpen = false;
+    pendingSends = [];
+    nextSocket.onopen = () => {
+      socketOpen = true;
+      reconnectAttempts = 0;
+      for (const listener of openListeners) {
+        listener();
+      }
+      nextSocket.send(JSON.stringify(getRuntimeContracts().streamConnectMessage));
+      resubscribeRooms();
+      for (const message of pendingSends) {
+        nextSocket.send(message);
+      }
+      pendingSends = [];
+    };
+    nextSocket.onmessage = (event) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(event.data) as unknown;
+      } catch (error) {
+        logger.warn(`Ignored malformed realtime message: ${redactSensitiveText(error instanceof Error ? error.message : String(error))}`);
         return;
       }
 
-      socketUrl = createUrl(token);
-      const nextSocket = new WebSocketImpl(socketUrl);
-      socket = nextSocket;
+      const normalized = normalizeEvent(parsed, subscribedRooms);
+      if (normalized != null) {
+        for (const listener of listeners) {
+          listener(normalized);
+        }
+      }
+    };
+    nextSocket.onerror = () => {
+      logger.warn(`Realtime socket error for ${redactSensitiveText(socketUrl)}`);
+      notifySocketFailure();
+    };
+    nextSocket.onclose = () => {
       socketOpen = false;
-      disconnecting = false;
-      pendingSends = [];
-      nextSocket.onopen = () => {
-        socketOpen = true;
-        for (const listener of openListeners) {
-          listener();
-        }
-        nextSocket.send(JSON.stringify(getRuntimeContracts().streamConnectMessage));
-        for (const message of pendingSends) {
-          nextSocket.send(message);
-        }
-        pendingSends = [];
-      };
-      nextSocket.onmessage = (event) => {
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(event.data) as unknown;
-        } catch (error) {
-          logger.warn(`Ignored malformed realtime message: ${redactSensitiveText(error instanceof Error ? error.message : String(error))}`);
-          return;
-        }
-
-        const normalized = normalizeEvent(parsed, subscribedRooms);
-        if (normalized != null) {
-          for (const listener of listeners) {
-            listener(normalized);
-          }
-        }
-      };
-      nextSocket.onerror = () => {
-        logger.warn(`Realtime socket error for ${redactSensitiveText(socketUrl)}`);
+      if (!disconnecting) {
         notifySocketFailure();
-      };
-      nextSocket.onclose = () => {
-        socketOpen = false;
-        if (!disconnecting) {
-          notifySocketFailure();
-        }
-      };
+        scheduleReconnect();
+      }
+    };
+  }
+
+  function scheduleReconnect(): void {
+    if (disconnecting || reconnectAttempts >= maxReconnectAttempts) {
+      return;
+    }
+
+    clearReconnectTimer();
+    const delayMs = Math.min(reconnectBaseMs * Math.pow(2, reconnectAttempts), reconnectMaxMs);
+    reconnectAttempts += 1;
+    reconnectTimer = globalThis.setTimeout(() => {
+      reconnectTimer = null;
+      if (!disconnecting) {
+        connectInternal();
+      }
+    }, delayMs);
+  }
+
+  return {
+    connect: () => {
+      disconnecting = false;
+      reconnectAttempts = 0;
+      clearReconnectTimer();
+      connectInternal();
     },
     subscribeRoom: (roomId) => {
       subscribedRooms.add(roomId);
@@ -188,11 +237,13 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     },
     disconnect: () => {
       disconnecting = true;
+      clearReconnectTimer();
       socket?.close();
       socket = null;
       socketOpen = false;
       pendingSends = [];
       subscribedRooms.clear();
+      reconnectAttempts = 0;
     },
   };
 }

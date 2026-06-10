@@ -70,7 +70,28 @@ export function createPollingFallback(options: PollingFallbackOptions): PollingF
       roomId = nextRoomId;
       lastSeenId = nextLastSeenId ?? null;
       intervalMs = baseIntervalMs;
-      schedule();
+      // Poll immediately on start, then schedule subsequent polls
+      void (async () => {
+        const currentRoomId = roomId;
+        if (currentRoomId == null) {
+          return;
+        }
+
+        try {
+          const messages = await options.roomTimeline(currentRoomId, { limit: DEFAULT_PAGE_SIZE, sinceId: lastSeenId ?? undefined });
+          if (roomId !== currentRoomId) {
+            return;
+          }
+          if (messages.length > 0) {
+            lastSeenId = messages[messages.length - 1]?.id ?? lastSeenId;
+            options.onMessages?.(currentRoomId, messages);
+          }
+        } catch {
+          // Will be retried on the next scheduled poll
+        } finally {
+          schedule();
+        }
+      })();
     },
     stop: () => {
       clearTimer();

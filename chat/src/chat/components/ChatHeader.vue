@@ -92,11 +92,16 @@
         </div>
       </div>
       <span
-        class="chat-icon-button chat-header__status chat-header__status--accent chat-header__status--breathing"
-        :aria-label="degraded ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
-        :title="degraded ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
+        class="chat-icon-button chat-header__status"
+        :class="{
+          'chat-header__status--accent': connectionStatus === 'connected',
+          'chat-header__status--breathing': connectionStatus === 'connected',
+          'chat-header__status--degraded': connectionStatus === 'degraded',
+        }"
+        :aria-label="connectionStatus === 'degraded' ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
+        :title="connectionStatus === 'degraded' ? i18n.t('realtime.transportHp') : i18n.t('realtime.transportWs')"
       >
-        {{ degraded ? 'HP' : 'WS' }}
+        {{ connectionStatus === 'degraded' ? 'HP' : 'WS' }}
       </span>
     </div>
   </header>
@@ -110,7 +115,7 @@ import { i18n } from '@/i18n';
 defineProps<{
   roomId: string;
   title: string;
-  degraded?: boolean;
+  connectionStatus?: 'idle' | 'connected' | 'degraded';
   canManageRoom?: boolean;
 }>();
 
