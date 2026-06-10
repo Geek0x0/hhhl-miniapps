@@ -333,15 +333,31 @@ export const useRoomStore = defineStore('rooms', {
         this.membersHasMoreByRoomId = { ...this.membersHasMoreByRoomId, [roomId]: true };
       }
 
+      let consecutiveFailures = 0;
+      const maxRetries = 3;
+
       while (this.membersHasMoreByRoomId[roomId] !== false) {
         const previousCount = this.membersByRoomId[roomId]?.length ?? 0;
+        const previousError = this.error;
         await this.loadMoreMembers(roomId, api);
         const nextCount = this.membersByRoomId[roomId]?.length ?? 0;
 
         if (nextCount === previousCount) {
+          // If an error was set during this iteration, it was a network failure
+          if (this.error != null && this.error !== previousError) {
+            consecutiveFailures += 1;
+            if (consecutiveFailures >= maxRetries) {
+              break;
+            }
+            // Brief wait before retry
+            await new Promise((resolve) => globalThis.setTimeout(resolve, 500 * consecutiveFailures));
+            continue;
+          }
           this.membersHasMoreByRoomId = { ...this.membersHasMoreByRoomId, [roomId]: false };
           break;
         }
+
+        consecutiveFailures = 0;
       }
     },
 

@@ -4,7 +4,7 @@
       <ChatHeader
         :room-id="roomId"
         :title="roomTitle"
-        :degraded="realtimeStore.status === 'degraded'"
+        :connection-status="realtimeStore.status"
         :can-manage-room="canManageRoom"
         @back="router.push('/rooms')"
         @search="toggleSearch"
@@ -576,6 +576,11 @@ function startRealtime(): void {
     deleteMessage: (messageId) => chatStore.applyRealtimeDelete(messageId),
     applyReaction: (messageId, reaction) => chatStore.applyRealtimeReaction(messageId, reaction),
   });
+
+  // Catch up on missed messages whenever WebSocket reconnects
+  realtime.onOpen(() => {
+    void chatStore.loadNewer();
+  });
 }
 
 async function catchUpVisibleRoom(): Promise<void> {
@@ -593,6 +598,10 @@ async function catchUpVisibleRoom(): Promise<void> {
 
 function handleVisibilityChange(): void {
   if (globalThis.document.visibilityState === 'visible') {
+    // When returning to the page, catch up on missed messages and reconnect realtime if needed
+    if (realtimeStore.status === 'degraded' || realtimeStore.status === 'idle') {
+      startRealtime();
+    }
     void catchUpVisibleRoom();
   }
 }

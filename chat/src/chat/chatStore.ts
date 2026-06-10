@@ -9,7 +9,7 @@ import { createFileApi } from '@/files/fileApi';
 import { createChatApi, type CreateRoomMessageParams, type SearchMessagesParams } from './chatApi';
 import { extractKeyToken, KEY_SEARCH_QUERY, KEY_SEARCH_USER_ID } from './keySearch';
 import { createPendingMessage, failPendingMessage, removePendingMessage, retryPendingMessage, sendPendingMessage, type OutgoingMessage } from './outgoingQueue';
-import { mergeTimeline, removeTimelineMessage, replacePendingMessage, type TimelineEntry } from './timelineMerge';
+import { mergeTimeline, mergeTimelineWithUpdate, removeTimelineMessage, replacePendingMessage, type TimelineEntry } from './timelineMerge';
 
 export interface ChatApiLike {
   roomTimeline: (roomId: string, params?: PaginationParams) => Promise<ChatMessage[]>;
@@ -534,7 +534,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     appendRealtimeMessages(messages: ChatMessage[]) {
-      this.timeline = mergeTimeline(this.timeline, messages);
+      this.timeline = mergeTimelineWithUpdate(this.timeline, messages);
     },
 
     applyRealtimeDelete(messageId: string) {

@@ -120,7 +120,15 @@ vi.mock('@/chat/chatApi', () => ({
 }));
 
 vi.mock('@/realtime/realtimeClient', () => ({
-  createRealtimeClient: () => ({}),
+  createRealtimeClient: () => ({
+    connect: vi.fn(),
+    subscribeRoom: vi.fn(),
+    unsubscribeRoom: vi.fn(),
+    disconnect: vi.fn(),
+    onEvent: vi.fn(() => () => {}),
+    onOpen: vi.fn(() => () => {}),
+    onSocketFailure: vi.fn(() => () => {}),
+  }),
 }));
 
 vi.mock('@/realtime/pollingFallback', () => ({

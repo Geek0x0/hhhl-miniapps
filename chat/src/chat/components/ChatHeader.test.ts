@@ -7,7 +7,7 @@ function renderHeader(props: Partial<InstanceType<typeof ChatHeader>['$props']> 
     props: {
       roomId: 'room-1',
       title: 'Room 1',
-      degraded: false,
+      connectionStatus: 'connected',
       ...props,
     },
   });
@@ -24,10 +24,11 @@ describe('ChatHeader', () => {
     expect(actions?.lastElementChild).toHaveClass('chat-header__status--accent');
     expect(actions?.lastElementChild).toHaveClass('chat-header__status--breathing');
 
-    await rerender({ degraded: true });
+    await rerender({ connectionStatus: 'degraded' });
 
     expect(screen.getByText('HP')).toBeInTheDocument();
     expect(actions?.lastElementChild).toHaveTextContent('HP');
+    expect(actions?.lastElementChild).toHaveClass('chat-header__status--degraded');
   });
 
   it('hides room management when the active user cannot manage the room', async () => {

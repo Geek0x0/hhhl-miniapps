@@ -2,6 +2,20 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.6.5 - 2026-06-10
+
+### chat
+
+#### Fixed
+
+- Fixed chat messages not updating or arriving late by adding WebSocket auto-reconnect with exponential backoff after unexpected disconnections, and immediate catch-up polling when the connection degrades.
+- Fixed the room header WS/HP transport status indicator to correctly reflect idle, connected, and degraded states with distinct styling instead of always showing WS when not degraded.
+- Fixed member list incomplete loading by retrying failed page fetches up to three times with brief delays before giving up, preventing transient network errors from leaving the list partially loaded.
+- Fixed scroll position jumping when loading older chat history by restoring the scroll anchor synchronously after DOM update instead of deferring to a double-requestAnimationFrame callback.
+- Fixed realtime messages (from WebSocket or polling) always updating existing timeline entries so reactions and edits arriving through the stream are reflected immediately.
+- Added immediate first poll when the polling fallback starts so degraded rooms receive missed messages without waiting for the first scheduled interval.
+- Added automatic `loadNewer` fetch on WebSocket reconnection and page visibility restoration to fill any gap between the last seen message and the current server timeline.
+
 ## 0.6.4 - 2026-06-08
 
 ### chat
