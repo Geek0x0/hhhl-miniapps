@@ -23,7 +23,7 @@ This repository can contain multiple mini apps. Changelog entries are grouped by
 #### Fixed
 
 - Improved `persistSentMessage` to always advance `lastSeen` before writing the message map, preventing duplicate sends if map persistence fails.
-- Capped the `forwardedMessageKeys` set in `BridgeRuntime` at 5 000 entries to prevent unbounded memory growth in long-running sessions.
+- Capped the `forwardedMessageKeys` set in `BridgeRuntime` at 5000 entries to prevent unbounded memory growth in long-running sessions.
 
 ## 0.7.8 - 2026-06-11
 
