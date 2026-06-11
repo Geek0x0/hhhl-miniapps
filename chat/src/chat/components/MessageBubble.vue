@@ -6,6 +6,8 @@
       'message-bubble--own': isOwnMessage,
       'message-bubble--incoming': !isOwnMessage,
       'message-bubble--pending': entry.kind === 'pending',
+      'message-bubble--sending': entry.kind === 'pending' && entry.status !== 'failed',
+      'message-bubble--failed': entry.kind === 'pending' && entry.status === 'failed',
       'message-bubble--referenced': reference != null,
     }"
   >

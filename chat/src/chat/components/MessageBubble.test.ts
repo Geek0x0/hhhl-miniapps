@@ -121,6 +121,36 @@ describe('MessageBubble', () => {
     expect(container.querySelector('.message-reference__preview')).toHaveTextContent('https://example.com/really/long/path');
   });
 
+  it('marks pending and failed messages with visual state classes', () => {
+    const pending = renderBubble({
+      kind: 'pending',
+      localId: 'local-1',
+      status: 'pending',
+      message: {
+        id: 'local-1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: 'sending',
+        user: { id: 'me', username: 'me' },
+      },
+    });
+    const failed = renderBubble({
+      kind: 'pending',
+      localId: 'local-2',
+      status: 'failed',
+      message: {
+        id: 'local-2',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: 'failed',
+        user: { id: 'me', username: 'me' },
+      },
+    });
+
+    expect(pending.container.querySelector('.message-bubble')).toHaveClass('message-bubble--sending');
+    expect(failed.container.querySelector('.message-bubble')).toHaveClass('message-bubble--failed');
+  });
+
   it('marks sent reply and quote bubbles for referenced-message layout', () => {
     const reply = renderBubble({
       kind: 'server',

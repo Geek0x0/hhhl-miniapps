@@ -1978,3 +1978,107 @@ button.chat-icon-button:active:not(:disabled) {
     grid-template-columns: 32px 32px minmax(0, 1fr) 32px;
   }
 }
+
+/* Task 7: polished message bubble surfaces and media states */
+.message-bubble {
+  align-items: end;
+  max-width: min(92%, 620px);
+  animation: ui-enter-up var(--tg-motion-normal) var(--tg-ease-spring) both;
+}
+
+.message-bubble--incoming {
+  align-self: flex-start;
+}
+
+.message-bubble--own {
+  align-self: flex-end;
+}
+
+.message-bubble__body {
+  min-width: 0;
+}
+
+.message-bubble--sending {
+  opacity: 1;
+}
+
+.message-bubble--sending .message-bubble__body {
+  opacity: 0.82;
+  animation: message-sending-pulse 1200ms var(--tg-ease-standard) infinite;
+}
+
+.message-bubble--failed {
+  border-color: color-mix(in srgb, var(--tg-danger) 42%, var(--tg-border));
+  background: var(--tg-surface-danger);
+}
+
+.message-bubble--failed .message-bubble__body {
+  color: var(--tg-text);
+}
+
+.message-bubble--focused {
+  outline: none;
+}
+
+.message-bubble--focused .message-bubble__body {
+  animation: message-focus-pulse 1400ms var(--tg-ease-spring) both;
+}
+
+@keyframes message-sending-pulse {
+  50% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes message-focus-pulse {
+  0%,
+  100% {
+    box-shadow: var(--tg-shadow-subtle);
+  }
+
+  35% {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--tg-button) 24%, transparent),
+      var(--tg-shadow-raised);
+  }
+}
+
+.message-reference,
+.message-link-preview,
+.message-file-link {
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-sm);
+  background: color-mix(in srgb, var(--tg-button) 7%, var(--tg-panel));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tg-button) 48%, transparent);
+}
+
+.message-reactions__item {
+  border: 1px solid color-mix(in srgb, var(--tg-button) 26%, var(--tg-border));
+  border-radius: var(--tg-radius-pill);
+  background: color-mix(in srgb, var(--tg-button) 8%, var(--tg-panel));
+}
+
+.image-lightbox {
+  background: rgba(0, 0, 0, 0.76);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  animation: ui-enter-up var(--tg-motion-normal) var(--tg-ease-spring) both;
+}
+
+.image-lightbox__container {
+  max-width: min(100%, 960px);
+  max-height: min(100%, 82vh);
+  border-radius: var(--tg-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--tg-shadow-floating);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-bubble,
+  .image-lightbox,
+  .message-bubble--sending .message-bubble__body,
+  .message-bubble--focused .message-bubble__body {
+    animation: none;
+  }
+}
