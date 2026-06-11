@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/vue';
+import { fireEvent, render, screen } from '@testing-library/vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RoomListView from './RoomListView.vue';
 
@@ -87,5 +87,20 @@ describe('RoomListView', () => {
     expect(emptyState).toHaveClass('ui-empty-state');
     expect(emptyState).toHaveTextContent('No messages yet');
     expect(emptyState).toHaveTextContent('Join by room ID');
+  });
+
+  it('trims room invitation ids before accepting invitations', async () => {
+    mocks.roomStore.invitations = [
+      {
+        id: 'invitation-1',
+        roomId: '  room-1  ',
+      },
+    ];
+
+    render(RoomListView);
+
+    await fireEvent.click(screen.getAllByRole('button', { name: 'Join by room ID' })[1]);
+
+    expect(mocks.roomStore.acceptInvitation).toHaveBeenCalledWith('invitation-1', 'room-1');
   });
 });

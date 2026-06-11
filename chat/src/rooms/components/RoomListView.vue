@@ -105,11 +105,12 @@ async function joinRoom(roomId: string): Promise<void> {
 }
 
 async function acceptInvitation(invitationId: string, roomId: string): Promise<void> {
-  if (roomId === '') {
+  const normalizedRoomId = roomId.trim();
+  if (normalizedRoomId === '') {
     return;
   }
 
-  await roomStore.acceptInvitation(invitationId, roomId);
+  await roomStore.acceptInvitation(invitationId, normalizedRoomId);
 }
 
 onMounted(async () => {

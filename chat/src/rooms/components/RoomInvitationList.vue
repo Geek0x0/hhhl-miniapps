@@ -58,7 +58,10 @@ function invitationDisplayId(invitation: RoomInvitation): string {
 }
 
 function invitationJoinRoomId(invitation: RoomInvitation): string | null {
-  return invitation.room?.id ?? invitation.roomId ?? null;
+  const roomId = invitation.room?.id ?? invitation.roomId;
+  const normalizedRoomId = roomId?.trim();
+
+  return normalizedRoomId == null || normalizedRoomId === '' ? null : normalizedRoomId;
 }
 
 function acceptInvitation(invitation: RoomInvitation): void {
