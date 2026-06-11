@@ -35,8 +35,8 @@ export function mentionCandidates(members: UserSummary[], query: string, limit =
     .slice(0, limit);
 }
 
-export function parseMentionText(text: string, members: UserSummary[]): MentionPart[] {
-  const membersByUsername = new Map(members.map((member) => [member.username.toLowerCase(), member]));
+export function parseMentionText(text: string, members: UserSummary[], prebuiltMap?: Map<string, UserSummary>): MentionPart[] {
+  const membersByUsername = prebuiltMap ?? new Map(members.map((member) => [member.username.toLowerCase(), member]));
   const parts: MentionPart[] = [];
   let lastIndex = 0;
 
@@ -63,4 +63,8 @@ export function parseMentionText(text: string, members: UserSummary[]): MentionP
   }
 
   return parts.length === 0 ? [{ kind: 'text', text }] : parts;
+}
+
+export function buildMemberUsernameMap(members: UserSummary[]): Map<string, UserSummary> {
+  return new Map(members.map((member) => [member.username.toLowerCase(), member]));
 }

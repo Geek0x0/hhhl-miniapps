@@ -2,6 +2,29 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.9 - 2026-06-11
+
+### chat
+
+#### Fixed
+
+- Cached `Date.parse` results during timeline sorting to eliminate redundant parsing in large message lists.
+- Optimized pending message insertion in `sendText`/`sendFile` to use a single sorted insertion instead of two full array copies.
+- Prevented duplicate socket failure notifications when a WebSocket `onerror` is immediately followed by `onclose`.
+- Fixed polling fallback `lastSeenId` update order so the cursor is not advanced if the `onMessages` callback throws.
+
+#### Added
+
+- Exposed `buildMemberUsernameMap` helper and optional pre-built Map parameter in `parseMentionText` to avoid reconstructing the Map on every render.
+- Added `sortTimelineWithEntry` utility for efficient single-entry insertion using binary search.
+
+### xbot
+
+#### Fixed
+
+- Improved `persistSentMessage` to always advance `lastSeen` before writing the message map, preventing duplicate sends if map persistence fails.
+- Capped the `forwardedMessageKeys` set in `BridgeRuntime` at 5000 entries to prevent unbounded memory growth in long-running sessions.
+
 ## 0.7.8 - 2026-06-11
 
 ### chat

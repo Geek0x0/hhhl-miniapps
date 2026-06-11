@@ -9,7 +9,7 @@ import { createFileApi } from '@/files/fileApi';
 import { createChatApi, type CreateRoomMessageParams, type SearchMessagesParams } from './chatApi';
 import { extractKeyToken, KEY_SEARCH_QUERY, KEY_SEARCH_USER_ID } from './keySearch';
 import { createPendingMessage, failPendingMessage, removePendingMessage, retryPendingMessage, sendPendingMessage, type OutgoingMessage } from './outgoingQueue';
-import { mergeTimeline, mergeTimelineWithUpdate, removeTimelineMessage, replacePendingMessage, type TimelineEntry } from './timelineMerge';
+import { mergeTimeline, mergeTimelineWithUpdate, removeTimelineMessage, replacePendingMessage, sortTimelineWithEntry, type TimelineEntry } from './timelineMerge';
 
 export interface ChatApiLike {
   roomTimeline: (roomId: string, params?: PaginationParams) => Promise<ChatMessage[]>;
@@ -416,8 +416,8 @@ export const useChatStore = defineStore('chat', {
 
       pending.localMessage = withComposerContext(pending.localMessage, capturedReply, capturedQuote);
       this.outgoing = [...this.outgoing, pending];
-      this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
-      this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
+      const pendingTextEntry: TimelineEntry = { kind: 'pending', localId, message: pending.localMessage, status: 'pending' };
+      this.timeline = sortTimelineWithEntry(this.timeline, pendingTextEntry);
       this.clearComposerContext();
 
       try {
@@ -484,8 +484,8 @@ export const useChatStore = defineStore('chat', {
       pending.localMessage.file = uploaded;
       pending.localMessage = withComposerContext(pending.localMessage, capturedReply, capturedQuote);
       this.outgoing = [...this.outgoing, pending];
-      this.timeline = mergeTimeline(this.timeline, [{ ...pending.localMessage }]);
-      this.timeline = this.timeline.map((entry) => entry.message.id === localId ? { kind: 'pending', localId, message: pending.localMessage, status: 'pending' } : entry);
+      const pendingFileEntry: TimelineEntry = { kind: 'pending', localId, message: pending.localMessage, status: 'pending' };
+      this.timeline = sortTimelineWithEntry(this.timeline, pendingFileEntry);
       this.clearComposerContext();
 
       try {

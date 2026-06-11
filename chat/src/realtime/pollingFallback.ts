@@ -52,8 +52,8 @@ export function createPollingFallback(options: PollingFallbackOptions): PollingF
           return;
         }
         if (messages.length > 0) {
-          lastSeenId = messages[messages.length - 1]?.id ?? lastSeenId;
           options.onMessages?.(currentRoomId, messages);
+          lastSeenId = messages[messages.length - 1]?.id ?? lastSeenId;
         }
         intervalMs = baseIntervalMs;
       } catch {
@@ -83,8 +83,8 @@ export function createPollingFallback(options: PollingFallbackOptions): PollingF
             return;
           }
           if (messages.length > 0) {
-            lastSeenId = messages[messages.length - 1]?.id ?? lastSeenId;
             options.onMessages?.(currentRoomId, messages);
+            lastSeenId = messages[messages.length - 1]?.id ?? lastSeenId;
           }
         } catch {
           // Will be retried on the next scheduled poll
