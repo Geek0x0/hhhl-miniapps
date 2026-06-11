@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RoomListView from './RoomListView.vue';
+import type { RoomInvitation } from '../roomStore';
 
 const mocks = vi.hoisted(() => ({
   router: {
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     loading: false,
     error: null,
     rooms: [],
-    invitations: [],
+    invitations: [] as RoomInvitation[],
     pendingStartRoomId: null,
     activeRoomId: null,
     acceptInvitation: vi.fn(async () => undefined),
