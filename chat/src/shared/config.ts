@@ -4,3 +4,4 @@ export const BOT_WORKER_URL = (import.meta.env.VITE_BOT_WORKER_URL ?? '').replac
 export const STORAGE_PREFIX = 'hhhl-chat';
 export const DEFAULT_PAGE_SIZE = 30;
 export const MINI_APP_NAME = 'HHHL Chat Mini App';
+export const APP_ICON_URL = `${DC_HHHL_ORIGIN}/client-assets/icon.png?v=${encodeURIComponent(__APP_VERSION__)}`;

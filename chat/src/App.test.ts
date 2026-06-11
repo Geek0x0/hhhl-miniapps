@@ -5,6 +5,7 @@ import { nextTick } from 'vue';
 import App from './App.vue';
 import router from './router';
 import { installMockTelegram, uninstallMockTelegram } from './test/mockTelegram';
+import { APP_ICON_URL } from './shared/config';
 
 describe('App', () => {
   afterEach(() => {
@@ -31,7 +32,7 @@ describe('App', () => {
     const logo = screen.getByRole('img', { name: 'HHHL Logo' });
 
     expect(title).toBeInTheDocument();
-    expect(logo).toHaveAttribute('src', 'https://dc.hhhl.cc/client-assets/icon.png');
+    expect(logo).toHaveAttribute('src', APP_ICON_URL);
     expect(logo).toHaveAttribute('width', '45');
     expect(logo).toHaveAttribute('height', '45');
     expect(title.parentElement).toContainElement(logo);

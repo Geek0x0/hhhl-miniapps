@@ -2,6 +2,18 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.8 - 2026-06-11
+
+### chat
+
+#### Added
+
+- Added drag panning for zoomed chat image previews.
+
+#### Fixed
+
+- Cache-busted the shared HHHL logo URL with the app version so updated icons are fetched after releases.
+
 ## 0.7.7 - 2026-06-11
 
 ### chat

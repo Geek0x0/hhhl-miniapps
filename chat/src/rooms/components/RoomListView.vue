@@ -8,7 +8,7 @@
         <div class="rooms-header__headline app-heading-row">
           <img
             class="rooms-header__logo app-heading-logo"
-            src="https://dc.hhhl.cc/client-assets/icon.png"
+            :src="APP_ICON_URL"
             alt="HHHL Logo"
             width="45"
             height="45"
@@ -86,6 +86,7 @@ import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Settings } from '@lucide/vue';
 import { i18n } from '@/i18n';
+import { APP_ICON_URL } from '@/shared/config';
 import { getTelegramLaunchContext } from '@/telegram/telegram';
 import RoomDirectJoin from './RoomDirectJoin.vue';
 import RoomErrorState from './RoomErrorState.vue';

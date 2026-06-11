@@ -176,6 +176,50 @@ describe('MessageBubble', () => {
     });
   });
 
+  it('pans zoomed image previews by dragging the preview container', async () => {
+    vi.stubGlobal('innerWidth', 1024);
+    vi.stubGlobal('innerHeight', 768);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(1600);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(1200);
+    const { container } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: null,
+        user: { id: 'user-1', username: 'alice' },
+        file: {
+          id: 'file-1',
+          name: 'photo.png',
+          type: 'image/png',
+          url: 'https://dc.hhhl.cc/files/photo.png',
+          thumbnailUrl: 'https://dc.hhhl.cc/thumbs/photo.webp',
+        },
+      },
+    });
+
+    await fireEvent.click(container.querySelector('.message-bubble__image-button') as Element);
+    const dialog = screen.getByRole('dialog', { name: 'Image preview' });
+    const previewImage = dialog.querySelector<HTMLImageElement>('.image-lightbox__image');
+    const previewContainer = dialog.querySelector<HTMLElement>('.image-lightbox__container');
+
+    expect(previewImage).not.toBeNull();
+    expect(previewContainer).not.toBeNull();
+    await fireEvent.load(previewImage as HTMLImageElement);
+    await fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    (previewContainer as HTMLElement).scrollLeft = 100;
+    (previewContainer as HTMLElement).scrollTop = 80;
+
+    await fireEvent.pointerDown(previewContainer as HTMLElement, { pointerId: 1, button: 0, clientX: 200, clientY: 200 });
+    await fireEvent.pointerMove(previewContainer as HTMLElement, { pointerId: 1, clientX: 150, clientY: 180 });
+    await fireEvent.pointerUp(previewContainer as HTMLElement, { pointerId: 1 });
+
+    expect(previewContainer?.scrollLeft).toBe(150);
+    expect(previewContainer?.scrollTop).toBe(100);
+  });
+
   it('marks long reply previews as wrapping text inside the bubble width', () => {
     const { container } = renderBubble({
       kind: 'server',

@@ -6,7 +6,7 @@
     <div class="app-heading-row">
       <img
         class="app-heading-logo"
-        src="https://dc.hhhl.cc/client-assets/icon.png"
+        :src="APP_ICON_URL"
         alt="HHHL Logo"
         width="45"
         height="45"
@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import { i18n } from '@/i18n';
+import { APP_ICON_URL } from '@/shared/config';
 
 const appVersion = __APP_VERSION__;
 

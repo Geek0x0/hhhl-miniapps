@@ -236,14 +236,25 @@
           </button>
         </div>
         <div
+          ref="imagePreviewContainerEl"
           class="image-lightbox__container"
+          :class="{
+            'image-lightbox__container--pannable': imagePreviewPannable,
+            'image-lightbox__container--panning': imagePreviewPan != null,
+          }"
           @click.stop
+          @pointerdown="handleImagePreviewPointerDown"
+          @pointermove="handleImagePreviewPointerMove"
+          @pointerup="handleImagePreviewPointerEnd"
+          @pointercancel="handleImagePreviewPointerEnd"
+          @lostpointercapture="handleImagePreviewPointerEnd"
         >
           <img
             class="image-lightbox__image"
             :src="previewImageSrc"
             referrerpolicy="no-referrer"
             :alt="imageAlt"
+            draggable="false"
             :style="imagePreviewStyle"
             @load="handleImagePreviewLoad"
             @error="handleMessageImageError"
@@ -333,10 +344,20 @@ interface ImagePreviewSize {
   height: number;
 }
 
+interface ImagePreviewPanState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startScrollLeft: number;
+  startScrollTop: number;
+}
+
 const imagePreviewOpen = ref(false);
 const imagePreviewScale = ref(1);
 const imagePreviewNaturalSize = ref<ImagePreviewSize | null>(null);
 const imagePreviewViewportSize = ref<ImagePreviewSize>(getImagePreviewViewportSize());
+const imagePreviewContainerEl = ref<globalThis.HTMLElement | null>(null);
+const imagePreviewPan = ref<ImagePreviewPanState | null>(null);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
 const senderMenuOpen = ref(false);
@@ -357,6 +378,7 @@ watch(() => [props.entry.message.file?.url, props.entry.message.file?.thumbnailU
   imagePreviewOpen.value = false;
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
+  resetImagePreviewPan();
 });
 
 function handleAvatarError(event: globalThis.Event): void {
@@ -411,6 +433,7 @@ function linkPreviewFromText(text: string | null | undefined): LinkPreview | nul
 function openImagePreview(): void {
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
+  resetImagePreviewPan();
   updateImagePreviewViewportSize();
   imagePreviewOpen.value = true;
 }
@@ -419,6 +442,7 @@ function closeImagePreview(): void {
   imagePreviewOpen.value = false;
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
+  resetImagePreviewPan();
 }
 
 function clampImagePreviewScale(scale: number): number {
@@ -431,10 +455,14 @@ function zoomImagePreviewIn(): void {
 
 function zoomImagePreviewOut(): void {
   imagePreviewScale.value = clampImagePreviewScale(imagePreviewScale.value - IMAGE_PREVIEW_SCALE_STEP);
+  if (imagePreviewScale.value <= IMAGE_PREVIEW_MIN_SCALE) {
+    resetImagePreviewPan();
+  }
 }
 
 function resetImagePreviewZoom(): void {
   imagePreviewScale.value = 1;
+  resetImagePreviewPan();
 }
 
 function getImagePreviewViewportSize(): ImagePreviewSize {
@@ -450,6 +478,53 @@ function getImagePreviewViewportSize(): ImagePreviewSize {
 
 function updateImagePreviewViewportSize(): void {
   imagePreviewViewportSize.value = getImagePreviewViewportSize();
+}
+
+function resetImagePreviewPan(): void {
+  imagePreviewPan.value = null;
+}
+
+function handleImagePreviewPointerDown(event: globalThis.PointerEvent): void {
+  if (!imagePreviewPannable.value || event.button !== 0) {
+    return;
+  }
+
+  const element = imagePreviewContainerEl.value;
+  if (element == null) {
+    return;
+  }
+
+  imagePreviewPan.value = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startScrollLeft: element.scrollLeft,
+    startScrollTop: element.scrollTop,
+  };
+  element.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function handleImagePreviewPointerMove(event: globalThis.PointerEvent): void {
+  const pan = imagePreviewPan.value;
+  const element = imagePreviewContainerEl.value;
+  if (pan == null || element == null || event.pointerId !== pan.pointerId) {
+    return;
+  }
+
+  element.scrollLeft = pan.startScrollLeft - (event.clientX - pan.startX);
+  element.scrollTop = pan.startScrollTop - (event.clientY - pan.startY);
+  event.preventDefault();
+}
+
+function handleImagePreviewPointerEnd(event: globalThis.PointerEvent): void {
+  const pan = imagePreviewPan.value;
+  if (pan == null || event.pointerId !== pan.pointerId) {
+    return;
+  }
+
+  imagePreviewContainerEl.value?.releasePointerCapture?.(event.pointerId);
+  resetImagePreviewPan();
 }
 
 function handleImagePreviewLoad(event: globalThis.Event): void {
@@ -470,6 +545,7 @@ function handleImagePreviewLoad(event: globalThis.Event): void {
 
 function handleMessageImageError(): void {
   imagePreviewNaturalSize.value = null;
+  resetImagePreviewPan();
 
   if (imageSourceIndex.value < imageSources.value.length - 1) {
     imageSourceIndex.value += 1;
@@ -660,6 +736,7 @@ const imageSources = computed(() => {
 const imageSrc = computed(() => imageSources.value[imageSourceIndex.value] ?? '');
 const previewImageSrc = computed(() => imageSrc.value);
 const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
+const imagePreviewPannable = computed(() => imagePreviewScale.value > IMAGE_PREVIEW_MIN_SCALE);
 const imagePreviewBaseSize = computed<ImagePreviewSize | null>(() => {
   const naturalSize = imagePreviewNaturalSize.value;
   if (naturalSize == null) {

@@ -1672,6 +1672,16 @@ button.chat-icon-button:active:not(:disabled) {
   touch-action: pinch-zoom;
 }
 
+.image-lightbox__container--pannable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.image-lightbox__container--panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .image-lightbox__image {
   display: block;
   max-width: 100%;

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RoomListView from './RoomListView.vue';
 import type { RoomInvitation } from '../roomStore';
+import { APP_ICON_URL } from '@/shared/config';
 
 const mocks = vi.hoisted(() => ({
   router: {
@@ -59,7 +60,7 @@ describe('RoomListView', () => {
     const title = screen.getByRole('heading', { level: 1, name: 'Rooms' });
     const headline = container.querySelector('.rooms-header__headline');
 
-    expect(logo).toHaveAttribute('src', 'https://dc.hhhl.cc/client-assets/icon.png');
+    expect(logo).toHaveAttribute('src', APP_ICON_URL);
     expect(logo).toHaveAttribute('width', '45');
     expect(logo).toHaveAttribute('height', '45');
     expect(logo).toHaveClass('rooms-header__logo');
