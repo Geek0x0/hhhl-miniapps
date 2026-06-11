@@ -32,7 +32,7 @@
     </button>
     <button
       v-if="canDelete"
-      class="chat-icon-button"
+      class="chat-icon-button message-actions__button--frameless"
       type="button"
       :aria-label="i18n.t('chat.deleteMessage')"
       @click="confirmDelete"

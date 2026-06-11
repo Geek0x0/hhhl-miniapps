@@ -33,7 +33,7 @@ describe('MessageActions', () => {
     expect(container.querySelector('.message-actions')).not.toContainElement(picker);
   });
 
-  it('renders reply quote and reaction actions without persistent button frames', () => {
+  it('renders inline message actions without persistent button frames', () => {
     render(MessageActions, {
       props: {
         message,
@@ -44,7 +44,7 @@ describe('MessageActions', () => {
     expect(screen.getByRole('button', { name: /replying to Alice/i })).toHaveClass('message-actions__button--frameless');
     expect(screen.getByRole('button', { name: 'Quote' })).toHaveClass('message-actions__button--frameless');
     expect(screen.getByRole('button', { name: 'Reactions' })).toHaveClass('message-actions__button--frameless');
-    expect(screen.getByRole('button', { name: 'Delete message' })).not.toHaveClass('message-actions__button--frameless');
+    expect(screen.getByRole('button', { name: 'Delete message' })).toHaveClass('message-actions__button--frameless');
   });
 
   it('confirms before emitting delete', async () => {

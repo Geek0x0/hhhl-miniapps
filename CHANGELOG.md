@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.2 - 2026-06-11
+
+### chat
+
+#### Fixed
+
+- Matched the own-message delete action styling with the frameless inline reply, quote, and reaction buttons.
+
 ## 0.7.1 - 2026-06-10
 
 ### chat
