@@ -2,6 +2,19 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.4 - 2026-06-11
+
+### chat
+
+#### Added
+
+- Added an animated room-entry route transition when opening an already-joined room from the rooms page.
+
+#### Fixed
+
+- Refined the room-entry transition key so query and hash changes do not unnecessarily remount the current route.
+- Disabled route fade, blur, and movement effects for reduced-motion users.
+
 ## 0.7.3 - 2026-06-11
 
 ### chat

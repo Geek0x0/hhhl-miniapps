@@ -2654,3 +2654,15 @@ button.chat-icon-button:active:not(:disabled) {
     transform: none;
   }
 }
+
+/* Code review fix: make route transitions fully static for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .route-fade-enter-from,
+  .route-fade-leave-to,
+  .room-enter-enter-from,
+  .room-enter-leave-to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

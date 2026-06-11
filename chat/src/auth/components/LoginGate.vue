@@ -29,7 +29,7 @@
     >
       <component
         :is="routerView.Component"
-        :key="routerView.route.fullPath"
+        :key="routerView.route.path"
       />
     </Transition>
   </RouterView>
