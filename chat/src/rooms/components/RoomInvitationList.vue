@@ -11,14 +11,15 @@
         class="room-invitation"
       >
         <span class="room-invitation__main">
-          <strong>{{ invitation.room?.name ?? invitation.roomId ?? invitation.id }}</strong>
-          <small>{{ invitation.room?.id ?? invitation.roomId ?? invitation.id }}</small>
+          <strong>{{ invitationTitle(invitation) }}</strong>
+          <small>{{ invitationDisplayId(invitation) }}</small>
         </span>
         <span class="room-invitation__actions">
           <button
             class="app-button"
             type="button"
-            @click="$emit('accept', invitation.id, invitation.room?.id ?? invitation.roomId ?? '')"
+            :disabled="invitationJoinRoomId(invitation) == null"
+            @click="acceptInvitation(invitation)"
           >
             {{ i18n.t('rooms.directJoin') }}
           </button>
@@ -43,8 +44,30 @@ defineProps<{
   invitations: RoomInvitation[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   accept: [invitationId: string, roomId: string];
   ignore: [invitationId: string];
 }>();
+
+function invitationTitle(invitation: RoomInvitation): string {
+  return invitation.room?.name ?? invitation.roomId ?? invitation.id;
+}
+
+function invitationDisplayId(invitation: RoomInvitation): string {
+  return invitation.room?.id ?? invitation.roomId ?? invitation.id;
+}
+
+function invitationJoinRoomId(invitation: RoomInvitation): string | null {
+  return invitation.room?.id ?? invitation.roomId ?? null;
+}
+
+function acceptInvitation(invitation: RoomInvitation): void {
+  const roomId = invitationJoinRoomId(invitation);
+
+  if (roomId == null) {
+    return;
+  }
+
+  emit('accept', invitation.id, roomId);
+}
 </script>

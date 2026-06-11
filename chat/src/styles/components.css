@@ -459,8 +459,11 @@
 }
 
 .room-error.ui-notice {
+  display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  gap: 12px;
+  background: var(--tg-surface-danger);
 }
 
 .room-error {

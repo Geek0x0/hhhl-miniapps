@@ -33,4 +33,27 @@ describe('RoomInvitationList', () => {
     expect(emitted('accept')).toEqual([['invitation-1', 'room-1']]);
     expect(emitted('ignore')).toEqual([['invitation-1']]);
   });
+
+  it('disables accept and still emits ignore for invitations without a room id', async () => {
+    const { container, emitted } = render(RoomInvitationList, {
+      props: {
+        invitations: [
+          {
+            id: 'malformed-invitation',
+          },
+        ],
+      },
+    });
+
+    expect(container.querySelector('.room-invitation__main')).toHaveTextContent('malformed-invitation');
+
+    const acceptButton = screen.getByRole('button', { name: 'Join by room ID' });
+    expect(acceptButton).toBeDisabled();
+
+    await fireEvent.click(acceptButton);
+    await fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+
+    expect(emitted('accept')).toBeUndefined();
+    expect(emitted('ignore')).toEqual([['malformed-invitation']]);
+  });
 });
