@@ -202,7 +202,6 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     };
     nextSocket.onerror = () => {
       logger.warn(`Realtime socket error for ${redactSensitiveText(socketUrl)}`);
-      notifySocketFailure();
     };
     nextSocket.onclose = () => {
       socketOpen = false;

@@ -24,10 +24,43 @@ function toEntry(message: ChatMessage | TimelineEntry): TimelineEntry {
 }
 
 function sortTimeline(entries: TimelineEntry[]): TimelineEntry[] {
+  const timestampCache = new Map<string, number>();
+  function cachedTimestamp(entry: TimelineEntry): number {
+    const id = entry.message.id;
+    let ts = timestampCache.get(id);
+    if (ts === undefined) {
+      ts = Date.parse(entry.message.createdAt);
+      timestampCache.set(id, ts);
+    }
+    return ts;
+  }
+
   return [...entries].sort((a, b) => {
-    const byTime = Date.parse(a.message.createdAt) - Date.parse(b.message.createdAt);
+    const byTime = cachedTimestamp(a) - cachedTimestamp(b);
     return byTime === 0 ? a.message.id.localeCompare(b.message.id) : byTime;
   });
+}
+
+export function sortTimelineWithEntry(current: TimelineEntry[], newEntry: TimelineEntry): TimelineEntry[] {
+  const filtered = current.filter((entry) => entry.message.id !== newEntry.message.id);
+  const newTimestamp = Date.parse(newEntry.message.createdAt);
+
+  // Find insertion index via binary search for efficiency
+  let low = 0;
+  let high = filtered.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    const midTime = Date.parse(filtered[mid]!.message.createdAt);
+    if (midTime < newTimestamp || (midTime === newTimestamp && filtered[mid]!.message.id.localeCompare(newEntry.message.id) < 0)) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  const result = [...filtered];
+  result.splice(low, 0, newEntry);
+  return result;
 }
 
 export function mergeTimeline(current: Array<ChatMessage | TimelineEntry>, incoming: ChatMessage[]): TimelineEntry[] {

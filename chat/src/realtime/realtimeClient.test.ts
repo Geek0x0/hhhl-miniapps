@@ -185,6 +185,7 @@ describe('RealtimeClient', () => {
 
     client.connect();
     FakeWebSocket.instances[0].onerror?.();
+    FakeWebSocket.instances[0].onclose?.();
 
     expect(warn).toHaveBeenCalledWith('Realtime socket error for wss://dc.hhhl.cc/streaming?i=[redacted]');
     expect(onSocketFailure).toHaveBeenCalledTimes(1);

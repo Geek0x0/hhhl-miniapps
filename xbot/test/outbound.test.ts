@@ -324,7 +324,7 @@ describe('HHHL outbound Telegram forwarding', () => {
     const telegram = createTelegramFake();
     vi.spyOn(state, 'putMessageMap').mockRejectedValueOnce(new Error('map persistence failed'));
 
-    await expect(forwardHhhlMessageToTelegram({
+    await forwardHhhlMessageToTelegram({
       message: hhhlMessage({ id: 'hhhl-map-fails' }),
       telegramUserId: '42',
       chatId: 42,
@@ -332,7 +332,7 @@ describe('HHHL outbound Telegram forwarding', () => {
       telegram,
       hhhlBotUserId: 'hhhl-bot-user',
       now: () => '2026-06-08T00:00:04.000Z',
-    })).rejects.toThrow('map persistence failed');
+    });
 
     expect(telegram.sendMessage).toHaveBeenCalledWith(42, 'alice: hello Telegram');
     await expect(state.getBinding('42')).resolves.toMatchObject({ lastSeenMessageId: 'hhhl-map-fails' });

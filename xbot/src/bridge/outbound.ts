@@ -181,15 +181,16 @@ async function persistSentMessage(
   options: ForwardHhhlMessageToTelegramOptions,
   sent: OutboundTelegramSendResult,
 ): Promise<void> {
+  // Always advance lastSeen first so reconnect/backfill never resends this message,
+  // even if the map write fails afterward.
+  await options.state.updateLastSeen(options.telegramUserId, options.message.id);
+
   try {
     await putCreatedMessageMap(options, sent);
-  } catch (error) {
-    // The Telegram send already happened. Advance lastSeen so reconnect/backfill does not resend it.
-    await options.state.updateLastSeen(options.telegramUserId, options.message.id).catch(() => undefined);
-    throw error;
+  } catch {
+    // Map persistence is best-effort; the message was already sent and lastSeen advanced.
+    // Reply-threading for this message will degrade gracefully.
   }
-
-  await options.state.updateLastSeen(options.telegramUserId, options.message.id);
 }
 
 async function sendText(

@@ -78,6 +78,7 @@ function compareMessageCreatedAt(left: HhhlChatMessage, right: HhhlChatMessage):
 }
 
 export class BridgeRuntime {
+  private static readonly MAX_FORWARDED_KEYS = 5000;
   private activeBackfill: { generation: number; promise: Promise<void> } | null = null;
   private currentGeneration = 0;
   private failureCount: number;
@@ -283,6 +284,14 @@ export class BridgeRuntime {
   private async forwardOnce(message: HhhlChatMessage): Promise<void> {
     const key = messageKey(message);
     if (this.forwardedMessageKeys.has(key)) return;
+
+    // Cap growth to prevent unbounded memory use in long-running sessions
+    if (this.forwardedMessageKeys.size >= BridgeRuntime.MAX_FORWARDED_KEYS) {
+      const firstKey = this.forwardedMessageKeys.values().next().value;
+      if (firstKey !== undefined) {
+        this.forwardedMessageKeys.delete(firstKey);
+      }
+    }
 
     this.forwardedMessageKeys.add(key);
     try {
