@@ -96,9 +96,11 @@
         :class="{
           'chat-header__status--accent': connectionStatus === 'connected',
           'chat-header__status--breathing': true,
-          'chat-header__status--degraded': connectionStatus !== 'connected',
+          'chat-header__status--degraded': connectionStatus === 'degraded',
+          'chat-header__status--idle': connectionStatus === 'idle',
         }"
         :style="{ '--chat-status-breathe-duration': statusBreatheDuration }"
+        :data-status="connectionStatus"
         :aria-label="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
         :title="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
       >

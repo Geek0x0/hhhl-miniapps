@@ -1,5 +1,9 @@
 <template>
   <main class="chat-room-shell">
+    <div
+      class="chat-room-shell__atmosphere"
+      aria-hidden="true"
+    />
     <div data-panel-region>
       <ChatHeader
         :room-id="roomId"

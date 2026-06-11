@@ -14,6 +14,22 @@ function renderHeader(props: Partial<InstanceType<typeof ChatHeader>['$props']> 
 }
 
 describe('ChatHeader', () => {
+  it('renders connection status as a labelled status badge', () => {
+    const { container } = render(ChatHeader, {
+      props: {
+        roomId: 'room-1',
+        title: 'General',
+        connectionStatus: 'degraded',
+        canManageRoom: true,
+      },
+    });
+
+    const badge = container.querySelector('.chat-header__status');
+    expect(badge).toHaveClass('chat-header__status--degraded');
+    expect(badge).toHaveAttribute('data-status', 'degraded');
+    expect(badge).toHaveTextContent('HP');
+  });
+
   it('shows websocket or HTTP pull transport status in the room header', async () => {
     const { container, rerender } = renderHeader();
     const actions = container.querySelector('.chat-header__actions');
@@ -36,7 +52,7 @@ describe('ChatHeader', () => {
 
     expect(screen.getByText('HP')).toBeInTheDocument();
     expect(actions?.lastElementChild).toHaveTextContent('HP');
-    expect(actions?.lastElementChild).toHaveClass('chat-header__status--degraded');
+    expect(actions?.lastElementChild).toHaveClass('chat-header__status--idle');
     expect(actions?.lastElementChild).toHaveClass('chat-header__status--breathing');
   });
 
