@@ -2,6 +2,20 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.0 - 2026-06-10
+
+### chat
+
+#### Added
+
+- Added a Telegram-native UI enhancement pass across rooms, chat, settings, management panels, shared state surfaces, responsive layouts, and reduced-motion behavior.
+- Added Playwright UI smoke coverage for the optimized rooms shell on mobile, desktop, and reduced-motion rendering.
+
+#### Changed
+
+- Polished chat message bubbles, composer dock, header actions, room cards, invitation states, settings panels, diagnostics output, update notices, and destructive room-management actions with shared surfaces, motion tokens, focus states, and loading/empty/error feedback.
+- Changed hidden-tab room catch-up polling to skip foreground timeline fetches until the Mini App becomes visible again.
+
 ## 0.6.12 - 2026-06-10
 
 ### chat
