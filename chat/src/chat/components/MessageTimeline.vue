@@ -7,16 +7,17 @@
   >
     <p
       v-if="loadingOlder"
-      class="message-timeline__loading"
+      class="message-timeline__loading ui-skeleton"
+      aria-live="polite"
     >
-      {{ i18n.t('common.loading') }}
+      <span>{{ i18n.t('common.loading') }}</span>
     </p>
-    <p
+    <div
       v-if="visibleEntries.length === 0"
-      class="app-copy"
+      class="message-timeline__empty ui-empty-state"
     >
-      {{ i18n.t('chat.empty') }}
-    </p>
+      <strong>{{ i18n.t('chat.empty') }}</strong>
+    </div>
     <MessageBubble
       v-for="entry in visibleEntries"
       :key="entry.kind === 'pending' ? entry.localId : entry.message.id"

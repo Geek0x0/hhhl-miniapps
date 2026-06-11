@@ -32,8 +32,48 @@ function findElement(container: ParentNode, selector: string): HTMLElement {
 }
 
 describe('MessageTimeline', () => {
+  it('renders a skeleton loading state while loading older messages', () => {
+    const { container } = render(MessageTimeline, {
+      props: {
+        entries: [
+          { kind: 'server', message: { ...baseMessage, id: 'm1' } },
+        ],
+        loadingOlder: true,
+        hasMoreOlder: true,
+        currentUserId: 'me',
+        favoriteUserIds: [],
+        mutedUserIds: [],
+        mentionMembers: [],
+      },
+    });
+
+    const loadingState = findElement(container, '.message-timeline__loading');
+
+    expect(loadingState).toHaveClass('ui-skeleton');
+    expect(loadingState).toHaveTextContent('Loading...');
+  });
+
+  it('renders an empty state when the timeline has no visible messages', () => {
+    const { container } = render(MessageTimeline, {
+      props: {
+        entries: [],
+        loadingOlder: false,
+        hasMoreOlder: false,
+        currentUserId: 'me',
+        favoriteUserIds: [],
+        mutedUserIds: [],
+        mentionMembers: [],
+      },
+    });
+
+    const emptyState = findElement(container, '.message-timeline__empty');
+
+    expect(emptyState).toHaveClass('ui-empty-state');
+    expect(emptyState).toHaveTextContent('No messages yet');
+  });
+
   it('shows the number of new messages on the new message button', async () => {
-    const { rerender } = render(MessageTimeline, {
+    const { container, rerender } = render(MessageTimeline, {
       props: {
         entries: [
           { kind: 'server', message: { ...baseMessage, id: 'm1' } },
@@ -47,7 +87,7 @@ describe('MessageTimeline', () => {
       },
     });
 
-    const timeline = document.querySelector<HTMLElement>('.message-timeline');
+    const timeline = findElement(container, '.message-timeline');
     Object.defineProperties(timeline, {
       scrollHeight: { configurable: true, value: 1200 },
       scrollTop: { configurable: true, writable: true, value: 0 },
