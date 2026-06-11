@@ -2172,3 +2172,79 @@ button.chat-icon-button:active:not(:disabled) {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--tg-button) 24%, transparent);
   }
 }
+
+/* Task 9: unified sheet panels and compact chat controls */
+.side-panel {
+  display: grid;
+  gap: 12px;
+  flex: none;
+  margin: 10px 14px 0;
+  padding: 14px;
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-lg);
+  background: var(--tg-surface-glass);
+  box-shadow: var(--tg-shadow-raised);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  animation: ui-enter-up var(--tg-motion-normal) var(--tg-ease-spring) both;
+}
+
+.side-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 2px;
+}
+
+.side-panel__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.side-panel__list--scrollable {
+  max-height: min(38vh, 320px);
+  padding-right: 2px;
+  padding-bottom: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.member-row,
+.search-result-row {
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-md);
+  background: color-mix(in srgb, var(--tg-panel) 82%, transparent);
+  box-shadow: var(--tg-shadow-subtle);
+}
+
+.reply-preview {
+  border: 1px solid color-mix(in srgb, var(--tg-button) 26%, var(--tg-border));
+  border-radius: var(--tg-radius-md);
+  background: color-mix(in srgb, var(--tg-button) 8%, var(--tg-panel));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tg-button) 54%, transparent);
+  animation: ui-enter-up var(--tg-motion-fast) var(--tg-ease-spring) both;
+}
+
+.message-actions,
+.sender-action-menu,
+.reaction-picker,
+.reaction-picker-popover {
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-md);
+  background: var(--tg-surface-glass);
+  box-shadow: var(--tg-shadow-floating);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-panel,
+  .reply-preview {
+    animation: none;
+  }
+}
