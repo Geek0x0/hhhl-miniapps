@@ -305,6 +305,10 @@
   animation: ui-enter-up var(--tg-motion-normal) var(--tg-ease-spring) both;
 }
 
+.room-panel__description {
+  margin-top: -6px;
+}
+
 .room-direct-join__label {
   display: block;
   margin-bottom: 8px;
@@ -435,6 +439,28 @@
   font-weight: 700;
   line-height: 1.25;
   white-space: nowrap;
+}
+
+.room-invitation {
+  align-items: flex-start;
+}
+
+.room-invitation__main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.room-invitation__main small {
+  overflow: hidden;
+  color: var(--tg-hint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-error.ui-notice {
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .room-error {

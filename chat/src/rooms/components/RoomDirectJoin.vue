@@ -6,6 +6,9 @@
     <h2>
       {{ i18n.t('rooms.directJoin') }}
     </h2>
+    <p class="app-copy room-panel__description">
+      {{ i18n.t('rooms.directJoinPlaceholder') }}
+    </p>
     <div class="room-direct-join__row">
       <input
         id="room-id-input"

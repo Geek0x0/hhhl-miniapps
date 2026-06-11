@@ -1,7 +1,7 @@
 <template>
   <section
     v-if="invitations.length > 0"
-    class="room-section"
+    class="room-section room-panel"
   >
     <h2>{{ i18n.t('rooms.invitations') }}</h2>
     <ul class="room-invitation-list">
@@ -10,7 +10,10 @@
         :key="invitation.id"
         class="room-invitation"
       >
-        <span>{{ invitation.room?.name ?? invitation.roomId ?? invitation.id }}</span>
+        <span class="room-invitation__main">
+          <strong>{{ invitation.room?.name ?? invitation.roomId ?? invitation.id }}</strong>
+          <small>{{ invitation.room?.id ?? invitation.roomId ?? invitation.id }}</small>
+        </span>
         <span class="room-invitation__actions">
           <button
             class="app-button"

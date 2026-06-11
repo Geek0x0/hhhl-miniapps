@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="message != null"
-    class="room-error"
+    class="room-error ui-notice ui-notice--error"
     role="alert"
   >
     <span>{{ displayMessage }}</span>
