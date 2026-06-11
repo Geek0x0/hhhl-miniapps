@@ -2,6 +2,15 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.3 - 2026-06-11
+
+### chat
+
+#### Fixed
+
+- Fixed the older-message loading pill text being clipped while scrolling upward through chat history.
+- Added bottom safe spacing to the members panel so the final member row is not obscured at the end of the list.
+
 ## 0.7.2 - 2026-06-11
 
 ### chat

@@ -12,7 +12,7 @@
     >
     <ul
       ref="listElement"
-      class="side-panel__list side-panel__list--scrollable"
+      class="side-panel__list side-panel__list--scrollable members-panel__list"
       @scroll.passive="handleScroll"
     >
       <li

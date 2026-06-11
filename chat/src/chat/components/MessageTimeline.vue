@@ -7,7 +7,7 @@
   >
     <p
       v-if="loadingOlder"
-      class="message-timeline__loading ui-skeleton"
+      class="message-timeline__loading message-timeline__loading--readable ui-skeleton"
       aria-live="polite"
     >
       <span>{{ i18n.t('common.loading') }}</span>

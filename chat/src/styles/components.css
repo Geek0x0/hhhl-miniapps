@@ -1209,6 +1209,15 @@ button.chat-icon-button:active:not(:disabled) {
   box-shadow: var(--tg-shadow);
 }
 
+.message-timeline__loading--readable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
 .message-timeline__loading span {
   position: relative;
   z-index: 1;
@@ -2252,6 +2261,13 @@ button.chat-icon-button:active:not(:disabled) {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
+}
+
+.members-panel__list {
+  padding-bottom: 28px;
+  padding-bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  scroll-padding-bottom: 28px;
+  scroll-padding-bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 16px));
 }
 
 .member-row,

@@ -51,6 +51,7 @@ describe('MessageTimeline', () => {
     const loadingState = findElement(container, '.message-timeline__loading');
 
     expect(loadingState).toHaveClass('ui-skeleton');
+    expect(loadingState).toHaveClass('message-timeline__loading--readable');
     expect(loadingState).toHaveAttribute('aria-live', 'polite');
     expect(loadingState).toHaveTextContent('Loading...');
   });
