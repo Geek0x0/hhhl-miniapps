@@ -25,10 +25,17 @@ const mocks = vi.hoisted(() => ({
   settings: {
     syncAfterLogin: vi.fn(async () => undefined),
   },
+  routerView: {
+    Component: { template: '<main>rooms</main>' },
+    route: { fullPath: '/rooms', meta: {} as Record<string, unknown> },
+  },
 }));
 
 vi.mock('vue-router', () => ({
-  RouterView: { template: '<main>rooms</main>' },
+  RouterView: {
+    template: '<slot :Component="routerView.Component" :route="routerView.route" />',
+    data: () => ({ routerView: mocks.routerView }),
+  },
   useRoute: () => mocks.route,
   useRouter: () => mocks.router,
 }));
@@ -53,6 +60,8 @@ describe('LoginGate', () => {
     mocks.auth.error = null;
     mocks.auth.needsLogin = false;
     mocks.auth.isAuthorized = false;
+    mocks.routerView.Component = { template: '<main>rooms</main>' };
+    mocks.routerView.route = { fullPath: '/rooms', meta: {} };
   });
 
   it('syncs settings after restoring an authorized token', async () => {
@@ -84,6 +93,33 @@ describe('LoginGate', () => {
     await waitFor(() => {
       expect(mocks.auth.completeCallback).toHaveBeenCalledWith('session-1', expect.anything());
       expect(mocks.settings.syncAfterLogin).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('wraps authorized routes in the default route transition', async () => {
+    mocks.auth.status = 'authorized';
+    mocks.auth.isAuthorized = true;
+
+    const { container } = render(LoginGate);
+
+    await waitFor(() => {
+      expect(container.querySelector('transition-stub')).toHaveAttribute('name', 'route-fade');
+      expect(container.querySelector('main')).toHaveTextContent('rooms');
+    });
+  });
+
+  it('uses the room entry transition for room detail routes', async () => {
+    mocks.auth.status = 'authorized';
+    mocks.auth.isAuthorized = true;
+
+    mocks.routerView.Component = { template: '<main>room detail</main>' };
+    mocks.routerView.route = { fullPath: '/rooms/room-1', meta: { transition: 'room-enter' } };
+
+    const { container } = render(LoginGate);
+
+    await waitFor(() => {
+      expect(container.querySelector('transition-stub')).toHaveAttribute('name', 'room-enter');
+      expect(container.querySelector('main')).toHaveTextContent('room detail');
     });
   });
 });

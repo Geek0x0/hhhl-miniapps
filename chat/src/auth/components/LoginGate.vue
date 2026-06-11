@@ -19,12 +19,25 @@
       @login="auth.startLogin(dependencies)"
     />
   </main>
-  <RouterView v-else />
+  <RouterView
+    v-else
+    v-slot="routerView"
+  >
+    <Transition
+      :name="typeof routerView.route.meta.transition === 'string' ? routerView.route.meta.transition : 'route-fade'"
+      mode="out-in"
+    >
+      <component
+        :is="routerView.Component"
+        :key="routerView.route.fullPath"
+      />
+    </Transition>
+  </RouterView>
 </template>
 
 <script setup lang="ts">
 import { watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 import { i18n } from '@/i18n';
 import { useSettingsStore } from '@/settings/settingsStore';
 import { createAuthDependencies, useAuthStore } from '../authStore';
