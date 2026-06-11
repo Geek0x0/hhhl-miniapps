@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.5 - 2026-06-11
+
+### chat
+
+#### Changed
+
+- Increased chat message avatars by 30% and widened the corresponding message layout column.
+
 ## 0.7.4 - 2026-06-11
 
 ### chat

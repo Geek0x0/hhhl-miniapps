@@ -1293,7 +1293,7 @@ button.chat-icon-button:active:not(:disabled) {
 
 .message-bubble {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: start;
   align-self: flex-start;
@@ -1334,8 +1334,8 @@ button.chat-icon-button:active:not(:disabled) {
 }
 
 .message-bubble__avatar {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -2043,7 +2043,7 @@ button.chat-icon-button:active:not(:disabled) {
   }
 
   .message-bubble {
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
     max-width: min(92%, 620px);
   }
 
@@ -2542,7 +2542,7 @@ button.chat-icon-button:active:not(:disabled) {
   }
 
   .message-bubble {
-    grid-template-columns: 30px minmax(0, 1fr);
+    grid-template-columns: 39px minmax(0, 1fr);
     min-width: min(148px, 100%);
     max-width: min(94%, 620px);
     padding: 7px 8px;
@@ -2553,8 +2553,8 @@ button.chat-icon-button:active:not(:disabled) {
   }
 
   .message-bubble__avatar {
-    width: 30px;
-    height: 30px;
+    width: 39px;
+    height: 39px;
   }
 
   .message-actions {
