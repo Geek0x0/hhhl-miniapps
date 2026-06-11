@@ -590,16 +590,17 @@ function startRealtime(): void {
   });
 }
 
-async function pollCurrentRoomTimeline(): Promise<void> {
+function pollCurrentRoomTimeline(): Promise<void> {
   if (
     roomId.value === '' ||
     chatStore.roomId !== roomId.value ||
-    chatStore.loading
+    chatStore.loading ||
+    globalThis.document.visibilityState !== 'visible'
   ) {
-    return;
+    return Promise.resolve();
   }
 
-  await chatStore.loadNewer();
+  return chatStore.loadNewer();
 }
 
 function clearMessagePollingTimer(): void {

@@ -67,8 +67,9 @@ describe('ChatHeader', () => {
 
     expect(screen.getByRole('menuitem', { name: 'Favorites' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Members' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Search keys' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Block management' })).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: 'Search keys' })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Manage room' })).not.toBeInTheDocument();
   });
 

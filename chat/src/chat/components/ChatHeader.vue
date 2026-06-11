@@ -29,6 +29,14 @@
       >
         <KeyRound :size="18" />
       </button>
+      <button
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('rooms.members')"
+        @click="selectMore('members')"
+      >
+        <Users :size="18" />
+      </button>
       <div
         ref="moreRoot"
         class="chat-header__more"
@@ -60,6 +68,15 @@
           >
             <Heart :size="16" />
             <span>{{ i18n.t('chat.favorites') }}</span>
+          </button>
+          <button
+            ref="keySearchMenuItem"
+            type="button"
+            role="menuitem"
+            @click="selectKeySearch"
+          >
+            <KeyRound :size="16" />
+            <span>{{ i18n.t('chat.keySearch') }}</span>
           </button>
           <button
             ref="membersMenuItem"
@@ -143,6 +160,7 @@ const showMore = ref(false);
 const moreRoot = ref<globalThis.HTMLElement | null>(null);
 const moreButton = ref<globalThis.HTMLButtonElement | null>(null);
 const favoritesMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
+const keySearchMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const membersMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const blockManagementMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const manageMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
@@ -172,7 +190,7 @@ function toggleMore(): void {
 }
 
 function menuItems(): globalThis.HTMLButtonElement[] {
-  return [favoritesMenuItem.value, membersMenuItem.value, blockManagementMenuItem.value, manageMenuItem.value]
+  return [favoritesMenuItem.value, keySearchMenuItem.value, membersMenuItem.value, blockManagementMenuItem.value, manageMenuItem.value]
     .filter((item): item is globalThis.HTMLButtonElement => item != null);
 }
 
