@@ -91,6 +91,7 @@ const messages = {
   'chat.searchEmpty': '没有找到消息',
   'chat.pending': '正在发送...',
   'chat.failed': '发送失败',
+  'chat.loading': '消息加载中',
   'chat.empty': '还没有消息',
   'chat.newMessages': '{count} 条新消息',
   'files.select': '选择文件',

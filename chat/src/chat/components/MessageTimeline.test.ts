@@ -76,6 +76,27 @@ describe('MessageTimeline', () => {
     expect(screen.queryByText('No messages yet')).not.toBeInTheDocument();
   });
 
+  it('shows message loading before an initially empty timeline finishes loading', () => {
+    const { container } = render(MessageTimeline, {
+      props: {
+        entries: [],
+        loading: true,
+        loadingOlder: false,
+        hasMoreOlder: false,
+        currentUserId: 'me',
+        favoriteUserIds: [],
+        mutedUserIds: [],
+        mentionMembers: [],
+      },
+    });
+
+    const loadingState = findElement(container, '.message-timeline__loading');
+
+    expect(loadingState).toHaveTextContent('Loading messages...');
+    expect(container.querySelector('.message-timeline__empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('No messages yet')).not.toBeInTheDocument();
+  });
+
   it('renders an empty state when the timeline has no visible messages', () => {
     const { container } = render(MessageTimeline, {
       props: {

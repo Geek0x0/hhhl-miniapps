@@ -85,6 +85,7 @@
     <MessageTimeline
       ref="timelineComponent"
       :entries="chatStore.timeline"
+      :loading="chatStore.loading"
       :loading-older="chatStore.olderLoading"
       :has-more-older="chatStore.hasMoreOlder"
       :current-user-id="authStore.user?.id ?? null"

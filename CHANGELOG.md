@@ -2,6 +2,24 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.7 - 2026-06-11
+
+### chat
+
+#### Added
+
+- Added animated expand and collapse transitions to the home page direct-join and create-room panels.
+- Added a message-loading state while a room's initial timeline is still loading.
+
+#### Changed
+
+- Collapsed the home page direct-join and create-room forms by default until their section headers are opened.
+- Changed image preview zoom to enlarge the preview layout box so zoomed images can extend beyond the initially fitted size.
+
+#### Fixed
+
+- Delayed the empty chat message state until after the initial timeline load finishes.
+
 ## 0.7.6 - 2026-06-11
 
 ### chat

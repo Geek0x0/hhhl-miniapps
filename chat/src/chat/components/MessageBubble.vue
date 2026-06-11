@@ -245,6 +245,7 @@
             referrerpolicy="no-referrer"
             :alt="imageAlt"
             :style="imagePreviewStyle"
+            @load="handleImagePreviewLoad"
             @error="handleMessageImageError"
           >
         </div>
@@ -325,8 +326,17 @@ const LONG_PRESS_DURATION_MS = 500;
 const IMAGE_PREVIEW_MIN_SCALE = 1;
 const IMAGE_PREVIEW_MAX_SCALE = 4;
 const IMAGE_PREVIEW_SCALE_STEP = 0.25;
+const IMAGE_PREVIEW_VERTICAL_GAP = 96;
+
+interface ImagePreviewSize {
+  width: number;
+  height: number;
+}
+
 const imagePreviewOpen = ref(false);
 const imagePreviewScale = ref(1);
+const imagePreviewNaturalSize = ref<ImagePreviewSize | null>(null);
+const imagePreviewViewportSize = ref<ImagePreviewSize>(getImagePreviewViewportSize());
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
 const senderMenuOpen = ref(false);
@@ -346,6 +356,7 @@ watch(() => [props.entry.message.file?.url, props.entry.message.file?.thumbnailU
   imageLoadFailed.value = false;
   imagePreviewOpen.value = false;
   imagePreviewScale.value = 1;
+  imagePreviewNaturalSize.value = null;
 });
 
 function handleAvatarError(event: globalThis.Event): void {
@@ -399,12 +410,15 @@ function linkPreviewFromText(text: string | null | undefined): LinkPreview | nul
 
 function openImagePreview(): void {
   imagePreviewScale.value = 1;
+  imagePreviewNaturalSize.value = null;
+  updateImagePreviewViewportSize();
   imagePreviewOpen.value = true;
 }
 
 function closeImagePreview(): void {
   imagePreviewOpen.value = false;
   imagePreviewScale.value = 1;
+  imagePreviewNaturalSize.value = null;
 }
 
 function clampImagePreviewScale(scale: number): number {
@@ -423,7 +437,40 @@ function resetImagePreviewZoom(): void {
   imagePreviewScale.value = 1;
 }
 
+function getImagePreviewViewportSize(): ImagePreviewSize {
+  const documentElement = globalThis.document?.documentElement;
+  const viewportWidth = globalThis.innerWidth || documentElement?.clientWidth || 320;
+  const viewportHeight = globalThis.innerHeight || documentElement?.clientHeight || 640;
+
+  return {
+    width: Math.max(1, viewportWidth),
+    height: Math.max(1, viewportHeight - IMAGE_PREVIEW_VERTICAL_GAP),
+  };
+}
+
+function updateImagePreviewViewportSize(): void {
+  imagePreviewViewportSize.value = getImagePreviewViewportSize();
+}
+
+function handleImagePreviewLoad(event: globalThis.Event): void {
+  const element = event.currentTarget;
+  if (!(element instanceof globalThis.HTMLImageElement)) {
+    return;
+  }
+
+  const width = element.naturalWidth || element.width;
+  const height = element.naturalHeight || element.height;
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+
+  updateImagePreviewViewportSize();
+  imagePreviewNaturalSize.value = { width, height };
+}
+
 function handleMessageImageError(): void {
+  imagePreviewNaturalSize.value = null;
+
   if (imageSourceIndex.value < imageSources.value.length - 1) {
     imageSourceIndex.value += 1;
     return;
@@ -547,6 +594,10 @@ function handleViewportChange(): void {
   if (senderMenuOpen.value) {
     updateSenderMenuPosition();
   }
+
+  if (imagePreviewOpen.value) {
+    updateImagePreviewViewportSize();
+  }
 }
 
 onMounted(() => {
@@ -609,9 +660,37 @@ const imageSources = computed(() => {
 const imageSrc = computed(() => imageSources.value[imageSourceIndex.value] ?? '');
 const previewImageSrc = computed(() => imageSrc.value);
 const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
-const imagePreviewStyle = computed(() => ({
-  transform: `scale(${imagePreviewScale.value})`,
-}));
+const imagePreviewBaseSize = computed<ImagePreviewSize | null>(() => {
+  const naturalSize = imagePreviewNaturalSize.value;
+  if (naturalSize == null) {
+    return null;
+  }
+
+  const viewportSize = imagePreviewViewportSize.value;
+  const fitScale = Math.min(
+    1,
+    viewportSize.width / naturalSize.width,
+    viewportSize.height / naturalSize.height,
+  );
+
+  return {
+    width: Math.max(1, Math.round(naturalSize.width * fitScale)),
+    height: Math.max(1, Math.round(naturalSize.height * fitScale)),
+  };
+});
+const imagePreviewStyle = computed<Record<string, string>>((): Record<string, string> => {
+  const baseSize = imagePreviewBaseSize.value;
+  if (baseSize == null) {
+    return {};
+  }
+
+  return {
+    width: `${Math.max(1, Math.round(baseSize.width * imagePreviewScale.value))}px`,
+    height: `${Math.max(1, Math.round(baseSize.height * imagePreviewScale.value))}px`,
+    maxWidth: 'none',
+    maxHeight: 'none',
+  };
+});
 const isImageFile = computed(() => {
   const file = props.entry.message.file;
   if (file == null) {

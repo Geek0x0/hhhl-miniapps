@@ -19,6 +19,7 @@ function renderBubble(entry: TimelineEntry, props: Partial<InstanceType<typeof M
 describe('MessageBubble', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
     document.body.innerHTML = '';
   });
@@ -125,7 +126,11 @@ describe('MessageBubble', () => {
     expect(previewImage?.getAttribute('src')).toBe('https://dc.hhhl.cc/thumbs/photo.webp');
   });
 
-  it('zooms image previews with controls and can reset the scale', async () => {
+  it('zooms image previews by expanding the image layout box', async () => {
+    vi.stubGlobal('innerWidth', 1024);
+    vi.stubGlobal('innerHeight', 768);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(1600);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(1200);
     const { container } = renderBubble({
       kind: 'server',
       message: {
@@ -148,13 +153,27 @@ describe('MessageBubble', () => {
     const dialog = screen.getByRole('dialog', { name: 'Image preview' });
     const previewImage = dialog.querySelector<HTMLImageElement>('.image-lightbox__image');
 
-    expect(previewImage).toHaveStyle({ transform: 'scale(1)' });
+    expect(previewImage).not.toBeNull();
+    await fireEvent.load(previewImage as HTMLImageElement);
+
+    expect(previewImage).toHaveStyle({
+      width: '896px',
+      height: '672px',
+    });
+    expect(previewImage?.style.transform).toBe('');
 
     await fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
-    expect(previewImage).toHaveStyle({ transform: 'scale(1.25)' });
+    expect(previewImage).toHaveStyle({
+      width: '1120px',
+      height: '840px',
+    });
+    expect(previewImage?.style.transform).toBe('');
 
     await fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
-    expect(previewImage).toHaveStyle({ transform: 'scale(1)' });
+    expect(previewImage).toHaveStyle({
+      width: '896px',
+      height: '672px',
+    });
   });
 
   it('marks long reply previews as wrapping text inside the bubble width', () => {

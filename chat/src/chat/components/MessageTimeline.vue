@@ -12,8 +12,15 @@
     >
       <span>{{ i18n.t('common.loading') }}</span>
     </p>
+    <p
+      v-else-if="loading && visibleEntries.length === 0"
+      class="message-timeline__loading message-timeline__loading--readable ui-skeleton"
+      aria-live="polite"
+    >
+      <span>{{ i18n.t('chat.loading') }}</span>
+    </p>
     <div
-      v-if="!loadingOlder && visibleEntries.length === 0"
+      v-else-if="visibleEntries.length === 0"
       class="message-timeline__empty ui-empty-state"
     >
       <strong>{{ i18n.t('chat.empty') }}</strong>
@@ -57,6 +64,7 @@ import MessageBubble from './MessageBubble.vue';
 
 const props = defineProps<{
   entries: TimelineEntry[];
+  loading?: boolean;
   loadingOlder: boolean;
   hasMoreOlder: boolean;
   currentUserId: string | null;

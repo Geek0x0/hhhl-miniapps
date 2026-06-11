@@ -161,7 +161,12 @@ vi.mock('@/chat/components/MembersPanel.vue', () => ({ default: { template: '<se
 vi.mock('@/chat/components/FavoritePanel.vue', () => ({ default: { template: '<section />' } }));
 vi.mock('@/chat/components/BlockedUsersPanel.vue', () => ({ default: { template: '<section />' } }));
 vi.mock('@/rooms/components/RoomManagementPanel.vue', () => ({ default: { template: '<section />' } }));
-vi.mock('@/chat/components/MessageTimeline.vue', () => ({ default: { template: '<section />' } }));
+vi.mock('@/chat/components/MessageTimeline.vue', () => ({
+  default: {
+    props: ['loading'],
+    template: '<section data-testid="message-timeline" :data-loading="String(loading)" />',
+  },
+}));
 vi.mock('@/chat/components/MessageComposer.vue', () => ({ default: { template: '<form />' } }));
 
 describe('ChatRoomView', () => {
@@ -170,7 +175,17 @@ describe('ChatRoomView', () => {
     mocks.route.params = { roomId: 'amlc1bekzi' };
     mocks.route.query = {};
     mocks.chatStore.roomId = 'amlc1bekzi';
+    mocks.chatStore.loading = false;
+    mocks.chatStore.timeline = [];
     mocks.chatStore.keySearchResults = [];
+  });
+
+  it('passes initial timeline loading state into the message timeline', () => {
+    mocks.chatStore.loading = true;
+
+    render(ChatRoomView);
+
+    expect(screen.getByTestId('message-timeline')).toHaveAttribute('data-loading', 'true');
   });
 
   it('opens key search automatically for bot get-key Mini App launches', async () => {

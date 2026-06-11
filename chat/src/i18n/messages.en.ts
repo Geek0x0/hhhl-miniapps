@@ -91,6 +91,7 @@ const messages = {
   'chat.searchEmpty': 'No messages found',
   'chat.pending': 'Sending...',
   'chat.failed': 'Failed to send',
+  'chat.loading': 'Loading messages...',
   'chat.empty': 'No messages yet',
   'chat.newMessages': '{count} new messages',
   'files.select': 'Select file',
