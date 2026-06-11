@@ -2082,3 +2082,23 @@ button.chat-icon-button:active:not(:disabled) {
     animation: none;
   }
 }
+
+/* Task 7 review fixes: keep failed/focused states visible and prevent lightbox clipping */
+.message-bubble--failed {
+  opacity: 1;
+}
+
+.message-bubble--focused {
+  outline: 2px solid color-mix(in srgb, var(--tg-button) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.image-lightbox__image {
+  max-height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-bubble--focused .message-bubble__body {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--tg-button) 24%, transparent);
+  }
+}
