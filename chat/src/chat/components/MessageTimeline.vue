@@ -113,6 +113,10 @@ function scrollToBottomAndDismiss(): void {
   newMessageCount.value = 0;
 }
 
+function prefersReducedMotion(): boolean {
+  return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+}
+
 function scrollToMessage(messageId: string): boolean {
   const element = timelineElement.value;
   const target = element?.querySelector(`[data-message-id="${globalThis.CSS.escape(messageId)}"]`);
@@ -120,7 +124,7 @@ function scrollToMessage(messageId: string): boolean {
     return false;
   }
 
-  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  target.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   target.classList.add('message-bubble--focused');
   globalThis.setTimeout(() => {
     target.classList.remove('message-bubble--focused');

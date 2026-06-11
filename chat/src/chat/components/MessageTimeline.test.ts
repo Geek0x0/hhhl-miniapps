@@ -1,5 +1,6 @@
+import { createApp, defineComponent, nextTick, ref } from 'vue';
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import MessageTimeline from './MessageTimeline.vue';
 
 const baseMessage = {
@@ -150,6 +151,52 @@ describe('MessageTimeline', () => {
 
     expect(screen.queryByText('blocked')).not.toBeInTheDocument();
     expect(screen.getByText('visible')).toBeInTheDocument();
+  });
+
+  it('uses reduced-motion aware behavior when jumping to a message', async () => {
+    const originalMatchMedia = globalThis.matchMedia;
+    const scrollIntoView = vi.fn();
+    const host = document.createElement('div');
+    document.body.append(host);
+
+    const timelineRef = ref<{ scrollToMessage: (messageId: string) => boolean } | null>(null);
+    const app = createApp(defineComponent({
+      components: { MessageTimeline },
+      setup() {
+        return { timelineRef, baseMessage };
+      },
+      template: `
+        <MessageTimeline
+          ref="timelineRef"
+          :entries="[{ kind: 'server', message: { ...baseMessage, id: 'm1' } }]"
+          :loading-older="false"
+          :has-more-older="false"
+          current-user-id="me"
+          :favorite-user-ids="[]"
+          :muted-user-ids="[]"
+          :mention-members="[]"
+        />
+      `,
+    }));
+
+    try {
+      app.mount(host);
+      await nextTick();
+      const messageElement = findElement(host, '[data-message-id="m1"]');
+      messageElement.scrollIntoView = scrollIntoView;
+
+      globalThis.matchMedia = vi.fn().mockReturnValue({ matches: false });
+      expect(timelineRef.value?.scrollToMessage('m1')).toBe(true);
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'center', behavior: 'smooth' });
+
+      globalThis.matchMedia = vi.fn().mockReturnValue({ matches: true });
+      expect(timelineRef.value?.scrollToMessage('m1')).toBe(true);
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'center', behavior: 'auto' });
+    } finally {
+      globalThis.matchMedia = originalMatchMedia;
+      app.unmount();
+      host.remove();
+    }
   });
 
   it('preserves the first visible message position after loading older messages', async () => {
