@@ -204,14 +204,48 @@
           <X :size="18" />
         </button>
         <div
+          class="image-lightbox__toolbar"
+          @click.stop
+        >
+          <button
+            class="chat-icon-button image-lightbox__control"
+            type="button"
+            :aria-label="i18n.t('files.zoomOut')"
+            :disabled="imagePreviewScale <= IMAGE_PREVIEW_MIN_SCALE"
+            @click="zoomImagePreviewOut"
+          >
+            <ZoomOut :size="18" />
+          </button>
+          <button
+            class="chat-icon-button image-lightbox__control"
+            type="button"
+            :aria-label="i18n.t('files.resetZoom')"
+            :disabled="imagePreviewScale === 1"
+            @click="resetImagePreviewZoom"
+          >
+            <RotateCcw :size="18" />
+          </button>
+          <button
+            class="chat-icon-button image-lightbox__control"
+            type="button"
+            :aria-label="i18n.t('files.zoomIn')"
+            :disabled="imagePreviewScale >= IMAGE_PREVIEW_MAX_SCALE"
+            @click="zoomImagePreviewIn"
+          >
+            <ZoomIn :size="18" />
+          </button>
+        </div>
+        <div
           class="image-lightbox__container"
           @click.stop
         >
           <img
             class="image-lightbox__image"
-            :src="fileUrl ?? imageSrc"
+            :src="previewImageSrc"
             referrerpolicy="no-referrer"
             :alt="imageAlt"
+            :style="imagePreviewStyle"
+            @error="handleMessageImageError"
           >
         </div>
       </div>
@@ -249,7 +283,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Heart, RefreshCw, Star, UserX, X } from '@lucide/vue';
+import { Heart, RefreshCw, RotateCcw, Star, UserX, X, ZoomIn, ZoomOut } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
 import { imageProxyUrl, previewProxyUrl } from '@/shared/mediaProxy';
@@ -288,7 +322,11 @@ interface LinkPreview {
 
 const URL_PATTERN = /https?:\/\/[^\s<>"')]+/i;
 const LONG_PRESS_DURATION_MS = 500;
+const IMAGE_PREVIEW_MIN_SCALE = 1;
+const IMAGE_PREVIEW_MAX_SCALE = 4;
+const IMAGE_PREVIEW_SCALE_STEP = 0.25;
 const imagePreviewOpen = ref(false);
+const imagePreviewScale = ref(1);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
 const senderMenuOpen = ref(false);
@@ -307,6 +345,7 @@ watch(() => [props.entry.message.file?.url, props.entry.message.file?.thumbnailU
   imageSourceIndex.value = 0;
   imageLoadFailed.value = false;
   imagePreviewOpen.value = false;
+  imagePreviewScale.value = 1;
 });
 
 function handleAvatarError(event: globalThis.Event): void {
@@ -359,11 +398,29 @@ function linkPreviewFromText(text: string | null | undefined): LinkPreview | nul
 }
 
 function openImagePreview(): void {
+  imagePreviewScale.value = 1;
   imagePreviewOpen.value = true;
 }
 
 function closeImagePreview(): void {
   imagePreviewOpen.value = false;
+  imagePreviewScale.value = 1;
+}
+
+function clampImagePreviewScale(scale: number): number {
+  return Math.min(IMAGE_PREVIEW_MAX_SCALE, Math.max(IMAGE_PREVIEW_MIN_SCALE, scale));
+}
+
+function zoomImagePreviewIn(): void {
+  imagePreviewScale.value = clampImagePreviewScale(imagePreviewScale.value + IMAGE_PREVIEW_SCALE_STEP);
+}
+
+function zoomImagePreviewOut(): void {
+  imagePreviewScale.value = clampImagePreviewScale(imagePreviewScale.value - IMAGE_PREVIEW_SCALE_STEP);
+}
+
+function resetImagePreviewZoom(): void {
+  imagePreviewScale.value = 1;
 }
 
 function handleMessageImageError(): void {
@@ -550,7 +607,11 @@ const imageSources = computed(() => {
   ));
 });
 const imageSrc = computed(() => imageSources.value[imageSourceIndex.value] ?? '');
+const previewImageSrc = computed(() => imageSrc.value);
 const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
+const imagePreviewStyle = computed(() => ({
+  transform: `scale(${imagePreviewScale.value})`,
+}));
 const isImageFile = computed(() => {
   const file = props.entry.message.file;
   if (file == null) {

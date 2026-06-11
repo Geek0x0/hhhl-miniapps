@@ -1558,6 +1558,31 @@ button.chat-icon-button:active:not(:disabled) {
   z-index: 1001;
 }
 
+.image-lightbox__toolbar {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 1001;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: var(--tg-radius-pill);
+  background: rgb(0 0 0 / 0.28);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.image-lightbox__control {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+}
+
+.image-lightbox__control:disabled {
+  opacity: 0.42;
+}
+
 .image-lightbox__container {
   display: grid;
   place-items: center;
@@ -1575,6 +1600,8 @@ button.chat-icon-button:active:not(:disabled) {
   border-radius: 12px;
   object-fit: contain;
   touch-action: pinch-zoom;
+  transform-origin: center center;
+  transition: transform var(--tg-motion-fast) var(--tg-ease-standard);
 }
 
 .message-file-link {
@@ -2189,7 +2216,7 @@ button.chat-icon-button:active:not(:disabled) {
   max-width: min(100%, 960px);
   max-height: min(100%, 82vh);
   border-radius: var(--tg-radius-lg);
-  overflow: hidden;
+  overflow: auto;
   box-shadow: var(--tg-shadow-floating);
 }
 

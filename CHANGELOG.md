@@ -2,6 +2,18 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.6 - 2026-06-11
+
+### chat
+
+#### Added
+
+- Added zoom in, zoom out, and reset controls to chat image preview, positioned at the bottom-right of the preview overlay.
+
+#### Fixed
+
+- Fixed chat image preview so the first click opens the currently displayed image instead of requiring a second click.
+
 ## 0.7.5 - 2026-06-11
 
 ### chat

@@ -98,6 +98,65 @@ describe('MessageBubble', () => {
     expect(image?.getAttribute('src')).toBe('https://dc.hhhl.cc/proxy/image.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fphoto.png&fallback=1');
   });
 
+  it('opens image preview on the first click using the currently visible image source', async () => {
+    const { container } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: null,
+        user: { id: 'user-1', username: 'alice' },
+        file: {
+          id: 'file-1',
+          name: 'photo.png',
+          type: 'image/png',
+          url: 'https://dc.hhhl.cc/files/photo.png',
+          thumbnailUrl: 'https://dc.hhhl.cc/thumbs/photo.webp',
+        },
+      },
+    });
+
+    await fireEvent.click(container.querySelector('.message-bubble__image-button') as Element);
+
+    const dialog = screen.getByRole('dialog', { name: 'Image preview' });
+    const previewImage = dialog.querySelector<HTMLImageElement>('.image-lightbox__image');
+
+    expect(previewImage?.getAttribute('src')).toBe('https://dc.hhhl.cc/thumbs/photo.webp');
+  });
+
+  it('zooms image previews with controls and can reset the scale', async () => {
+    const { container } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: null,
+        user: { id: 'user-1', username: 'alice' },
+        file: {
+          id: 'file-1',
+          name: 'photo.png',
+          type: 'image/png',
+          url: 'https://dc.hhhl.cc/files/photo.png',
+          thumbnailUrl: 'https://dc.hhhl.cc/thumbs/photo.webp',
+        },
+      },
+    });
+
+    await fireEvent.click(container.querySelector('.message-bubble__image-button') as Element);
+    const dialog = screen.getByRole('dialog', { name: 'Image preview' });
+    const previewImage = dialog.querySelector<HTMLImageElement>('.image-lightbox__image');
+
+    expect(previewImage).toHaveStyle({ transform: 'scale(1)' });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(previewImage).toHaveStyle({ transform: 'scale(1.25)' });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
+    expect(previewImage).toHaveStyle({ transform: 'scale(1)' });
+  });
+
   it('marks long reply previews as wrapping text inside the bubble width', () => {
     const { container } = renderBubble({
       kind: 'server',
