@@ -33,6 +33,7 @@
       :favorite-user-ids="favoriteUserIds"
       :muted-user-ids="mutedUserIds"
       :mention-members="mentionMembers"
+      :mention-members-by-username="mentionMembersByUsername"
       @reply="$emit('reply', $event)"
       @quote="$emit('quote', $event)"
       @react="(messageId, reaction) => $emit('react', messageId, reaction)"
@@ -59,6 +60,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { i18n } from '@/i18n';
 import type { ChatMessage, UserSummary } from '@/shared/types';
 import { isMessageFromMutedUser } from '../messageFilters';
+import { buildMemberUsernameMap } from '../mentions';
 import type { TimelineEntry } from '../timelineMerge';
 import MessageBubble from './MessageBubble.vue';
 
@@ -90,6 +92,7 @@ const timelineElement = ref<globalThis.HTMLElement | null>(null);
 const newMessageCount = ref(0);
 let loadingFromScroll = false;
 let previousLastKey: string | null = null;
+let previousVisibleLength = 0;
 const OLDER_LOAD_THRESHOLD_PX = 160;
 
 type ScrollAnchor = {
@@ -99,15 +102,22 @@ type ScrollAnchor = {
   scrollTop: number;
 };
 
+const mutedUserIdSet = computed(() => new Set(props.mutedUserIds));
+const mentionMembersByUsername = computed(() => buildMemberUsernameMap(props.mentionMembers));
 let scrollAnchor: ScrollAnchor | null = null;
 
 const visibleEntries = computed(() => props.entries.filter((entry) => (
-  !isMessageFromMutedUser(entry.message, props.mutedUserIds, props.currentUserId)
+  !isMessageFromMutedUser(entry.message, mutedUserIdSet.value, props.currentUserId)
 )));
 
 function entryKey(entry: TimelineEntry): string {
   return entry.kind === 'pending' ? entry.localId : entry.message.id;
 }
+
+const visibleEntriesTailSignature = computed(() => {
+  const lastEntry = visibleEntries.value.at(-1);
+  return `${visibleEntries.value.length}:${lastEntry == null ? '' : entryKey(lastEntry)}`;
+});
 
 function scrollToBottom(): void {
   const element = timelineElement.value;
@@ -223,19 +233,16 @@ watch(() => props.loadingOlder, async (loading, wasLoading) => {
   }
 });
 
-watch(() => visibleEntries.value.map(entryKey).join('|'), async () => {
+watch(visibleEntriesTailSignature, async () => {
   const element = timelineElement.value;
   const nextLastKey = visibleEntries.value.at(-1) == null ? null : entryKey(visibleEntries.value.at(-1) as TimelineEntry);
-  const nextKeys = visibleEntries.value.map(entryKey);
-  const previousLastIndex = previousLastKey == null ? -1 : nextKeys.indexOf(previousLastKey);
   const appendedCount = previousLastKey == null || nextLastKey === previousLastKey
     ? 0
-    : previousLastIndex >= 0
-      ? Math.max(0, nextKeys.length - previousLastIndex - 1)
-      : 1;
+    : Math.max(1, visibleEntries.value.length - previousVisibleLength);
   const shouldStickToBottom = previousLastKey == null || (nextLastKey !== previousLastKey && element != null && isNearBottom(element));
   const hasNewEntry = previousLastKey != null && nextLastKey !== previousLastKey;
   previousLastKey = nextLastKey;
+  previousVisibleLength = visibleEntries.value.length;
 
   if (!loadingFromScroll && shouldStickToBottom) {
     newMessageCount.value = 0;
@@ -248,6 +255,7 @@ watch(() => visibleEntries.value.map(entryKey).join('|'), async () => {
 
 onMounted(async () => {
   previousLastKey = visibleEntries.value.at(-1) == null ? null : entryKey(visibleEntries.value.at(-1) as TimelineEntry);
+  previousVisibleLength = visibleEntries.value.length;
   await nextTick();
   scrollToBottom();
 });

@@ -12,7 +12,9 @@ test('room drafts survive reload and clear after successful send', async ({ page
 
   await expect(page.getByPlaceholder('Message')).toHaveValue('saved local draft');
 
+  const sendResponsePromise = page.waitForResponse((response) => response.url().includes('/api/chat/messages/create-to-room'));
   await page.getByRole('button', { name: 'Send' }).click();
+  await sendResponsePromise;
   await expect(page.getByText('saved local draft')).toBeVisible();
   await page.reload();
 

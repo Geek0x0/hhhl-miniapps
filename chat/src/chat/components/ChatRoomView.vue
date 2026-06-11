@@ -103,18 +103,23 @@
       @mute-user="muteUser"
       @mention-user="handleMentionUser"
     />
-    <MessageComposer
-      ref="composerComponent"
+    <div
       data-panel-keep-open
-      :reply-target="chatStore.replyTarget"
-      :quote-target="chatStore.quoteTarget"
-      :mention-members="allKnownMembers"
-      :draft-text="composerDraft"
-      :send-file-request="handleSendFile"
-      @send="handleSendText"
-      @draft-change="handleDraftChange"
-      @clear-context="chatStore.clearComposerContext()"
-    />
+      @input="handleComposerNativeInput"
+    >
+      <MessageComposer
+        :key="roomId"
+        ref="composerComponent"
+        :reply-target="chatStore.replyTarget"
+        :quote-target="chatStore.quoteTarget"
+        :mention-members="allKnownMembers"
+        :draft-text="composerDraft"
+        :send-file-request="handleSendFile"
+        @send="handleSendText"
+        @draft-change="handleDraftChange"
+        @clear-context="chatStore.clearComposerContext()"
+      />
+    </div>
   </main>
 </template>
 
@@ -127,7 +132,7 @@ import { deliverKeySearchResultToBot } from '@/bot/keyDelivery';
 import { API_BASE_URL } from '@/shared/config';
 import { createLocalStorageAdapter } from '@/shared/storage';
 import { createChatApi } from '@/chat/chatApi';
-import { clearRoomDraft, readRoomDraft, saveRoomDraft } from '@/chat/drafts';
+import { addRoomDraftChangeListener, clearRoomDraft, readRoomDraft, saveRoomDraft, type RoomDraftChange } from '@/chat/drafts';
 import { createPollingFallback } from '@/realtime/pollingFallback';
 import { createRealtimeClient } from '@/realtime/realtimeClient';
 import { useRealtimeStore } from '@/realtime/realtimeStore';
@@ -159,7 +164,9 @@ const settingsStore = useSettingsStore();
 const localStorageAdapter = createLocalStorageAdapter();
 const composerDraft = ref('');
 const feedbackMessage = ref<string | null>(null);
-const roomId = computed(() => String(route.params.roomId ?? ''));
+const locationRoomId = ref(roomIdFromPath());
+const routeRoomId = computed(() => String(route.params.roomId ?? ''));
+const roomId = computed(() => locationRoomId.value || routeRoomId.value);
 const activeRoomEntry = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value) ?? null);
 const roomTitle = computed(() => activeRoomEntry.value?.room.name ?? roomId.value);
 const canManageRoom = computed(() => activeRoomEntry.value?.sources.includes('owned') === true);
@@ -173,10 +180,21 @@ const composerComponent = ref<{ appendMention: (username: string) => void } | nu
 const connectionStatus = computed(() => WEBSOCKET_MESSAGE_UPDATES_ENABLED ? realtimeStore.status : 'degraded');
 const MENTION_USERNAME_PATTERN = /(^|[^A-Za-z0-9_@.])@([A-Za-z0-9_]{1,32})/g;
 const suppressedEmptyDraftsByRoomId = new Map<string, number>();
+const suppressedEmptyDraftDuplicatesByRoomId = new Set<string>();
 const draftRevisionsByRoomId = new Map<string, number>();
 let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 let messagePollingTimer: ReturnType<typeof globalThis.setInterval> | null = null;
+let unsubscribeRoomDraftChange: (() => void) | null = null;
 let lastAutoKeySearchRouteKey: string | null = null;
+
+function roomIdFromPath(pathname = globalThis.location?.pathname ?? ''): string {
+  const match = /^\/rooms\/([^/?#]+)/.exec(pathname);
+  return match?.[1] == null ? '' : decodeURIComponent(match[1]);
+}
+
+function syncLocationRoomId(): void {
+  locationRoomId.value = roomIdFromPath();
+}
 
 function mergeUserSummary(current: UserSummary | undefined, incoming: UserSummary): UserSummary {
   if (current == null) {
@@ -231,9 +249,10 @@ const allKnownMembers = computed(() => {
 
 const mutedUsers = computed(() => roomStore.userMutesByRoomId[roomId.value] ?? []);
 const mutedUserIds = computed(() => mutedUsers.value.map((user) => user.id));
+const mutedUserIdSet = computed(() => new Set(mutedUserIds.value));
 const currentUserId = computed(() => authStore.user?.id ?? null);
-const visibleSearchResults = computed<ChatMessage[]>(() => filterMutedMessages(chatStore.searchResults, mutedUserIds.value, currentUserId.value));
-const visibleKeySearchResults = computed<ChatMessage[]>(() => filterMutedMessages(chatStore.keySearchResults, mutedUserIds.value, currentUserId.value));
+const visibleSearchResults = computed<ChatMessage[]>(() => filterMutedMessages(chatStore.searchResults, mutedUserIdSet.value, currentUserId.value));
+const visibleKeySearchResults = computed<ChatMessage[]>(() => filterMutedMessages(chatStore.keySearchResults, mutedUserIdSet.value, currentUserId.value));
 
 function createUserApiClient() {
   const storage = createLocalStorageAdapter();
@@ -243,6 +262,12 @@ function createUserApiClient() {
 
 async function ensureAllMembersLoaded(): Promise<void> {
   await roomStore.loadAllMembers(roomId.value);
+}
+
+async function ensureInitialMembersLoaded(targetRoomId: string): Promise<void> {
+  if ((roomStore.membersByRoomId[targetRoomId]?.length ?? 0) === 0) {
+    await roomStore.loadMembers(targetRoomId);
+  }
 }
 
 function missingFavoriteMemberIds(): string[] {
@@ -361,13 +386,22 @@ async function muteUser(userId: string): Promise<void> {
   }
 }
 
-function restoreComposerDraft(): void {
-  composerDraft.value = roomId.value === '' ? '' : readRoomDraft(localStorageAdapter, roomId.value);
+function restoreComposerDraft(targetRoomId = roomId.value): void {
+  composerDraft.value = targetRoomId === '' ? '' : readRoomDraft(localStorageAdapter, targetRoomId);
 }
 
 function handleDraftChange(text: string): void {
   if (roomId.value !== '' && text === '' && consumeSuppressedEmptyDraft(roomId.value)) {
     composerDraft.value = '';
+    markSuppressedEmptyDraftDuplicate(roomId.value);
+    return;
+  }
+
+  if (roomId.value !== '' && text === '' && suppressedEmptyDraftDuplicatesByRoomId.delete(roomId.value)) {
+    return;
+  }
+
+  if (roomId.value !== '' && text === composerDraft.value && readRoomDraft(localStorageAdapter, roomId.value) === text) {
     return;
   }
 
@@ -376,6 +410,15 @@ function handleDraftChange(text: string): void {
     incrementDraftRevision(roomId.value);
     saveRoomDraft(localStorageAdapter, roomId.value, text);
   }
+}
+
+function handleComposerNativeInput(event: globalThis.Event): void {
+  const target = event.target;
+  if (!(target instanceof globalThis.HTMLTextAreaElement) || !target.classList.contains('message-composer__input')) {
+    return;
+  }
+
+  handleDraftChange(target.value);
 }
 
 async function handleSendText(text: string): Promise<void> {
@@ -444,12 +487,28 @@ function consumeSuppressedEmptyDraft(roomId: string): boolean {
   return true;
 }
 
+function markSuppressedEmptyDraftDuplicate(roomId: string): void {
+  suppressedEmptyDraftDuplicatesByRoomId.add(roomId);
+  globalThis.queueMicrotask(() => {
+    suppressedEmptyDraftDuplicatesByRoomId.delete(roomId);
+  });
+}
+
 function draftRevision(roomId: string): number {
   return roomId === '' ? 0 : draftRevisionsByRoomId.get(roomId) ?? 0;
 }
 
 function incrementDraftRevision(roomId: string): void {
   draftRevisionsByRoomId.set(roomId, draftRevision(roomId) + 1);
+}
+
+function handleRoomDraftChange(change: RoomDraftChange): void {
+  if (change.roomId === roomId.value) {
+    if (change.text !== composerDraft.value) {
+      incrementDraftRevision(change.roomId);
+    }
+    composerDraft.value = change.text;
+  }
 }
 
 async function showMembers(): Promise<void> {
@@ -611,11 +670,27 @@ function clearMessagePollingTimer(): void {
   }
 }
 
+function shouldUseMessagePollingTimer(): boolean {
+  return !WEBSOCKET_MESSAGE_UPDATES_ENABLED || realtimeStore.status === 'degraded' || realtimeStore.status === 'idle';
+}
+
 function startMessagePollingTimer(): void {
   clearMessagePollingTimer();
+  if (!shouldUseMessagePollingTimer()) {
+    return;
+  }
+
   messagePollingTimer = globalThis.setInterval(() => {
     void pollCurrentRoomTimeline();
   }, MESSAGE_POLLING_INTERVAL_MS);
+}
+
+function syncMessagePollingTimer(): void {
+  if (shouldUseMessagePollingTimer()) {
+    startMessagePollingTimer();
+  } else {
+    clearMessagePollingTimer();
+  }
 }
 
 function handleVisibilityChange(): void {
@@ -631,13 +706,20 @@ function handleVisibilityChange(): void {
 }
 
 async function loadRoom(): Promise<void> {
-  if (roomId.value !== '') {
+  const requestedRoomId = roomId.value;
+  if (requestedRoomId !== '') {
     realtimeStore.stopRoom();
-    await roomStore.ensureRoomVisible(roomId.value);
-    await chatStore.loadInitial(roomId.value);
-    restoreComposerDraft();
-    void ensureAllMembersLoaded();
-    void roomStore.loadUserMutes(roomId.value);
+    restoreComposerDraft(requestedRoomId);
+    await roomStore.ensureRoomVisible(requestedRoomId);
+    if (roomId.value !== requestedRoomId) {
+      return;
+    }
+    await chatStore.loadInitial(requestedRoomId);
+    if (roomId.value !== requestedRoomId) {
+      return;
+    }
+    void ensureInitialMembersLoaded(requestedRoomId);
+    void roomStore.loadUserMutes(requestedRoomId);
     if (WEBSOCKET_MESSAGE_UPDATES_ENABLED) {
       startRealtime();
     }
@@ -646,12 +728,19 @@ async function loadRoom(): Promise<void> {
 }
 
 onMounted(() => {
+  syncLocationRoomId();
   void loadRoom();
   startMessagePollingTimer();
+  unsubscribeRoomDraftChange = addRoomDraftChangeListener(handleRoomDraftChange);
+  globalThis.addEventListener('popstate', syncLocationRoomId);
   globalThis.document.addEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 watch(roomId, loadRoom);
+watch(routeRoomId, (nextRoomId) => {
+  locationRoomId.value = nextRoomId || roomIdFromPath();
+});
+watch(() => realtimeStore.status, syncMessagePollingTimer);
 watch(() => route.query.autoKeySearch, () => {
   void maybeAutoKeySearch();
 });
@@ -659,6 +748,9 @@ watch(() => chatStore.timeline.map((entry) => `${entry.message.id}:${entry.messa
 onBeforeUnmount(() => {
   realtimeStore.stopRoom();
   clearMessagePollingTimer();
+  unsubscribeRoomDraftChange?.();
+  unsubscribeRoomDraftChange = null;
+  globalThis.removeEventListener('popstate', syncLocationRoomId);
   globalThis.document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
   globalThis.document.removeEventListener('visibilitychange', handleVisibilityChange);
   if (feedbackTimer != null) {

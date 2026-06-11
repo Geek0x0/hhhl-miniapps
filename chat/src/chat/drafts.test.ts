@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LocalStorageAdapter } from '@/shared/storage';
-import { clearRoomDraft, DRAFTS_KEY, readRoomDraft, saveRoomDraft } from './drafts';
+import { addRoomDraftChangeListener, clearRoomDraft, DRAFTS_KEY, readRoomDraft, saveRoomDraft } from './drafts';
 
 function createStorage(initial: Record<string, unknown> = {}): LocalStorageAdapter & { raw: Map<string, unknown> } {
   const raw = new Map<string, unknown>(Object.entries(initial));
@@ -52,5 +52,23 @@ describe('drafts', () => {
     saveRoomDraft(storage, '', 'ignored');
 
     expect(readRoomDraft(storage, '')).toBe('');
+  });
+
+  it('notifies same-page listeners when a room draft changes', () => {
+    const storage = createStorage();
+    const events: Array<{ roomId: string; text: string }> = [];
+    const unsubscribe = addRoomDraftChangeListener((event) => {
+      events.push(event);
+    });
+
+    saveRoomDraft(storage, ' room-1 ', 'hello draft');
+    clearRoomDraft(storage, 'room-1');
+    unsubscribe();
+    saveRoomDraft(storage, 'room-1', 'ignored');
+
+    expect(events).toEqual([
+      { roomId: 'room-1', text: 'hello draft' },
+      { roomId: 'room-1', text: '' },
+    ]);
   });
 });

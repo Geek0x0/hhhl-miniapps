@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Quote, Reply, SmilePlus, Trash2 } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import type { ChatMessage } from '@/shared/types';
@@ -82,6 +82,7 @@ const pickerStyle = ref<Record<string, string>>({ left: '8px', top: '8px' });
 const PICKER_WIDTH_PX = 304;
 const PICKER_HEIGHT_PX = 48;
 const PICKER_MARGIN_PX = 8;
+let globalListenersAttached = false;
 
 function updatePickerPosition(): void {
   const button = reactionButtonEl.value;
@@ -151,17 +152,39 @@ function handleViewportChange(): void {
   }
 }
 
-onMounted(() => {
+function addGlobalListeners(): void {
+  if (globalListenersAttached) {
+    return;
+  }
+
   globalThis.document.addEventListener('click', handleClickOutside);
   globalThis.document.addEventListener('keydown', handleKeydown);
   globalThis.addEventListener('resize', handleViewportChange);
   globalThis.addEventListener('scroll', handleViewportChange, true);
-});
+  globalListenersAttached = true;
+}
 
-onBeforeUnmount(() => {
+function removeGlobalListeners(): void {
+  if (!globalListenersAttached) {
+    return;
+  }
+
   globalThis.document.removeEventListener('click', handleClickOutside);
   globalThis.document.removeEventListener('keydown', handleKeydown);
   globalThis.removeEventListener('resize', handleViewportChange);
   globalThis.removeEventListener('scroll', handleViewportChange, true);
+  globalListenersAttached = false;
+}
+
+watch(showPicker, (visible) => {
+  if (visible) {
+    addGlobalListeners();
+  } else {
+    removeGlobalListeners();
+  }
+});
+
+onBeforeUnmount(() => {
+  removeGlobalListeners();
 });
 </script>

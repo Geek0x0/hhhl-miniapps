@@ -294,7 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Heart, RefreshCw, RotateCcw, Star, UserX, X, ZoomIn, ZoomOut } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { avatarDisplayUrl as resolveAvatarDisplayUrl, avatarFallbackUrl as resolveAvatarFallbackUrl, useAvatarFallback } from '@/shared/avatarUrl';
@@ -312,6 +312,7 @@ const props = defineProps<{
   favoriteUserIds: string[];
   mutedUserIds: string[];
   mentionMembers: UserSummary[];
+  mentionMembersByUsername?: Map<string, UserSummary>;
 }>();
 
 const emit = defineEmits<{
@@ -367,6 +368,7 @@ const senderMenuEl = ref<globalThis.HTMLElement | null>(null);
 const avatarLoadFailed = ref(false);
 const imageSourceIndex = ref(0);
 const imageLoadFailed = ref(false);
+let globalListenersAttached = false;
 
 watch(() => props.entry.message.user?.avatarUrl, () => {
   avatarLoadFailed.value = false;
@@ -676,21 +678,45 @@ function handleViewportChange(): void {
   }
 }
 
-onMounted(() => {
+function addGlobalListeners(): void {
+  if (globalListenersAttached) {
+    return;
+  }
+
   globalThis.document.addEventListener('click', handleDocumentClick);
   globalThis.document.addEventListener('keydown', handleKeydown);
   globalThis.addEventListener('resize', handleViewportChange);
   globalThis.addEventListener('scroll', handleViewportChange, true);
-});
+  globalListenersAttached = true;
+}
+
+function removeGlobalListeners(): void {
+  if (!globalListenersAttached) {
+    return;
+  }
+
+  globalThis.document.removeEventListener('click', handleDocumentClick);
+  globalThis.document.removeEventListener('keydown', handleKeydown);
+  globalThis.removeEventListener('resize', handleViewportChange);
+  globalThis.removeEventListener('scroll', handleViewportChange, true);
+  globalListenersAttached = false;
+}
+
+function syncGlobalListeners(): void {
+  if (senderMenuOpen.value || imagePreviewOpen.value) {
+    addGlobalListeners();
+  } else {
+    removeGlobalListeners();
+  }
+}
+
+watch([senderMenuOpen, imagePreviewOpen], syncGlobalListeners);
 
 onBeforeUnmount(() => {
   if (longPressTimer.value != null) {
     globalThis.clearTimeout(longPressTimer.value);
   }
-  globalThis.document.removeEventListener('click', handleDocumentClick);
-  globalThis.document.removeEventListener('keydown', handleKeydown);
-  globalThis.removeEventListener('resize', handleViewportChange);
-  globalThis.removeEventListener('scroll', handleViewportChange, true);
+  removeGlobalListeners();
 });
 
 const formattedTime = computed(() => formatMessageTimestamp(props.entry.message.createdAt));
@@ -716,7 +742,7 @@ const avatarFallbackUrl = computed(() => fallbackAvatarUrl(props.entry.message.u
 const avatarInitial = computed(() => senderName.value.trim().slice(0, 1).toUpperCase() || '?');
 const displayedText = computed(() => displayMessageText(props.entry.message.text ?? ''));
 const linkPreview = computed(() => linkPreviewFromText(displayedText.value));
-const textParts = computed(() => parseMentionText(displayedText.value, props.mentionMembers));
+const textParts = computed(() => parseMentionText(displayedText.value, props.mentionMembers, props.mentionMembersByUsername));
 const displayReactions = computed(() => (props.entry.message.reactions ?? []).filter((reaction) => reaction.count > 0));
 const fileUrl = computed(() => props.entry.message.file?.url ?? props.entry.message.file?.thumbnailUrl ?? null);
 const imageSources = computed(() => {

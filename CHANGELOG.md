@@ -2,6 +2,25 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.10 - 2026-06-11
+
+### chat
+
+#### Fixed
+
+- Corrected stale async guards for message retry, delete rollback, reaction rollback, context fetches, and key searches so late responses cannot mutate a newer room session.
+- Preserved concurrent same-room timeline updates when optimistic delete, react, or unreact requests fail.
+- Updated realtime reaction handling so WebSocket reaction events without actor identity do not mark remote reactions as the current user's reaction or double-count current-user echoes.
+- Fixed room draft synchronization across same-page updates, fast room switches, and pending send completion so newer drafts are not overwritten or cleared.
+- Fixed initial timeline pagination availability so short first pages do not trigger unnecessary older-message loading.
+- Applied realtime reaction updates to rendered timeline messages, not only the auxiliary reaction map.
+
+#### Changed
+
+- Reduced chat render overhead by limiting global pointer/keyboard/scroll listeners to open popovers or previews, reusing muted-user and mention lookup sets, and avoiding full-entry key scans for timeline append detection.
+- Reduced room-entry work by loading the first member page initially and deferring full member loading until member/search panels need it.
+- Added message bubble `content-visibility` containment to improve long timeline rendering on mobile and desktop.
+
 ## 0.7.9 - 2026-06-11
 
 ### chat

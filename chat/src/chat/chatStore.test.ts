@@ -29,6 +29,10 @@ function message(id: string, createdAt = `2026-01-01T00:00:${id.slice(1).padStar
   return { id, roomId: 'room-1', createdAt, text: id };
 }
 
+function fullPageMessages(): ChatMessage[] {
+  return Array.from({ length: 30 }, (_item, index) => message(`m${index + 1}`));
+}
+
 function textMessage(id: string, text: string): ChatMessage {
   return { ...message(id), text };
 }
@@ -57,8 +61,9 @@ describe('chatStore', () => {
   });
 
   it('loads initial and older timeline messages', async () => {
+    const initialPage = fullPageMessages();
     const api = createApi({
-      roomTimeline: vi.fn(async (_roomId, params) => params?.untilId === 'm1' ? [message('m0', '2025-12-31T23:59:59.000Z')] : [message('m1'), message('m2')]),
+      roomTimeline: vi.fn(async (_roomId, params) => params?.untilId === 'm1' ? [message('m0', '2025-12-31T23:59:59.000Z')] : initialPage),
     });
     const store = useChatStore();
 
@@ -67,7 +72,17 @@ describe('chatStore', () => {
 
     expect(api.roomTimeline).toHaveBeenCalledWith('room-1', { limit: 30 });
     expect(api.roomTimeline).toHaveBeenCalledWith('room-1', { limit: 30, untilId: 'm1' });
-    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m0', 'm1', 'm2']);
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m0', ...initialPage.map((item) => item.id)]);
+  });
+
+  it('does not mark older pages available when the initial page is shorter than the page size', async () => {
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi({
+      roomTimeline: vi.fn(async () => [message('m1'), message('m2')]),
+    }));
+
+    expect(store.hasMoreOlder).toBe(false);
   });
 
   it('loads newer messages with sinceId and guards concurrent refreshes', async () => {
@@ -103,7 +118,7 @@ describe('chatStore', () => {
 
   it('tracks older loading state and stops when the server has no older page', async () => {
     const api = createApi({
-      roomTimeline: vi.fn(async (_roomId, params) => params?.untilId === 'm1' ? [] : [message('m1'), message('m2')]),
+      roomTimeline: vi.fn(async (_roomId, params) => params?.untilId === 'm1' ? [] : fullPageMessages()),
     });
     const store = useChatStore();
 
@@ -243,6 +258,38 @@ describe('chatStore', () => {
     expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m1', 'm2', 'm3']);
   });
 
+  it('does not let stale retry success mutate a later room session', async () => {
+    let resolveRetry: (message: ChatMessage) => void = () => {
+      throw new Error('retry resolver was not set');
+    };
+    const retryResponse = new Promise<ChatMessage>((resolve) => {
+      resolveRetry = resolve;
+    });
+    const failingApi = createApi({
+      createToRoom: vi.fn(async () => {
+        throw new Error('send failed');
+      }),
+    });
+    const retryApi = createApi({
+      createToRoom: vi.fn(async () => retryResponse),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    await store.sendText('hello', failingApi, { idFactory: () => 'local-1', now: () => '2026-01-01T00:00:03.000Z' });
+    const retry = store.retryMessage('local-1', retryApi);
+    await store.loadInitial('room-2', room2Api);
+    resolveRetry({ id: 'm3', roomId: 'room-1', createdAt: '2026-01-01T00:00:03.000Z', text: 'hello' });
+    await retry;
+
+    expect(store.roomId).toBe('room-2');
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+    expect(store.outgoing).toEqual([]);
+  });
+
   it('rolls back optimistic deletion when the API fails', async () => {
     const api = createApi({
       delete: vi.fn(async () => {
@@ -255,6 +302,53 @@ describe('chatStore', () => {
     await store.deleteMessage('m1', api);
 
     expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m1', 'm2']);
+    expect(store.error).toBe('delete failed');
+  });
+
+  it('does not roll stale delete failures back into the active room', async () => {
+    let rejectDelete: (error: unknown) => void = () => {
+      throw new Error('delete rejecter was not set');
+    };
+    const deleteResponse = new Promise<unknown>((_resolve, reject) => {
+      rejectDelete = reject;
+    });
+    const deleteApi = createApi({
+      delete: vi.fn(async () => deleteResponse),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const deletion = store.deleteMessage('m1', deleteApi);
+    await store.loadInitial('room-2', room2Api);
+    rejectDelete(new Error('delete failed'));
+    await deletion;
+
+    expect(store.roomId).toBe('room-2');
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+    expect(store.error).toBeNull();
+  });
+
+  it('preserves same-room timeline updates when delete rollback fails', async () => {
+    let rejectDelete: (error: unknown) => void = () => {
+      throw new Error('delete rejecter was not set');
+    };
+    const deleteResponse = new Promise<unknown>((_resolve, reject) => {
+      rejectDelete = reject;
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const deletion = store.deleteMessage('m1', createApi({
+      delete: vi.fn(async () => deleteResponse),
+    }));
+    store.appendRealtimeMessages([message('m3')]);
+    rejectDelete(new Error('delete failed'));
+    await deletion;
+
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m1', 'm2', 'm3']);
     expect(store.error).toBe('delete failed');
   });
 
@@ -271,6 +365,88 @@ describe('chatStore', () => {
 
     expect(store.reactionsByMessageId.m1).toBeUndefined();
     expect(store.error).toBe('react failed');
+  });
+
+  it('does not roll stale reaction failures back into the active room', async () => {
+    let rejectReaction: (error: unknown) => void = () => {
+      throw new Error('reaction rejecter was not set');
+    };
+    const reactionResponse = new Promise<unknown>((_resolve, reject) => {
+      rejectReaction = reject;
+    });
+    const reactApi = createApi({
+      react: vi.fn(async () => reactionResponse),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const reaction = store.react('m1', '👍', reactApi);
+    await store.loadInitial('room-2', room2Api);
+    rejectReaction(new Error('react failed'));
+    await reaction;
+
+    expect(store.roomId).toBe('room-2');
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+    expect(store.error).toBeNull();
+  });
+
+  it('preserves same-room timeline updates when reaction rollback fails', async () => {
+    let rejectReaction: (error: unknown) => void = () => {
+      throw new Error('reaction rejecter was not set');
+    };
+    const reactionResponse = new Promise<unknown>((_resolve, reject) => {
+      rejectReaction = reject;
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi({
+      roomTimeline: vi.fn(async () => [{
+        ...message('m1'),
+        reactions: [{ reaction: '👍', count: 1, reacted: false }],
+      }, message('m2')]),
+    }));
+    const reaction = store.react('m1', '❤️', createApi({
+      react: vi.fn(async () => reactionResponse),
+    }));
+    store.appendRealtimeMessages([message('m3')]);
+    store.applyRealtimeReaction('m1', '👍');
+    rejectReaction(new Error('react failed'));
+    await reaction;
+
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(store.timeline[0]?.message.reactions).toEqual([{ reaction: '👍', count: 2, reacted: false }]);
+    expect(store.error).toBe('react failed');
+  });
+
+  it('preserves same-room timeline updates when unreact rollback fails', async () => {
+    let rejectReaction: (error: unknown) => void = () => {
+      throw new Error('unreact rejecter was not set');
+    };
+    const reactionResponse = new Promise<unknown>((_resolve, reject) => {
+      rejectReaction = reject;
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi({
+      roomTimeline: vi.fn(async () => [{
+        ...message('m1'),
+        reactions: [{ reaction: '👍', count: 2, reacted: true }],
+      }, message('m2')]),
+    }));
+    const reaction = store.unreact('m1', createApi({
+      unreact: vi.fn(async () => reactionResponse),
+    }));
+    store.appendRealtimeMessages([message('m3')]);
+    store.applyRealtimeReaction('m1', '👍');
+    rejectReaction(new Error('unreact failed'));
+    await reaction;
+
+    expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(store.timeline[0]?.message.reactions).toEqual([{ reaction: '👍', count: 3, reacted: true }]);
+    expect(store.error).toBe('unreact failed');
   });
 
   it('shows optimistic reactions in the timeline before the API responds', async () => {
@@ -291,6 +467,40 @@ describe('chatStore', () => {
 
     resolveReaction();
     await reactionRequest;
+  });
+
+  it('applies realtime reactions to rendered timeline messages', async () => {
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi({
+      roomTimeline: vi.fn(async () => [{
+        ...message('m1'),
+        reactions: [{ reaction: '👍', count: 1, reacted: false }],
+      }]),
+    }));
+
+    store.applyRealtimeReaction('m1', '👍');
+
+    expect(store.timeline[0]?.message.reactions).toEqual([{ reaction: '👍', count: 2, reacted: false }]);
+
+    store.applyRealtimeReaction('m1', null);
+
+    expect(store.timeline[0]?.message.reactions).toEqual([{ reaction: '👍', count: 2, reacted: false }]);
+  });
+
+  it('does not double-count realtime reaction echoes for the current user reaction', async () => {
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi({
+      roomTimeline: vi.fn(async () => [{
+        ...message('m1'),
+        reactions: [{ reaction: '👍', count: 1, reacted: true }],
+      }]),
+    }));
+
+    store.applyRealtimeReaction('m1', '👍');
+
+    expect(store.timeline[0]?.message.reactions).toEqual([{ reaction: '👍', count: 1, reacted: true }]);
   });
 
   it('tracks reply and quote targets and clears composer context on room switch', async () => {
@@ -491,6 +701,31 @@ describe('chatStore', () => {
     expect(store.timeline.map((entry) => entry.message.id)).toEqual(['m0', 'm1', 'm2', 'm9']);
   });
 
+  it('does not merge stale message context after the active room changes', async () => {
+    let resolveContext: (messages: ChatMessage[]) => void = () => {
+      throw new Error('context resolver was not set');
+    };
+    const contextResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveContext = resolve;
+    });
+    const context = vi.fn(async () => contextResponse);
+    const api = { ...createApi(), context } as ChatApiLike & { context: (messageId: string) => Promise<ChatMessage[]> };
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const visible = store.ensureMessageVisible('m9', api);
+    await store.loadInitial('room-2', room2Api);
+    resolveContext([{ ...message('m9'), roomId: 'room-1' }]);
+
+    expect(await visible).toBe(false);
+    expect(store.roomId).toBe('room-2');
+    expect(store.timeline.map((entry) => entry.message.roomId)).toEqual(['room-2']);
+    expect(store.error).toBeNull();
+  });
+
   it('keeps key search results separate from normal message search', async () => {
     const api = createApi({
       search: vi.fn(async (params) => params.query === 'sk-' ? [userTextMessage('key-1', VALID_KEY_TEXT)] : [message('m2')]),
@@ -505,6 +740,35 @@ describe('chatStore', () => {
     expect(api.search).toHaveBeenCalledWith({ roomId: 'room-1', query: 'sk-', userId: 'amk1v51gkh1u0001', limit: 30 });
     expect(store.searchResults.map((item) => item.id)).toEqual(['m2']);
     expect(store.keySearchResults.map((item) => item.id)).toEqual(['key-1']);
+  });
+
+  it('does not publish stale key search results after switching rooms', async () => {
+    let resolveKeySearch: (messages: ChatMessage[]) => void = () => {
+      throw new Error('key search resolver was not set');
+    };
+    const keySearchResponse = new Promise<ChatMessage[]>((resolve) => {
+      resolveKeySearch = resolve;
+    });
+    const keyApi = createApi({
+      search: vi.fn(async () => keySearchResponse),
+    });
+    const room2Api = createApi({
+      roomTimeline: vi.fn(async () => [{ ...message('m8'), roomId: 'room-2' }]),
+    });
+    const store = useChatStore();
+
+    await store.loadInitial('room-1', createApi());
+    const keySearch = store.searchKeyMessages(keyApi);
+    expect(store.keySearchLoading).toBe(true);
+
+    await store.loadInitial('room-2', room2Api);
+    resolveKeySearch([userTextMessage('key-1', VALID_KEY_TEXT)]);
+    await keySearch;
+
+    expect(store.roomId).toBe('room-2');
+    expect(store.keySearchResults).toEqual([]);
+    expect(store.keySearchError).toBeNull();
+    expect(store.keySearchLoading).toBe(false);
   });
 
   it('extracts embedded key tokens and only keeps the latest key result', async () => {
@@ -768,7 +1032,7 @@ describe('chatStore', () => {
         if (params?.untilId === 'm1') {
           return olderResponse;
         }
-        if (params?.sinceId === 'm2') {
+        if (params?.sinceId === 'm30') {
           return newerResponse;
         }
         if (roomId === 'room-1') {
@@ -958,7 +1222,7 @@ describe('chatStore', () => {
         if (params?.sinceId === 'm2') {
           return newerResponse;
         }
-        return [message('m1'), message('m2')];
+        return fullPageMessages();
       }),
     });
     const room2Api = createApi({

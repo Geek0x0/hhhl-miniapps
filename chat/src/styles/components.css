@@ -1375,6 +1375,8 @@ button.chat-icon-button:active:not(:disabled) {
   grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 9px;
   align-items: start;
+  content-visibility: auto;
+  contain-intrinsic-size: 96px;
   align-self: flex-start;
   width: fit-content;
   min-width: min(172px, 100%);

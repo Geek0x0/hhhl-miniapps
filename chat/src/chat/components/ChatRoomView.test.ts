@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/vue';
+import { fireEvent, render, screen, waitFor } from '@testing-library/vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChatRoomView from './ChatRoomView.vue';
 
@@ -60,6 +60,7 @@ const mocks = vi.hoisted(() => ({
     userMutesLoadingByRoomId: {} as Record<string, boolean>,
     error: null as string | null,
     ensureRoomVisible: vi.fn(async () => undefined),
+    loadMembers: vi.fn(async () => undefined),
     loadAllMembers: vi.fn(async () => undefined),
     loadMoreMembers: vi.fn(async () => undefined),
     loadUserMutes: vi.fn(async () => undefined),
@@ -83,6 +84,8 @@ const mocks = vi.hoisted(() => ({
     favoriteUserIds: [] as string[],
     toggleFavoriteUser: vi.fn(),
   },
+  draftsByRoomId: {} as Record<string, string>,
+  draftListeners: [] as Array<(change: { roomId: string; text: string }) => void>,
   deliverKeySearchResultToBot: vi.fn(async () => true),
 }));
 
@@ -139,11 +142,35 @@ vi.mock('@/users/userApi', () => ({
   createUserApi: () => ({ show: vi.fn(async () => []) }),
 }));
 
-vi.mock('@/chat/drafts', () => ({
-  readRoomDraft: () => '',
-  saveRoomDraft: vi.fn(),
-  clearRoomDraft: vi.fn(),
-}));
+vi.mock('@/chat/drafts', () => {
+  const notify = (roomId: string, text: string) => {
+    for (const listener of mocks.draftListeners) {
+      listener({ roomId, text });
+    }
+  };
+
+  return {
+    readRoomDraft: vi.fn((_storage, roomId: string) => mocks.draftsByRoomId[roomId] ?? ''),
+    saveRoomDraft: vi.fn((_storage, roomId: string, text: string) => {
+      if (text === '') {
+        delete mocks.draftsByRoomId[roomId];
+      } else {
+        mocks.draftsByRoomId[roomId] = text;
+      }
+      notify(roomId, text);
+    }),
+    clearRoomDraft: vi.fn((_storage, roomId: string) => {
+      delete mocks.draftsByRoomId[roomId];
+      notify(roomId, '');
+    }),
+    addRoomDraftChangeListener: vi.fn((listener: (change: { roomId: string; text: string }) => void) => {
+      mocks.draftListeners.push(listener);
+      return () => {
+        mocks.draftListeners = mocks.draftListeners.filter((item) => item !== listener);
+      };
+    }),
+  };
+});
 
 vi.mock('@/bot/keyDelivery', () => ({
   deliverKeySearchResultToBot: mocks.deliverKeySearchResultToBot,
@@ -167,7 +194,23 @@ vi.mock('@/chat/components/MessageTimeline.vue', () => ({
     template: '<section data-testid="message-timeline" :data-loading="String(loading)" />',
   },
 }));
-vi.mock('@/chat/components/MessageComposer.vue', () => ({ default: { template: '<form />' } }));
+vi.mock('@/chat/components/MessageComposer.vue', () => ({
+  default: {
+    props: ['draftText'],
+    emits: ['send', 'draft-change'],
+    template: `
+      <form>
+        <textarea
+          aria-label="Message input"
+          placeholder="Message"
+          :value="draftText"
+          @input="$emit('draft-change', $event.target.value)"
+        />
+        <button type="button" @click="$emit('send', draftText)">Send</button>
+      </form>
+    `,
+  },
+}));
 
 describe('ChatRoomView', () => {
   beforeEach(() => {
@@ -178,6 +221,8 @@ describe('ChatRoomView', () => {
     mocks.chatStore.loading = false;
     mocks.chatStore.timeline = [];
     mocks.chatStore.keySearchResults = [];
+    mocks.draftsByRoomId = {};
+    mocks.draftListeners = [];
   });
 
   it('passes initial timeline loading state into the message timeline', () => {
@@ -219,6 +264,71 @@ describe('ChatRoomView', () => {
         message: keyMessage,
       });
     });
+  });
+
+  it('syncs same-page draft changes into the visible composer', async () => {
+    mocks.draftsByRoomId.amlc1bekzi = 'pending draft';
+
+    render(ChatRoomView);
+
+    const input = screen.getByPlaceholderText('Message') as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(input.value).toBe('pending draft');
+    });
+
+    for (const listener of mocks.draftListeners) {
+      listener({ roomId: 'amlc1bekzi', text: '' });
+    }
+
+    await waitFor(() => {
+      expect(input.value).toBe('');
+    });
+
+    await fireEvent.update(input, 'new local draft');
+
+    expect(mocks.draftsByRoomId.amlc1bekzi).toBe('new local draft');
+  });
+
+  it('keeps newer same-page draft changes when a submitted send finishes', async () => {
+    let resolveSend: (result: { ok: true; localId: string; serverId: string }) => void = () => {
+      throw new Error('send resolver was not set');
+    };
+    mocks.draftsByRoomId.amlc1bekzi = 'submitted draft';
+    mocks.chatStore.sendText.mockImplementationOnce(async () => new Promise((resolve) => {
+      resolveSend = resolve;
+    }));
+
+    render(ChatRoomView);
+
+    const input = screen.getByPlaceholderText('Message') as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(input.value).toBe('submitted draft');
+    });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => {
+      expect(mocks.chatStore.sendText).toHaveBeenCalledWith('submitted draft');
+    });
+    const sendPromise = mocks.chatStore.sendText.mock.results[0]?.value as Promise<unknown>;
+
+    mocks.draftsByRoomId.amlc1bekzi = 'newer external draft';
+    for (const listener of mocks.draftListeners) {
+      listener({ roomId: 'amlc1bekzi', text: 'newer external draft' });
+    }
+
+    await waitFor(() => {
+      expect(input.value).toBe('newer external draft');
+    });
+
+    resolveSend({ ok: true, localId: 'local-1', serverId: 'server-1' });
+    await sendPromise;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await waitFor(() => {
+      expect(input.value).toBe('newer external draft');
+    });
+    expect(mocks.draftsByRoomId.amlc1bekzi).toBe('newer external draft');
   });
 
   it('polls newer messages every second without starting websocket realtime', async () => {

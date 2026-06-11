@@ -60,6 +60,19 @@ describe('MessageComposer', () => {
     expect(emitted('draft-change')?.at(-1)).toEqual(['user draft']);
   });
 
+  it('does not swallow user edits that race with a parent-driven draft restore', async () => {
+    const { emitted, getByPlaceholderText, rerender } = renderComposer({ draftText: 'saved draft' });
+    const input = getByPlaceholderText('Message') as HTMLTextAreaElement;
+
+    const restore = rerender({ draftText: '' });
+    await fireEvent.update(input, 'room b local draft');
+    await restore;
+
+    await waitFor(() => {
+      expect(emitted('draft-change')?.at(-1)).toEqual(['room b local draft']);
+    });
+  });
+
   it('marks the composer as ready when text is present', async () => {
     const { container, getByPlaceholderText } = renderComposer();
     const input = getByPlaceholderText('Message') as HTMLTextAreaElement;

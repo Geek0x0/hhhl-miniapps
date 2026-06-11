@@ -42,6 +42,7 @@
         :aria-label="i18n.t('chat.messageInput')"
         :placeholder="i18n.t('chat.composerPlaceholder')"
         rows="1"
+        @input="handleTextInput"
         @keydown.enter.exact.prevent="submit"
         @paste="handlePaste"
       />
@@ -158,7 +159,8 @@ const uploadError = ref<string | null>(null);
 const showEmojiPicker = ref(false);
 const avatarFailedIds = reactive(new Set<string>());
 const inFlightUploadIds = reactive(new Set<string>());
-let applyingDraftTextProp = false;
+let applyingDraftTextPropValue: string | null = null;
+let lastEmittedDraftText = text.value;
 const emojis = [
   '😀', '😃', '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤔', '😮', '😢', '😡', '👍', '👎', '👏', '🙏',
   '💪', '✅', '❌', '🔥', '🎉', '🚀', '❤️', '💯', '✨', '⭐', '👀', '📌', '🔑', '💬', '☕', '🍻', '🎯', '🧠',
@@ -173,19 +175,38 @@ const mentionSuggestions = computed(() => activeMention.value == null ? [] : men
 watch(() => props.draftText, (next) => {
   const value = next ?? '';
   if (value !== text.value) {
-    applyingDraftTextProp = true;
+    applyingDraftTextPropValue = value;
+    lastEmittedDraftText = value;
     text.value = value;
   }
 });
 
 watch(text, (next) => {
-  if (applyingDraftTextProp) {
-    applyingDraftTextProp = false;
+  if (applyingDraftTextPropValue != null && next === applyingDraftTextPropValue) {
+    applyingDraftTextPropValue = null;
     return;
   }
 
-  emit('draft-change', next);
+  applyingDraftTextPropValue = null;
+  if (next !== lastEmittedDraftText) {
+    emitDraftChange(next);
+  }
 });
+
+function emitDraftChange(next: string): void {
+  lastEmittedDraftText = next;
+  emit('draft-change', next);
+}
+
+function handleTextInput(event: globalThis.Event): void {
+  const target = event.target;
+  if (!(target instanceof globalThis.HTMLTextAreaElement)) {
+    return;
+  }
+
+  applyingDraftTextPropValue = null;
+  emitDraftChange(target.value);
+}
 
 function revokePreview(item: UploadItem): void {
   if (item.previewUrl != null) {

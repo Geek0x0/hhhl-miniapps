@@ -3,7 +3,7 @@ import { ApiClient } from '@/api/apiClient';
 import { API_BASE_URL, DEFAULT_PAGE_SIZE } from '@/shared/config';
 import { normalizeDriveFile } from '@/shared/driveFile';
 import { createLocalStorageAdapter } from '@/shared/storage';
-import type { ChatMessage, DriveFile, PaginationParams } from '@/shared/types';
+import type { ChatMessage, DriveFile, MessageReaction, PaginationParams } from '@/shared/types';
 import { createUuid } from '@/shared/uuid';
 import { createFileApi } from '@/files/fileApi';
 import { createChatApi, type CreateRoomMessageParams, type SearchMessagesParams } from './chatApi';
@@ -176,6 +176,18 @@ function updateTimelineMessage(timeline: TimelineEntry[], messageId: string, upd
   return timeline.map((entry) => entry.message.id === messageId ? { ...entry, message: updateMessage(entry.message) } : entry);
 }
 
+function timelineMessage(timeline: TimelineEntry[], messageId: string): ChatMessage | null {
+  return timeline.find((entry) => entry.message.id === messageId)?.message ?? null;
+}
+
+function restoreTimelineEntryIfMissing(timeline: TimelineEntry[], entry: TimelineEntry | undefined): TimelineEntry[] {
+  if (entry == null || timeline.some((current) => current.message.id === entry.message.id)) {
+    return timeline;
+  }
+
+  return sortTimelineWithEntry(timeline, entry);
+}
+
 function withOptimisticReaction(message: ChatMessage, reaction: string): ChatMessage {
   const reactions = [...(message.reactions ?? [])];
   let hasReaction = false;
@@ -206,6 +218,62 @@ function withoutOptimisticReaction(message: ChatMessage): ChatMessage {
     .filter((item) => item.count > 0);
 
   return { ...message, reactions: next };
+}
+
+function withRealtimeReaction(message: ChatMessage, reaction: string): ChatMessage {
+  const reactions = [...(message.reactions ?? [])];
+  let hasReaction = false;
+  const next = reactions.map((item) => {
+    if (item.reaction !== reaction) {
+      return item;
+    }
+
+    hasReaction = true;
+    if (item.reacted === true) {
+      return item;
+    }
+    return { ...item, count: item.count + 1, reacted: false };
+  });
+
+  if (!hasReaction) {
+    next.push({ reaction, count: 1, reacted: false });
+  }
+
+  return { ...message, reactions: next };
+}
+
+function reactionRecordMap(reactions: MessageReaction[] | undefined): Map<string, MessageReaction> {
+  return new Map((reactions ?? []).map((reaction) => [reaction.reaction, reaction]));
+}
+
+function withOwnReactionSnapshot(current: ChatMessage, previous: ChatMessage): ChatMessage {
+  const currentReactions = reactionRecordMap(current.reactions);
+  const previousReactions = reactionRecordMap(previous.reactions);
+  const reactionNames = new Set([...currentReactions.keys(), ...previousReactions.keys()]);
+  const next: MessageReaction[] = [];
+
+  for (const reaction of reactionNames) {
+    const currentReaction = currentReactions.get(reaction);
+    const previousReaction = previousReactions.get(reaction);
+    const remoteCount = Math.max(0, (currentReaction?.count ?? 0) - (currentReaction?.reacted === true ? 1 : 0));
+    const reacted = previousReaction?.reacted === true;
+    const count = remoteCount + (reacted ? 1 : 0);
+    if (count > 0) {
+      next.push({ reaction, count, reacted });
+    }
+  }
+
+  return { ...current, reactions: next };
+}
+
+function restoreReactionMapEntry(current: Record<string, string>, messageId: string, previousReaction: string | undefined): Record<string, string> {
+  const next = { ...current };
+  if (previousReaction == null) {
+    delete next[messageId];
+  } else {
+    next[messageId] = previousReaction;
+  }
+  return next;
 }
 
 function createSearchKey(query: string, userId: string | undefined): string {
@@ -327,7 +395,7 @@ export const useChatStore = defineStore('chat', {
           return;
         }
         this.timeline = mergeTimeline([], messages);
-        this.hasMoreOlder = messages.length > 0;
+        this.hasMoreOlder = messages.length >= DEFAULT_PAGE_SIZE;
       } catch (error) {
         if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
           this.error = messageFromError(error);
@@ -513,18 +581,25 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
+      const capturedRoomId = this.roomId;
+      const capturedGeneration = this.roomGeneration;
       this.outgoing = retryPendingMessage(this.outgoing, localId);
       this.timeline = this.timeline.map((entry) => entry.kind === 'pending' && entry.localId === localId ? { ...entry, status: 'pending', error: null } : entry);
 
       try {
         const serverMessage = await api.createToRoom(outgoing.payload);
+        if (this.roomId !== capturedRoomId || this.roomGeneration !== capturedGeneration) {
+          return;
+        }
         this.outgoing = sendPendingMessage(this.outgoing, localId, serverMessage.id);
         this.timeline = replacePendingMessage(this.timeline, localId, serverMessage);
       } catch (error) {
         const message = messageFromError(error);
-        this.outgoing = failPendingMessage(this.outgoing, localId, message);
-        this.timeline = this.timeline.map((entry) => entry.kind === 'pending' && entry.localId === localId ? { ...entry, status: 'failed', error: message } : entry);
-        this.error = message;
+        if (this.roomId === capturedRoomId && this.roomGeneration === capturedGeneration) {
+          this.outgoing = failPendingMessage(this.outgoing, localId, message);
+          this.timeline = this.timeline.map((entry) => entry.kind === 'pending' && entry.localId === localId ? { ...entry, status: 'failed', error: message } : entry);
+          this.error = message;
+        }
       }
     },
 
@@ -543,13 +618,10 @@ export const useChatStore = defineStore('chat', {
 
     applyRealtimeReaction(messageId: string, reaction: string | null) {
       if (reaction == null) {
-        const next = { ...this.reactionsByMessageId };
-        delete next[messageId];
-        this.reactionsByMessageId = next;
         return;
       }
 
-      this.reactionsByMessageId = { ...this.reactionsByMessageId, [messageId]: reaction };
+      this.timeline = updateTimelineMessage(this.timeline, messageId, (message) => withRealtimeReaction(message, reaction));
     },
 
     async searchMessages(params: Omit<SearchMessagesParams, 'roomId' | 'limit'> & { limit?: number }, api: ChatApiLike = createDefaultChatApi()) {
@@ -629,12 +701,20 @@ export const useChatStore = defineStore('chat', {
         return true;
       }
 
+      const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       try {
         const messages = await requireContextApi(api)(messageId);
-        this.timeline = mergeTimeline(this.timeline, messages);
+        if (this.roomId !== requestedRoomId || this.roomGeneration !== requestedGeneration) {
+          return false;
+        }
+        const roomMessages = requestedRoomId == null ? messages : messages.filter((message) => message.roomId === requestedRoomId);
+        this.timeline = mergeTimeline(this.timeline, roomMessages);
         return this.timeline.some((entry) => entry.message.id === messageId);
       } catch (error) {
-        this.error = messageFromError(error);
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.error = messageFromError(error);
+        }
         return false;
       }
     },
@@ -644,59 +724,81 @@ export const useChatStore = defineStore('chat', {
         return;
       }
 
+      const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       this.keySearchLoading = true;
       this.keySearchError = null;
 
       try {
         const filteredResults = await api.search({
-          roomId: this.roomId,
+          roomId: requestedRoomId,
           query: KEY_SEARCH_QUERY,
           userId: KEY_SEARCH_USER_ID,
           limit: DEFAULT_PAGE_SIZE,
         });
         const fallbackResults = filteredResults.length > 0 ? [] : await api.search({
-          roomId: this.roomId,
+          roomId: requestedRoomId,
           query: KEY_SEARCH_QUERY,
           limit: DEFAULT_PAGE_SIZE,
         });
-        this.keySearchResults = (await verifyKeySearchMessages(filteredResults.length > 0 ? filteredResults : fallbackResults, api)).slice(0, 1);
+        const verified = (await verifyKeySearchMessages(filteredResults.length > 0 ? filteredResults : fallbackResults, api)).slice(0, 1);
+        if (this.roomId !== requestedRoomId || this.roomGeneration !== requestedGeneration) {
+          return;
+        }
+        this.keySearchResults = verified;
       } catch (error) {
-        this.keySearchError = messageFromError(error);
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.keySearchError = messageFromError(error);
+        }
       } finally {
-        this.keySearchLoading = false;
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.keySearchLoading = false;
+        }
       }
     },
 
     async deleteMessage(messageId: string, api: ChatApiLike = createDefaultChatApi()) {
-      const previous = this.timeline;
+      const deletedEntry = this.timeline.find((entry) => entry.message.id === messageId);
+      const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       this.timeline = removeTimelineMessage(this.timeline, messageId);
 
       try {
         await api.delete(messageId);
       } catch (error) {
-        this.timeline = previous;
-        this.error = messageFromError(error);
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.timeline = restoreTimelineEntryIfMissing(this.timeline, deletedEntry);
+          this.error = messageFromError(error);
+        }
       }
     },
 
     async react(messageId: string, reaction: string, api: ChatApiLike = createDefaultChatApi()) {
       const previous = { ...this.reactionsByMessageId };
-      const previousTimeline = this.timeline;
+      const previousMessage = timelineMessage(this.timeline, messageId);
+      const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       this.reactionsByMessageId = { ...this.reactionsByMessageId, [messageId]: reaction };
       this.timeline = updateTimelineMessage(this.timeline, messageId, (message) => withOptimisticReaction(message, reaction));
 
       try {
         await api.react(messageId, reaction);
       } catch (error) {
-        this.reactionsByMessageId = previous;
-        this.timeline = previousTimeline;
-        this.error = messageFromError(error);
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.reactionsByMessageId = restoreReactionMapEntry(this.reactionsByMessageId, messageId, previous[messageId]);
+          if (previousMessage != null) {
+            this.timeline = updateTimelineMessage(this.timeline, messageId, (message) => withOwnReactionSnapshot(message, previousMessage));
+          }
+          this.error = messageFromError(error);
+        }
       }
     },
 
     async unreact(messageId: string, api: ChatApiLike = createDefaultChatApi()) {
       const previous = { ...this.reactionsByMessageId };
-      const previousTimeline = this.timeline;
+      const previousMessage = timelineMessage(this.timeline, messageId);
+      const requestedRoomId = this.roomId;
+      const requestedGeneration = this.roomGeneration;
       const next = { ...this.reactionsByMessageId };
       delete next[messageId];
       this.reactionsByMessageId = next;
@@ -705,9 +807,13 @@ export const useChatStore = defineStore('chat', {
       try {
         await api.unreact(messageId);
       } catch (error) {
-        this.reactionsByMessageId = previous;
-        this.timeline = previousTimeline;
-        this.error = messageFromError(error);
+        if (this.roomId === requestedRoomId && this.roomGeneration === requestedGeneration) {
+          this.reactionsByMessageId = restoreReactionMapEntry(this.reactionsByMessageId, messageId, previous[messageId]);
+          if (previousMessage != null) {
+            this.timeline = updateTimelineMessage(this.timeline, messageId, (message) => withOwnReactionSnapshot(message, previousMessage));
+          }
+          this.error = messageFromError(error);
+        }
       }
     },
 
