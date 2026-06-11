@@ -17,7 +17,7 @@
       </div>
     </header>
 
-    <section class="side-panel">
+    <section class="side-panel settings-panel">
       <label
         class="room-direct-join__label"
         for="language-select"
@@ -66,7 +66,11 @@
         {{ DC_HHHL_ORIGIN }} · {{ realtimeStore.status }} · v{{ appVersion }}
       </p>
       <div
-        class="settings-field"
+        class="settings-field settings-sync-notice ui-notice"
+        :class="{
+          'ui-notice--error': settings.syncStatus === 'failed',
+          'ui-notice--success': settings.syncStatus === 'synced',
+        }"
         aria-live="polite"
       >
         <span class="room-direct-join__label">{{ i18n.t('settings.sync') }}</span>
@@ -120,7 +124,7 @@
       </div>
       <p
         v-if="settings.lastAction != null"
-        class="app-copy"
+        class="app-copy ui-notice ui-notice--success"
       >
         {{ i18n.t(settings.lastAction) }}
       </p>

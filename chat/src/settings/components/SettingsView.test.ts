@@ -168,15 +168,32 @@ describe('SettingsView', () => {
   });
 
   it('renders Drive sync status and manual save action', async () => {
-    render(SettingsView);
+    const { container } = render(SettingsView);
 
-    expect(screen.getByText('Drive sync')).toBeInTheDocument();
-    expect(screen.getByText('Synced')).toBeInTheDocument();
-    expect(screen.getByText('Last synced: 2026-06-05T03:00:00.000Z')).toBeInTheDocument();
+    const syncNotice = container.querySelector<HTMLElement>('.settings-sync-notice');
+    expect(syncNotice).not.toBeNull();
+    expect(syncNotice).toHaveTextContent('Drive sync');
+    expect(syncNotice).toHaveTextContent('Synced');
+    expect(syncNotice).toHaveTextContent('Last synced: 2026-06-05T03:00:00.000Z');
 
     await fireEvent.click(screen.getByRole('button', { name: 'Save to Drive' }));
 
     expect(mocks.settings.saveToCloud).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders settings controls inside the settings side panel', () => {
+    const { container } = render(SettingsView);
+
+    const panel = container.querySelector<HTMLElement>('.settings-panel.side-panel');
+
+    expect(panel).not.toBeNull();
+    expect(panel).toContainElement(screen.getByLabelText('Language'));
+    expect(panel).toContainElement(screen.getByRole('radiogroup', { name: 'Theme' }));
+    expect(panel).toContainElement(screen.getByText('Drive sync'));
+    expect(panel).toContainElement(screen.getByRole('button', { name: 'Save to Drive' }));
+    expect(panel).toContainElement(screen.getByRole('button', { name: 'Clear local data' }));
+    expect(panel).toContainElement(screen.getByRole('button', { name: 'Diagnostics' }));
+    expect(panel).toContainElement(screen.getByRole('button', { name: 'Log out' }));
   });
 
   it('renders redacted sync error', () => {

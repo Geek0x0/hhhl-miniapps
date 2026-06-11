@@ -2248,3 +2248,49 @@ button.chat-icon-button:active:not(:disabled) {
     animation: none;
   }
 }
+
+
+/* Task 10: polished settings and diagnostics surfaces */
+.settings-panel {
+  gap: 14px;
+  padding: 16px;
+}
+
+.settings-field {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-sync-notice {
+  align-items: start;
+  margin-top: 2px;
+}
+
+.settings-sync-notice .app-copy {
+  color: inherit;
+}
+
+.diagnostics-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-md);
+  background: color-mix(in srgb, var(--tg-panel) 80%, transparent);
+  box-shadow: var(--tg-shadow-subtle);
+}
+
+.diagnostics-output {
+  max-height: min(42vh, 320px);
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--tg-soft-border);
+  border-radius: var(--tg-radius-sm);
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
