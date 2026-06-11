@@ -7,6 +7,19 @@ describe('RoomManagementPanel', () => {
     vi.restoreAllMocks();
   });
 
+  it('renders details, collaboration, and danger zone sections', () => {
+    const { container } = render(RoomManagementPanel, {
+      props: {
+        roomId: 'room-1',
+        error: 'Unable to update room',
+      },
+    });
+
+    expect(container.querySelector('.room-management__details')).toBeInTheDocument();
+    expect(container.querySelector('.room-management__collaboration')).toBeInTheDocument();
+    expect(container.querySelector('.room-management__danger-zone.ui-notice--error')).toBeInTheDocument();
+  });
+
   it('confirms leave and delete before emitting destructive actions', async () => {
     const confirm = vi.spyOn(window, 'confirm')
       .mockReturnValueOnce(false)

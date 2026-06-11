@@ -238,6 +238,20 @@
   background: color-mix(in srgb, var(--tg-button) 9%, var(--tg-panel));
 }
 
+.app-button-danger {
+  border-color: color-mix(in srgb, var(--tg-danger) 42%, var(--tg-border));
+  color: var(--tg-danger);
+}
+
+.app-button-danger:hover:not(:disabled),
+.app-button-danger:focus-visible:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tg-danger) 58%, var(--tg-border));
+  background: color-mix(in srgb, var(--tg-danger) 10%, var(--tg-panel));
+  box-shadow:
+    var(--tg-focus-ring),
+    0 12px 26px color-mix(in srgb, var(--tg-danger) 18%, transparent);
+}
+
 .app-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -727,6 +741,32 @@
 .side-panel__form {
   display: grid;
   gap: 8px;
+}
+
+.room-management__details,
+.room-management__collaboration,
+.room-management__danger-zone {
+  display: grid;
+  gap: 8px;
+}
+
+.room-management__details .app-button,
+.room-management__collaboration .app-button,
+.room-management__danger-zone .app-button {
+  justify-self: start;
+}
+
+.room-management__collaboration,
+.room-management__danger-zone {
+  grid-template-columns: repeat(auto-fit, minmax(130px, max-content));
+  align-items: center;
+}
+
+.room-management__danger-zone.ui-notice {
+  padding: 10px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tg-danger) 8%, transparent), transparent 70%),
+    var(--tg-surface-danger);
 }
 
 .search-panel__form .app-button {

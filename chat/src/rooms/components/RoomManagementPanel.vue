@@ -1,8 +1,9 @@
 <template>
-  <section class="side-panel">
+  <section class="side-panel room-management">
     <h2>{{ i18n.t('rooms.manage') }}</h2>
+
     <form
-      class="side-panel__form"
+      class="side-panel__form room-management__details"
       @submit.prevent="$emit('update', { name: name.trim(), description: description.trim() })"
     >
       <input
@@ -24,28 +25,8 @@
         {{ i18n.t('common.save') }}
       </button>
     </form>
-    <div class="app-actions">
-      <button
-        class="app-button app-button-secondary"
-        type="button"
-        @click="$emit('mute')"
-      >
-        {{ i18n.t('rooms.mute') }}
-      </button>
-      <button
-        class="app-button app-button-secondary"
-        type="button"
-        @click="confirmLeave"
-      >
-        {{ i18n.t('rooms.leave') }}
-      </button>
-      <button
-        class="app-button app-button-secondary"
-        type="button"
-        @click="confirmDelete"
-      >
-        {{ i18n.t('common.delete') }}
-      </button>
+
+    <div class="room-management__collaboration">
       <button
         class="app-button"
         type="button"
@@ -53,10 +34,35 @@
       >
         {{ i18n.t('rooms.invitations') }}
       </button>
+      <button
+        class="app-button app-button-secondary"
+        type="button"
+        @click="$emit('mute')"
+      >
+        {{ i18n.t('rooms.mute') }}
+      </button>
     </div>
+
+    <div class="room-management__danger-zone ui-notice ui-notice--error">
+      <button
+        class="app-button app-button-secondary app-button-danger"
+        type="button"
+        @click="confirmLeave"
+      >
+        {{ i18n.t('rooms.leave') }}
+      </button>
+      <button
+        class="app-button app-button-secondary app-button-danger"
+        type="button"
+        @click="confirmDelete"
+      >
+        {{ i18n.t('common.delete') }}
+      </button>
+    </div>
+
     <p
       v-if="error != null"
-      class="chat-error"
+      class="chat-error ui-notice ui-notice--error"
     >
       {{ error }}
     </p>
