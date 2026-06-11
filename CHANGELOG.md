@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.1 - 2026-06-10
+
+### chat
+
+#### Fixed
+
+- Removed the persistent framed background from inline reply, quote, and reaction buttons on chat messages while preserving the delete action styling.
+
 ## 0.7.0 - 2026-06-10
 
 ### chat

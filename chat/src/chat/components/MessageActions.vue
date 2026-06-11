@@ -1,10 +1,10 @@
 <template>
   <div
     ref="actionsEl"
-    class="message-actions"
+    class="message-actions message-actions--inline"
   >
     <button
-      class="chat-icon-button"
+      class="chat-icon-button message-actions__button--frameless"
       type="button"
       :aria-label="i18n.t('chat.replyingTo', { name: message.user?.name ?? message.user?.username ?? message.id })"
       @click="$emit('reply', message)"
@@ -12,7 +12,7 @@
       <Reply :size="16" />
     </button>
     <button
-      class="chat-icon-button"
+      class="chat-icon-button message-actions__button--frameless"
       type="button"
       :aria-label="i18n.t('chat.quote')"
       @click="$emit('quote', message)"
@@ -21,7 +21,7 @@
     </button>
     <button
       ref="reactionButtonEl"
-      class="chat-icon-button"
+      class="chat-icon-button message-actions__button--frameless"
       type="button"
       :aria-label="i18n.t('chat.reactions')"
       aria-haspopup="dialog"

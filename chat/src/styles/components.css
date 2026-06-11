@@ -2282,6 +2282,32 @@ button.chat-icon-button:active:not(:disabled) {
   backdrop-filter: blur(16px) saturate(1.2);
 }
 
+.message-actions--inline {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.message-actions .message-actions__button--frameless {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.message-actions .message-actions__button--frameless:hover:not(:disabled),
+.message-actions .message-actions__button--frameless:focus-visible:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: var(--tg-focus-ring);
+  color: var(--tg-button);
+}
+
+.message-actions .message-actions__button--frameless:active:not(:disabled) {
+  box-shadow: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .side-panel,
   .reply-preview {
