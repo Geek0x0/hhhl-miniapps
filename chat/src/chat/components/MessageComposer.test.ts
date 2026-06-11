@@ -60,6 +60,14 @@ describe('MessageComposer', () => {
     expect(emitted('draft-change')?.at(-1)).toEqual(['user draft']);
   });
 
+  it('marks the composer as ready when text is present', async () => {
+    const { container, getByPlaceholderText } = renderComposer();
+    const input = getByPlaceholderText('Message') as HTMLTextAreaElement;
+    expect(container.querySelector('.message-composer')).not.toHaveClass('message-composer--ready');
+    await fireEvent.update(input, 'hello');
+    expect(container.querySelector('.message-composer')).toHaveClass('message-composer--ready');
+  });
+
   it('keeps failed uploads in the composer and allows retry', async () => {
     const sendFileRequest = vi
       .fn()

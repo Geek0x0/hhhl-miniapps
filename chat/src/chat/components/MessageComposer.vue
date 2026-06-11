@@ -1,6 +1,7 @@
 <template>
   <form
     class="message-composer"
+    :class="{ 'message-composer--ready': text.trim() !== '' || uploads.length > 0 }"
     @submit.prevent="submit"
   >
     <ReplyPreview
@@ -20,7 +21,7 @@
     />
     <p
       v-if="uploadError != null"
-      class="chat-error"
+      class="chat-error ui-notice ui-notice--error"
       role="alert"
     >
       {{ uploadError }}
