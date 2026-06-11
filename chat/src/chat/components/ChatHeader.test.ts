@@ -15,7 +15,7 @@ function renderHeader(props: Partial<InstanceType<typeof ChatHeader>['$props']> 
 
 describe('ChatHeader', () => {
   it('renders connection status as a labelled status badge', () => {
-    const { container } = render(ChatHeader, {
+    render(ChatHeader, {
       props: {
         roomId: 'room-1',
         title: 'General',
@@ -24,10 +24,12 @@ describe('ChatHeader', () => {
       },
     });
 
-    const badge = container.querySelector('.chat-header__status');
+    const badge = screen.getByRole('status', { name: 'HTTP pull' });
     expect(badge).toHaveClass('chat-header__status--degraded');
+    expect(badge).toHaveAttribute('aria-live', 'polite');
     expect(badge).toHaveAttribute('data-status', 'degraded');
     expect(badge).toHaveTextContent('HP');
+    expect(screen.queryByRole('button', { name: 'HTTP pull' })).not.toBeInTheDocument();
   });
 
   it('shows websocket or HTTP pull transport status in the room header', async () => {

@@ -101,6 +101,8 @@
         }"
         :style="{ '--chat-status-breathe-duration': statusBreatheDuration }"
         :data-status="connectionStatus"
+        role="status"
+        aria-live="polite"
         :aria-label="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
         :title="connectionStatus === 'connected' ? i18n.t('realtime.transportWs') : i18n.t('realtime.transportHp')"
       >
