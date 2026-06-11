@@ -2334,3 +2334,238 @@ button.chat-icon-button:active:not(:disabled) {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Task 12: reduced-motion safeguards and responsive polish */
+@media (prefers-reduced-motion: reduce) {
+  .room-panel,
+  .room-list-item,
+  .side-panel,
+  .message-bubble,
+  .message-composer,
+  .message-timeline__new-messages,
+  .app-update-banner,
+  .mention-suggestions,
+  .emoji-picker,
+  .emoji-picker__button,
+  .image-lightbox,
+  .image-lightbox__container,
+  .chat-header__status--breathing,
+  .message-bubble--sending .message-bubble__body,
+  .message-bubble--focused .message-bubble__body,
+  .ui-skeleton::after {
+    animation: none;
+    transition: none;
+  }
+
+  .room-list-item:hover,
+  .room-list-item:focus-visible,
+  .app-button:hover:not(:disabled),
+  .app-button:focus-visible:not(:disabled),
+  .app-button:active:not(:disabled),
+  .message-composer--ready .chat-icon-button--send,
+  .message-timeline__new-messages:hover,
+  .message-timeline__new-messages:focus-visible,
+  .message-timeline__new-messages:active,
+  button.chat-icon-button:hover:not(:disabled),
+  button.chat-icon-button:focus-visible:not(:disabled),
+  button.chat-icon-button:active:not(:disabled),
+  .chat-header__status--breathing,
+  .message-bubble--sending .message-bubble__body,
+  .message-mention {
+    transform: none;
+  }
+
+  .chat-header__status--breathing {
+    opacity: 1;
+    will-change: auto;
+  }
+
+  .message-bubble--sending .message-bubble__body {
+    opacity: 0.88;
+  }
+
+  .message-bubble--focused .message-bubble__body {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--tg-button) 24%, transparent);
+  }
+
+  .ui-skeleton::after {
+    content: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .rooms-shell,
+  .rooms-entry-hub {
+    width: min(100%, 920px);
+  }
+
+  .rooms-entry-hub {
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(280px, 0.88fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .rooms-entry-hub > .rooms-header,
+  .rooms-entry-hub > .room-error {
+    grid-column: 1 / -1;
+  }
+
+  .rooms-entry-hub > .room-panel {
+    margin: 0;
+  }
+
+  .rooms-entry-hub > .room-panel:first-of-type {
+    grid-row: span 3;
+  }
+
+  .chat-room-shell {
+    width: min(100%, 900px);
+  }
+
+  .message-timeline {
+    padding-inline: 18px;
+  }
+
+  .message-bubble {
+    max-width: min(78%, 640px);
+  }
+
+  .message-composer,
+  .chat-header {
+    margin-inline: 16px;
+  }
+
+  .side-panel {
+    margin-inline: 18px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-shell,
+  .rooms-shell {
+    padding-inline: 12px;
+  }
+
+  .rooms-shell {
+    padding-top: calc(14px + var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  }
+
+  .rooms-header {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .app-heading-logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .room-panel,
+  .side-panel {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .room-list-item,
+  .room-invitation,
+  .room-error {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .room-list-item__badges,
+  .room-invitation__actions {
+    justify-content: flex-start;
+  }
+
+  .chat-header {
+    margin: 6px 8px 0;
+    padding: 8px;
+    border-radius: 18px;
+  }
+
+  .chat-header__title small {
+    max-width: 46vw;
+  }
+
+  .side-panel {
+    margin: 8px 10px 0;
+  }
+
+  .message-timeline {
+    gap: 7px;
+    padding: 10px 8px 12px;
+  }
+
+  .message-bubble {
+    grid-template-columns: 30px minmax(0, 1fr);
+    min-width: min(148px, 100%);
+    max-width: min(94%, 620px);
+    padding: 7px 8px;
+  }
+
+  .message-bubble--own {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .message-bubble__avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .message-actions {
+    grid-column: 2;
+  }
+
+  .message-composer {
+    margin: 0 8px 8px;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+    border-radius: 20px;
+  }
+
+  .message-composer__row {
+    grid-template-columns: 32px 32px minmax(0, 1fr) 32px;
+    gap: 6px;
+  }
+
+  .message-composer__input {
+    padding-inline: 12px;
+  }
+
+  .mention-suggestions {
+    right: 8px;
+    left: 8px;
+    max-height: min(248px, 40vh);
+  }
+
+  .emoji-picker {
+    gap: 4px;
+  }
+
+  .emoji-picker__button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .image-lightbox {
+    padding: 48px 10px 18px;
+  }
+
+  .app-update-banner {
+    right: 10px;
+    left: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .app-update-banner__dismiss {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .app-update-banner__button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+}
