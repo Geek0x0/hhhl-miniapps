@@ -50,7 +50,28 @@ describe('MessageTimeline', () => {
     const loadingState = findElement(container, '.message-timeline__loading');
 
     expect(loadingState).toHaveClass('ui-skeleton');
+    expect(loadingState).toHaveAttribute('aria-live', 'polite');
     expect(loadingState).toHaveTextContent('Loading...');
+  });
+
+  it('shows loading without the empty state while loading older messages with no entries', () => {
+    const { container } = render(MessageTimeline, {
+      props: {
+        entries: [],
+        loadingOlder: true,
+        hasMoreOlder: true,
+        currentUserId: 'me',
+        favoriteUserIds: [],
+        mutedUserIds: [],
+        mentionMembers: [],
+      },
+    });
+
+    const loadingState = findElement(container, '.message-timeline__loading');
+
+    expect(loadingState).toHaveTextContent('Loading...');
+    expect(container.querySelector('.message-timeline__empty')).not.toBeInTheDocument();
+    expect(screen.queryByText('No messages yet')).not.toBeInTheDocument();
   });
 
   it('renders an empty state when the timeline has no visible messages', () => {

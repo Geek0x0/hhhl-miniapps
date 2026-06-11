@@ -1201,6 +1201,9 @@ button.chat-icon-button:active:not(:disabled) {
   font-weight: 800;
   box-shadow: 0 10px 24px color-mix(in srgb, var(--tg-button) 28%, transparent);
   animation: slide-up 0.2s ease-out;
+  transition:
+    box-shadow var(--tg-motion-fast) var(--tg-ease-standard),
+    transform var(--tg-motion-fast) var(--tg-ease-standard);
 }
 
 .message-timeline__new-messages:hover,
@@ -1213,6 +1216,18 @@ button.chat-icon-button:active:not(:disabled) {
 
 .message-timeline__new-messages:active {
   transform: translateY(0) scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-timeline__new-messages {
+    animation: none;
+  }
+
+  .message-timeline__new-messages:hover,
+  .message-timeline__new-messages:focus-visible,
+  .message-timeline__new-messages:active {
+    transform: none;
+  }
 }
 
 @keyframes slide-up {

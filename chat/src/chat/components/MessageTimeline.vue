@@ -13,7 +13,7 @@
       <span>{{ i18n.t('common.loading') }}</span>
     </p>
     <div
-      v-if="visibleEntries.length === 0"
+      v-if="!loadingOlder && visibleEntries.length === 0"
       class="message-timeline__empty ui-empty-state"
     >
       <strong>{{ i18n.t('chat.empty') }}</strong>
