@@ -220,6 +220,50 @@ describe('MessageBubble', () => {
     expect(previewContainer?.scrollTop).toBe(100);
   });
 
+  it('pinch-zooms image previews with two pointers', async () => {
+    vi.stubGlobal('innerWidth', 1024);
+    vi.stubGlobal('innerHeight', 768);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(1600);
+    vi.spyOn(HTMLImageElement.prototype, 'naturalHeight', 'get').mockReturnValue(1200);
+    const { container } = renderBubble({
+      kind: 'server',
+      message: {
+        id: 'm1',
+        roomId: 'room-1',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        text: null,
+        user: { id: 'user-1', username: 'alice' },
+        file: {
+          id: 'file-1',
+          name: 'photo.png',
+          type: 'image/png',
+          url: 'https://dc.hhhl.cc/files/photo.png',
+          thumbnailUrl: 'https://dc.hhhl.cc/thumbs/photo.webp',
+        },
+      },
+    });
+
+    await fireEvent.click(container.querySelector('.message-bubble__image-button') as Element);
+    const dialog = screen.getByRole('dialog', { name: 'Image preview' });
+    const previewImage = dialog.querySelector<HTMLImageElement>('.image-lightbox__image');
+    const previewContainer = dialog.querySelector<HTMLElement>('.image-lightbox__container');
+
+    expect(previewImage).not.toBeNull();
+    expect(previewContainer).not.toBeNull();
+    await fireEvent.load(previewImage as HTMLImageElement);
+
+    await fireEvent.pointerDown(previewContainer as HTMLElement, { pointerId: 1, pointerType: 'touch', button: 0, clientX: 100, clientY: 100 });
+    await fireEvent.pointerDown(previewContainer as HTMLElement, { pointerId: 2, pointerType: 'touch', button: 0, clientX: 200, clientY: 100 });
+    await fireEvent.pointerMove(previewContainer as HTMLElement, { pointerId: 2, pointerType: 'touch', clientX: 300, clientY: 100 });
+    await fireEvent.pointerUp(previewContainer as HTMLElement, { pointerId: 1, pointerType: 'touch' });
+    await fireEvent.pointerUp(previewContainer as HTMLElement, { pointerId: 2, pointerType: 'touch' });
+
+    expect(previewImage).toHaveStyle({
+      width: '1792px',
+      height: '1344px',
+    });
+  });
+
   it('marks long reply previews as wrapping text inside the bubble width', () => {
     const { container } = renderBubble({
       kind: 'server',

@@ -240,7 +240,7 @@
           class="image-lightbox__container"
           :class="{
             'image-lightbox__container--pannable': imagePreviewPannable,
-            'image-lightbox__container--panning': imagePreviewPan != null,
+            'image-lightbox__container--panning': imagePreviewPan != null || imagePreviewPinch != null,
           }"
           @click.stop
           @pointerdown="handleImagePreviewPointerDown"
@@ -353,12 +353,24 @@ interface ImagePreviewPanState {
   startScrollTop: number;
 }
 
+interface ImagePreviewPointerPoint {
+  x: number;
+  y: number;
+}
+
+interface ImagePreviewPinchState {
+  pointerIds: [number, number];
+  startDistance: number;
+  startScale: number;
+}
+
 const imagePreviewOpen = ref(false);
 const imagePreviewScale = ref(1);
 const imagePreviewNaturalSize = ref<ImagePreviewSize | null>(null);
 const imagePreviewViewportSize = ref<ImagePreviewSize>(getImagePreviewViewportSize());
 const imagePreviewContainerEl = ref<globalThis.HTMLElement | null>(null);
 const imagePreviewPan = ref<ImagePreviewPanState | null>(null);
+const imagePreviewPinch = ref<ImagePreviewPinchState | null>(null);
 const imagePreviewSourceIndex = ref(0);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
@@ -369,6 +381,7 @@ const senderMenuEl = ref<globalThis.HTMLElement | null>(null);
 const avatarLoadFailed = ref(false);
 const imageSourceIndex = ref(0);
 const imageLoadFailed = ref(false);
+const imagePreviewPointers = new Map<number, ImagePreviewPointerPoint>();
 let globalListenersAttached = false;
 
 watch(() => props.entry.message.user?.avatarUrl, () => {
@@ -382,7 +395,7 @@ watch(() => [props.entry.message.file?.url, props.entry.message.file?.thumbnailU
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
   imagePreviewSourceIndex.value = 0;
-  resetImagePreviewPan();
+  resetImagePreviewGestures();
 });
 
 function handleAvatarError(event: globalThis.Event): void {
@@ -438,7 +451,7 @@ function openImagePreview(): void {
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
   imagePreviewSourceIndex.value = 0;
-  resetImagePreviewPan();
+  resetImagePreviewGestures();
   updateImagePreviewViewportSize();
   imagePreviewOpen.value = true;
 }
@@ -448,7 +461,7 @@ function closeImagePreview(): void {
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
   imagePreviewSourceIndex.value = 0;
-  resetImagePreviewPan();
+  resetImagePreviewGestures();
 }
 
 function clampImagePreviewScale(scale: number): number {
@@ -462,13 +475,13 @@ function zoomImagePreviewIn(): void {
 function zoomImagePreviewOut(): void {
   imagePreviewScale.value = clampImagePreviewScale(imagePreviewScale.value - IMAGE_PREVIEW_SCALE_STEP);
   if (imagePreviewScale.value <= IMAGE_PREVIEW_MIN_SCALE) {
-    resetImagePreviewPan();
+    resetImagePreviewGestures();
   }
 }
 
 function resetImagePreviewZoom(): void {
   imagePreviewScale.value = 1;
-  resetImagePreviewPan();
+  resetImagePreviewGestures();
 }
 
 function getImagePreviewViewportSize(): ImagePreviewSize {
@@ -490,13 +503,56 @@ function resetImagePreviewPan(): void {
   imagePreviewPan.value = null;
 }
 
+function resetImagePreviewGestures(): void {
+  imagePreviewPan.value = null;
+  imagePreviewPinch.value = null;
+  imagePreviewPointers.clear();
+}
+
+function imagePreviewPointerDistance(first: ImagePreviewPointerPoint, second: ImagePreviewPointerPoint): number {
+  return Math.hypot(second.x - first.x, second.y - first.y);
+}
+
+function startImagePreviewPinch(): void {
+  const pointers = Array.from(imagePreviewPointers.entries()).slice(0, 2);
+  if (pointers.length < 2) {
+    return;
+  }
+
+  const [[firstId, first], [secondId, second]] = pointers;
+  const startDistance = imagePreviewPointerDistance(first, second);
+  if (startDistance <= 0) {
+    return;
+  }
+
+  imagePreviewPan.value = null;
+  imagePreviewPinch.value = {
+    pointerIds: [firstId, secondId],
+    startDistance,
+    startScale: imagePreviewScale.value,
+  };
+}
+
 function handleImagePreviewPointerDown(event: globalThis.PointerEvent): void {
-  if (!imagePreviewPannable.value || event.button !== 0) {
+  if (event.button !== 0) {
     return;
   }
 
   const element = imagePreviewContainerEl.value;
   if (element == null) {
+    return;
+  }
+
+  imagePreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  element.setPointerCapture?.(event.pointerId);
+
+  if (imagePreviewPointers.size >= 2) {
+    startImagePreviewPinch();
+    event.preventDefault();
+    return;
+  }
+
+  if (!imagePreviewPannable.value) {
     return;
   }
 
@@ -507,11 +563,31 @@ function handleImagePreviewPointerDown(event: globalThis.PointerEvent): void {
     startScrollLeft: element.scrollLeft,
     startScrollTop: element.scrollTop,
   };
-  element.setPointerCapture?.(event.pointerId);
   event.preventDefault();
 }
 
 function handleImagePreviewPointerMove(event: globalThis.PointerEvent): void {
+  if (imagePreviewPointers.has(event.pointerId)) {
+    imagePreviewPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  }
+
+  const pinch = imagePreviewPinch.value;
+  if (pinch != null && pinch.pointerIds.includes(event.pointerId)) {
+    const first = imagePreviewPointers.get(pinch.pointerIds[0]);
+    const second = imagePreviewPointers.get(pinch.pointerIds[1]);
+    if (first == null || second == null) {
+      return;
+    }
+
+    const distance = imagePreviewPointerDistance(first, second);
+    imagePreviewScale.value = clampImagePreviewScale(pinch.startScale * (distance / pinch.startDistance));
+    if (imagePreviewScale.value <= IMAGE_PREVIEW_MIN_SCALE) {
+      imagePreviewPan.value = null;
+    }
+    event.preventDefault();
+    return;
+  }
+
   const pan = imagePreviewPan.value;
   const element = imagePreviewContainerEl.value;
   if (pan == null || element == null || event.pointerId !== pan.pointerId) {
@@ -524,8 +600,14 @@ function handleImagePreviewPointerMove(event: globalThis.PointerEvent): void {
 }
 
 function handleImagePreviewPointerEnd(event: globalThis.PointerEvent): void {
+  imagePreviewPointers.delete(event.pointerId);
+  if (imagePreviewPinch.value?.pointerIds.includes(event.pointerId) === true) {
+    imagePreviewPinch.value = null;
+  }
+
   const pan = imagePreviewPan.value;
   if (pan == null || event.pointerId !== pan.pointerId) {
+    imagePreviewContainerEl.value?.releasePointerCapture?.(event.pointerId);
     return;
   }
 
@@ -551,7 +633,7 @@ function handleImagePreviewLoad(event: globalThis.Event): void {
 
 function handleImagePreviewError(): void {
   imagePreviewNaturalSize.value = null;
-  resetImagePreviewPan();
+  resetImagePreviewGestures();
 
   if (imagePreviewSourceIndex.value < imagePreviewSources.value.length - 1) {
     imagePreviewSourceIndex.value += 1;
@@ -563,7 +645,7 @@ function handleImagePreviewError(): void {
 
 function handleMessageImageError(): void {
   imagePreviewNaturalSize.value = null;
-  resetImagePreviewPan();
+  resetImagePreviewGestures();
 
   if (imageSourceIndex.value < imageSources.value.length - 1) {
     imageSourceIndex.value += 1;

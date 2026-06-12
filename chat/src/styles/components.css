@@ -1671,12 +1671,11 @@ button.chat-icon-button:active:not(:disabled) {
   max-height: calc(100vh - 96px);
   overflow: auto;
   cursor: default;
-  touch-action: pinch-zoom;
+  touch-action: none;
 }
 
 .image-lightbox__container--pannable {
   cursor: grab;
-  touch-action: none;
 }
 
 .image-lightbox__container--panning {
@@ -1690,7 +1689,7 @@ button.chat-icon-button:active:not(:disabled) {
   max-height: calc(100vh - 96px);
   border-radius: 12px;
   object-fit: contain;
-  touch-action: pinch-zoom;
+  touch-action: none;
   transition:
     width var(--tg-motion-fast) var(--tg-ease-standard),
     height var(--tg-motion-fast) var(--tg-ease-standard);
