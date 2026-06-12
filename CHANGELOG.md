@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.11 - 2026-06-12
+
+### chat
+
+#### Fixed
+
+- Improved image preview clarity by loading the original image source before thumbnail or proxy fallbacks.
+
 ## 0.7.10 - 2026-06-11
 
 ### chat

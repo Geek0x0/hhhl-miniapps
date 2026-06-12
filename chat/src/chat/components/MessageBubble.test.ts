@@ -99,7 +99,7 @@ describe('MessageBubble', () => {
     expect(image?.getAttribute('src')).toBe('https://dc.hhhl.cc/proxy/image.webp?url=https%3A%2F%2Fdc.hhhl.cc%2Ffiles%2Fphoto.png&fallback=1');
   });
 
-  it('opens image preview on the first click using the currently visible image source', async () => {
+  it('opens image preview on the first click using the original image source', async () => {
     const { container } = renderBubble({
       kind: 'server',
       message: {
@@ -123,7 +123,7 @@ describe('MessageBubble', () => {
     const dialog = screen.getByRole('dialog', { name: 'Image preview' });
     const previewImage = dialog.querySelector<HTMLImageElement>('.image-lightbox__image');
 
-    expect(previewImage?.getAttribute('src')).toBe('https://dc.hhhl.cc/thumbs/photo.webp');
+    expect(previewImage?.getAttribute('src')).toBe('https://dc.hhhl.cc/files/photo.png');
   });
 
   it('zooms image previews by expanding the image layout box', async () => {

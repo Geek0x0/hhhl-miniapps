@@ -188,7 +188,7 @@
     </div>
     <Teleport to="body">
       <div
-        v-if="imagePreviewOpen && imageSrc !== ''"
+        v-if="imagePreviewOpen && previewImageSrc !== ''"
         class="image-lightbox"
         role="dialog"
         aria-modal="true"
@@ -257,7 +257,7 @@
             draggable="false"
             :style="imagePreviewStyle"
             @load="handleImagePreviewLoad"
-            @error="handleMessageImageError"
+            @error="handleImagePreviewError"
           >
         </div>
       </div>
@@ -359,6 +359,7 @@ const imagePreviewNaturalSize = ref<ImagePreviewSize | null>(null);
 const imagePreviewViewportSize = ref<ImagePreviewSize>(getImagePreviewViewportSize());
 const imagePreviewContainerEl = ref<globalThis.HTMLElement | null>(null);
 const imagePreviewPan = ref<ImagePreviewPanState | null>(null);
+const imagePreviewSourceIndex = ref(0);
 const longPressTimer = ref<ReturnType<typeof globalThis.setTimeout> | null>(null);
 const isLongPress = ref(false);
 const senderMenuOpen = ref(false);
@@ -380,6 +381,7 @@ watch(() => [props.entry.message.file?.url, props.entry.message.file?.thumbnailU
   imagePreviewOpen.value = false;
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
+  imagePreviewSourceIndex.value = 0;
   resetImagePreviewPan();
 });
 
@@ -435,6 +437,7 @@ function linkPreviewFromText(text: string | null | undefined): LinkPreview | nul
 function openImagePreview(): void {
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
+  imagePreviewSourceIndex.value = 0;
   resetImagePreviewPan();
   updateImagePreviewViewportSize();
   imagePreviewOpen.value = true;
@@ -444,6 +447,7 @@ function closeImagePreview(): void {
   imagePreviewOpen.value = false;
   imagePreviewScale.value = 1;
   imagePreviewNaturalSize.value = null;
+  imagePreviewSourceIndex.value = 0;
   resetImagePreviewPan();
 }
 
@@ -543,6 +547,18 @@ function handleImagePreviewLoad(event: globalThis.Event): void {
 
   updateImagePreviewViewportSize();
   imagePreviewNaturalSize.value = { width, height };
+}
+
+function handleImagePreviewError(): void {
+  imagePreviewNaturalSize.value = null;
+  resetImagePreviewPan();
+
+  if (imagePreviewSourceIndex.value < imagePreviewSources.value.length - 1) {
+    imagePreviewSourceIndex.value += 1;
+    return;
+  }
+
+  closeImagePreview();
 }
 
 function handleMessageImageError(): void {
@@ -760,7 +776,23 @@ const imageSources = computed(() => {
   ));
 });
 const imageSrc = computed(() => imageSources.value[imageSourceIndex.value] ?? '');
-const previewImageSrc = computed(() => imageSrc.value);
+const imagePreviewSources = computed(() => {
+  const file = props.entry.message.file;
+  const baseUrl = file?.url ?? file?.thumbnailUrl ?? null;
+  const candidates = [
+    file?.url,
+    file?.url == null ? null : imageProxyUrl(file.url),
+    file?.thumbnailUrl,
+    baseUrl == null ? null : imageProxyUrl(baseUrl),
+    baseUrl == null ? null : previewProxyUrl(baseUrl),
+    imageSrc.value,
+  ];
+
+  return candidates.filter((candidate, index): candidate is string => (
+    candidate != null && candidate !== '' && candidates.indexOf(candidate) === index
+  ));
+});
+const previewImageSrc = computed(() => imagePreviewSources.value[imagePreviewSourceIndex.value] ?? '');
 const imageAlt = computed(() => props.entry.message.file?.name ?? i18n.t('files.imagePreview'));
 const imagePreviewPannable = computed(() => imagePreviewScale.value > IMAGE_PREVIEW_MIN_SCALE);
 const imagePreviewBaseSize = computed<ImagePreviewSize | null>(() => {
