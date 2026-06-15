@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.13 - 2026-06-15
+
+### chat
+
+#### Added
+
+- Added room announcements with a chat header action, auto-dismissing announcement panel, persistent display toggle, normalized announcement data, and English and Chinese labels.
+
 ## 0.7.12 - 2026-06-12
 
 ### chat
