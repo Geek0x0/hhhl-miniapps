@@ -82,6 +82,7 @@ const messages = {
   'chat.loadingMutedUsers': 'Loading muted users...',
   'chat.keySearch': 'Search keys',
   'chat.moreActions': 'More room actions',
+  'chat.roomAnnouncement': 'Room announcement',
   'chat.copiedToClipboard': 'Copied to clipboard',
   'chat.copyFailed': 'Copy failed',
   'chat.reactions': 'Reactions',

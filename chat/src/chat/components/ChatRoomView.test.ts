@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RoomSummary } from '@/shared/types';
 import ChatRoomView from './ChatRoomView.vue';
+
+type MockRoomEntry = {
+  room: RoomSummary;
+  sources: string[];
+};
 
 const mocks = vi.hoisted(() => ({
   route: {
@@ -52,7 +58,7 @@ const mocks = vi.hoisted(() => ({
     applyRealtimeReaction: vi.fn(),
   },
   roomStore: {
-    rooms: [{ room: { id: 'amlc1bekzi', name: 'Key Room' }, sources: ['joined'] }],
+    rooms: [{ room: { id: 'amlc1bekzi', name: 'Key Room' }, sources: ['joined'] }] as MockRoomEntry[],
     membersByRoomId: {} as Record<string, unknown[]>,
     membersLoadingByRoomId: {} as Record<string, boolean>,
     membersHasMoreByRoomId: {} as Record<string, boolean>,
@@ -178,8 +184,21 @@ vi.mock('@/bot/keyDelivery', () => ({
 
 vi.mock('@/chat/components/ChatHeader.vue', () => ({
   default: {
-    props: ['connectionStatus'],
-    template: '<header data-testid="chat-header">{{ connectionStatus }}</header>',
+    props: ['connectionStatus', 'hasAnnouncement'],
+    emits: ['announcement'],
+    template: `
+      <header data-testid="chat-header">
+        {{ connectionStatus }}
+        <button
+          v-if="hasAnnouncement"
+          type="button"
+          aria-label="Room announcement"
+          @click="$emit('announcement')"
+        >
+          Announcement
+        </button>
+      </header>
+    `,
   },
 }));
 vi.mock('@/chat/components/SearchPanel.vue', () => ({ default: { template: '<section />' } }));
@@ -221,6 +240,7 @@ describe('ChatRoomView', () => {
     mocks.chatStore.loading = false;
     mocks.chatStore.timeline = [];
     mocks.chatStore.keySearchResults = [];
+    mocks.roomStore.rooms = [{ room: { id: 'amlc1bekzi', name: 'Key Room' }, sources: ['joined'] }];
     mocks.draftsByRoomId = {};
     mocks.draftListeners = [];
   });
@@ -231,6 +251,50 @@ describe('ChatRoomView', () => {
     render(ChatRoomView);
 
     expect(screen.getByTestId('message-timeline')).toHaveAttribute('data-loading', 'true');
+  });
+
+  it('shows the button announcement panel on room entry and auto dismisses after five seconds', async () => {
+    vi.useFakeTimers();
+    mocks.roomStore.rooms = [{ room: { id: 'amlc1bekzi', name: 'Key Room', announcement: 'Pinned room notice' }, sources: ['joined'] }];
+
+    try {
+      render(ChatRoomView);
+      await Promise.resolve();
+      await Promise.resolve();
+
+      const panel = screen.getByRole('region', { name: 'Room announcement' });
+      expect(panel).toHaveTextContent('群公告：');
+      expect(panel).toHaveTextContent('Pinned room notice');
+      expect(screen.queryByRole('status', { name: 'Room announcement' })).not.toBeInTheDocument();
+
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(screen.getByRole('region', { name: 'Room announcement' })).toBeInTheDocument();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(screen.queryByRole('region', { name: 'Room announcement' })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('toggles persistent room announcement content from the header action', async () => {
+    mocks.roomStore.rooms = [{ room: { id: 'amlc1bekzi', name: 'Key Room', announcement: 'Pinned room notice' }, sources: ['joined'] }];
+
+    render(ChatRoomView);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(screen.getByRole('region', { name: 'Room announcement' })).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Room announcement' }));
+
+    expect(screen.queryByRole('region', { name: 'Room announcement' })).not.toBeInTheDocument();
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Room announcement' }));
+
+    const panel = screen.getByRole('region', { name: 'Room announcement' });
+    expect(panel).toHaveTextContent('群公告：');
+    expect(panel).toHaveTextContent('Pinned room notice');
   });
 
   it('opens key search automatically for bot get-key Mini App launches', async () => {

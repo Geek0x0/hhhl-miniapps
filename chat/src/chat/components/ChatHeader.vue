@@ -14,6 +14,15 @@
     </div>
     <div class="chat-header__actions">
       <button
+        v-if="hasAnnouncement"
+        class="chat-icon-button"
+        type="button"
+        :aria-label="i18n.t('chat.roomAnnouncement')"
+        @click="selectAnnouncement"
+      >
+        <Megaphone :size="18" />
+      </button>
+      <button
         class="chat-icon-button"
         type="button"
         :aria-label="i18n.t('common.search')"
@@ -131,7 +140,7 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { ArrowLeft, EllipsisVertical, Heart, KeyRound, Search, Settings, ShieldOff, Users } from '@lucide/vue';
+import { ArrowLeft, EllipsisVertical, Heart, KeyRound, Megaphone, Search, Settings, ShieldOff, Users } from '@lucide/vue';
 import { i18n } from '@/i18n';
 import { MESSAGE_POLLING_INTERVAL_MS } from '../messageUpdates';
 
@@ -142,11 +151,13 @@ defineProps<{
   title: string;
   connectionStatus?: 'idle' | 'connected' | 'degraded';
   canManageRoom?: boolean;
+  hasAnnouncement?: boolean;
 }>();
 
 const emit = defineEmits<{
   back: [];
   search: [];
+  announcement: [];
   keySearch: [];
   favorites: [];
   blockManage: [];
@@ -221,6 +232,11 @@ function selectBack(): void {
 function selectSearch(): void {
   closeMore();
   emit('search');
+}
+
+function selectAnnouncement(): void {
+  closeMore();
+  emit('announcement');
 }
 
 function selectKeySearch(): void {

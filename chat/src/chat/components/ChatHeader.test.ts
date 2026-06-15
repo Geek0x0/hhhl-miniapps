@@ -62,6 +62,7 @@ describe('ChatHeader', () => {
     renderHeader();
 
     expect(screen.getByRole('button', { name: 'Search keys' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Room announcement' })).not.toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole('button', { name: 'More room actions' }));
 
@@ -100,5 +101,13 @@ describe('ChatHeader', () => {
     await fireEvent.click(screen.getByRole('menuitem', { name: 'Block management' }));
 
     expect(emitted('blockManage')).toEqual([[]]);
+  });
+
+  it('shows an announcement action when the room has an announcement', async () => {
+    const { emitted } = renderHeader({ hasAnnouncement: true });
+
+    await fireEvent.click(screen.getByRole('button', { name: 'Room announcement' }));
+
+    expect(emitted('announcement')).toEqual([[]]);
   });
 });

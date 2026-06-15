@@ -13,6 +13,21 @@ describe('roomApi', () => {
     }));
   });
 
+  it('normalizes room announcement from dc response variants', () => {
+    expect(normalizeRoomSummary({ id: 'room-1', name: 'General', announcement: 'Welcome here' })).toEqual(expect.objectContaining({
+      id: 'room-1',
+      announcement: 'Welcome here',
+    }));
+    expect(normalizeRoomSummary({ room: { id: 'room-2', name: 'Design', announcement: '  Sprint notes  ' } })).toEqual(expect.objectContaining({
+      id: 'room-2',
+      announcement: 'Sprint notes',
+    }));
+    expect(normalizeRoomSummary({ id: 'room-3', name: 'Quiet', announcement: '   ' })).toEqual(expect.objectContaining({
+      id: 'room-3',
+      announcement: null,
+    }));
+  });
+
   it('normalizes member response variants', async () => {
     const api = createRoomApi({
       callEndpoint: async () => [{ user: { id: 'user-1', displayName: 'Alice', image: '/avatar.png' } }] as never,

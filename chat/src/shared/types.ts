@@ -10,6 +10,7 @@ export interface RoomSummary {
   id: string;
   name: string;
   description?: string | null;
+  announcement?: string | null;
   avatarUrl?: string | null;
   joinMode?: string | null;
 }

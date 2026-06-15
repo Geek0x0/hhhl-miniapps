@@ -1195,6 +1195,26 @@ button.chat-icon-button:active:not(:disabled) {
   color: var(--tg-text);
 }
 
+.room-announcement-panel {
+  display: grid;
+  margin: 10px 14px 0;
+  padding: 12px 14px;
+  color: var(--tg-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.room-announcement-content {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.room-announcement-content strong {
+  font-weight: 800;
+}
+
 .key-copy-toast {
   position: fixed;
   left: 50%;

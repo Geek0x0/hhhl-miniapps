@@ -45,6 +45,7 @@ export function normalizeRoomSummary(value: unknown): RoomSummary {
     id,
     name,
     description: stringField(raw.description) ?? stringField(raw.summary) ?? null,
+    announcement: stringField(raw.announcement),
     avatarUrl: stringField(raw.avatarUrl) ?? stringField(raw.iconUrl) ?? null,
     joinMode: stringField(raw.joinMode),
   };

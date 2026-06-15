@@ -10,7 +10,9 @@
         :title="roomTitle"
         :connection-status="connectionStatus"
         :can-manage-room="canManageRoom"
+        :has-announcement="roomAnnouncement != null"
         @back="router.push('/rooms')"
+        @announcement="toggleAnnouncement"
         @search="toggleSearch"
         @key-search="handleKeySearch"
         @favorites="showFavorites"
@@ -18,6 +20,18 @@
         @block-manage="showBlockManagement"
         @manage="toggleManage"
       />
+      <section
+        v-if="showAnnouncementPanel && roomAnnouncement != null"
+        class="room-announcement-panel ui-surface ui-surface--glass"
+        role="region"
+        :aria-label="i18n.t('chat.roomAnnouncement')"
+      >
+        <p class="room-announcement-content">
+          <strong>群公告：</strong>
+          <br>
+          <span>{{ roomAnnouncement }}</span>
+        </p>
+      </section>
       <SearchPanel
         v-if="activePanel === 'search'"
         :query="chatStore.searchQuery"
@@ -169,8 +183,10 @@ const routeRoomId = computed(() => String(route.params.roomId ?? ''));
 const roomId = computed(() => locationRoomId.value || routeRoomId.value);
 const activeRoomEntry = computed(() => roomStore.rooms.find((entry) => entry.room.id === roomId.value) ?? null);
 const roomTitle = computed(() => activeRoomEntry.value?.room.name ?? roomId.value);
+const roomAnnouncement = computed(() => activeRoomEntry.value?.room.announcement?.trim() || null);
 const canManageRoom = computed(() => activeRoomEntry.value?.sources.includes('owned') === true);
 const activePanel = ref<'search' | 'keySearch' | 'favorites' | 'members' | 'blocks' | 'manage' | null>(null);
+const showAnnouncementPanel = ref(false);
 const favoriteMembersResolving = ref(false);
 const favoriteUsersById = ref<Record<string, UserSummary>>({});
 const mentionUsersByUsername = ref<Record<string, UserSummary>>({});
@@ -183,6 +199,7 @@ const suppressedEmptyDraftsByRoomId = new Map<string, number>();
 const suppressedEmptyDraftDuplicatesByRoomId = new Set<string>();
 const draftRevisionsByRoomId = new Map<string, number>();
 let feedbackTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+let announcementPanelTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 let messagePollingTimer: ReturnType<typeof globalThis.setInterval> | null = null;
 let unsubscribeRoomDraftChange: (() => void) | null = null;
 let lastAutoKeySearchRouteKey: string | null = null;
@@ -362,6 +379,30 @@ function showFeedback(message: string): void {
     feedbackMessage.value = null;
     feedbackTimer = null;
   }, 1600);
+}
+
+function clearAnnouncementPanelTimer(): void {
+  if (announcementPanelTimer != null) {
+    globalThis.clearTimeout(announcementPanelTimer);
+    announcementPanelTimer = null;
+  }
+}
+
+function showEntryAnnouncementPanel(): void {
+  clearAnnouncementPanelTimer();
+  showAnnouncementPanel.value = roomAnnouncement.value != null;
+
+  if (showAnnouncementPanel.value) {
+    announcementPanelTimer = globalThis.setTimeout(() => {
+      showAnnouncementPanel.value = false;
+      announcementPanelTimer = null;
+    }, 5000);
+  }
+}
+
+function toggleAnnouncement(): void {
+  clearAnnouncementPanelTimer();
+  showAnnouncementPanel.value = roomAnnouncement.value == null ? false : !showAnnouncementPanel.value;
 }
 
 function toggleFavoriteUser(userId: string): void {
@@ -709,11 +750,14 @@ async function loadRoom(): Promise<void> {
   const requestedRoomId = roomId.value;
   if (requestedRoomId !== '') {
     realtimeStore.stopRoom();
+    showAnnouncementPanel.value = false;
+    clearAnnouncementPanelTimer();
     restoreComposerDraft(requestedRoomId);
     await roomStore.ensureRoomVisible(requestedRoomId);
     if (roomId.value !== requestedRoomId) {
       return;
     }
+    showEntryAnnouncementPanel();
     await chatStore.loadInitial(requestedRoomId);
     if (roomId.value !== requestedRoomId) {
       return;
@@ -756,5 +800,6 @@ onBeforeUnmount(() => {
   if (feedbackTimer != null) {
     globalThis.clearTimeout(feedbackTimer);
   }
+  clearAnnouncementPanelTimer();
 });
 </script>

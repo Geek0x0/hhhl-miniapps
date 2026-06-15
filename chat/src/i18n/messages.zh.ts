@@ -82,6 +82,7 @@ const messages = {
   'chat.loadingMutedUsers': '正在加载已屏蔽成员...',
   'chat.keySearch': '搜索密钥',
   'chat.moreActions': '更多房间操作',
+  'chat.roomAnnouncement': '群公告',
   'chat.copiedToClipboard': '已复制到剪贴板',
   'chat.copyFailed': '复制失败',
   'chat.reactions': '回应',
