@@ -61,23 +61,20 @@ describe('ChatHeader', () => {
   it('hides room management when the active user cannot manage the room', async () => {
     renderHeader();
 
-    expect(screen.getByRole('button', { name: 'Search keys' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Room announcement' })).not.toBeInTheDocument();
-
     await fireEvent.click(screen.getByRole('button', { name: 'More room actions' }));
 
     expect(screen.getByRole('menuitem', { name: 'Favorites' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Search keys' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Members' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Block management' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Manage room' })).not.toBeInTheDocument();
   });
 
-  it('emits key search from the outer action button and members from the more menu', async () => {
+  it('emits key search and members from the more menu', async () => {
     const { emitted } = renderHeader();
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Search keys' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'More room actions' }));
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Search keys' }));
     expect(emitted('keySearch')).toEqual([[]]);
 
     await fireEvent.click(screen.getByRole('button', { name: 'More room actions' }));
@@ -103,10 +100,11 @@ describe('ChatHeader', () => {
     expect(emitted('blockManage')).toEqual([[]]);
   });
 
-  it('shows an announcement action when the room has an announcement', async () => {
+  it('shows an announcement action in the more menu when the room has an announcement', async () => {
     const { emitted } = renderHeader({ hasAnnouncement: true });
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Room announcement' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'More room actions' }));
+    await fireEvent.click(screen.getByRole('menuitem', { name: 'Room announcement' }));
 
     expect(emitted('announcement')).toEqual([[]]);
   });

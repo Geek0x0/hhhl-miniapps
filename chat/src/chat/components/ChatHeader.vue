@@ -13,39 +13,6 @@
       <small>{{ roomId }}</small>
     </div>
     <div class="chat-header__actions">
-      <button
-        v-if="hasAnnouncement"
-        class="chat-icon-button"
-        type="button"
-        :aria-label="i18n.t('chat.roomAnnouncement')"
-        @click="selectAnnouncement"
-      >
-        <Megaphone :size="18" />
-      </button>
-      <button
-        class="chat-icon-button"
-        type="button"
-        :aria-label="i18n.t('common.search')"
-        @click="selectSearch"
-      >
-        <Search :size="18" />
-      </button>
-      <button
-        class="chat-icon-button"
-        type="button"
-        :aria-label="i18n.t('chat.keySearch')"
-        @click="selectKeySearch"
-      >
-        <KeyRound :size="18" />
-      </button>
-      <button
-        class="chat-icon-button"
-        type="button"
-        :aria-label="i18n.t('rooms.members')"
-        @click="selectMore('members')"
-      >
-        <Users :size="18" />
-      </button>
       <div
         ref="moreRoot"
         class="chat-header__more"
@@ -70,6 +37,34 @@
           @keydown="handleMenuKeydown"
         >
           <button
+            v-if="hasAnnouncement"
+            ref="announcementMenuItem"
+            type="button"
+            role="menuitem"
+            @click="selectMore('announcement')"
+          >
+            <Megaphone :size="16" />
+            <span>{{ i18n.t('chat.roomAnnouncement') }}</span>
+          </button>
+          <button
+            ref="searchMenuItem"
+            type="button"
+            role="menuitem"
+            @click="selectMore('search')"
+          >
+            <Search :size="16" />
+            <span>{{ i18n.t('common.search') }}</span>
+          </button>
+          <button
+            ref="keySearchMenuItem"
+            type="button"
+            role="menuitem"
+            @click="selectMore('keySearch')"
+          >
+            <KeyRound :size="16" />
+            <span>{{ i18n.t('chat.keySearch') }}</span>
+          </button>
+          <button
             ref="favoritesMenuItem"
             type="button"
             role="menuitem"
@@ -77,15 +72,6 @@
           >
             <Heart :size="16" />
             <span>{{ i18n.t('chat.favorites') }}</span>
-          </button>
-          <button
-            ref="keySearchMenuItem"
-            type="button"
-            role="menuitem"
-            @click="selectKeySearch"
-          >
-            <KeyRound :size="16" />
-            <span>{{ i18n.t('chat.keySearch') }}</span>
           </button>
           <button
             ref="membersMenuItem"
@@ -165,7 +151,7 @@ const emit = defineEmits<{
   manage: [];
 }>();
 
-type MoreAction = 'favorites' | 'members' | 'blockManage' | 'manage';
+type MoreAction = 'favorites' | 'members' | 'blockManage' | 'manage' | 'announcement' | 'search' | 'keySearch';
 
 const showMore = ref(false);
 const moreRoot = ref<globalThis.HTMLElement | null>(null);
@@ -175,6 +161,8 @@ const keySearchMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const membersMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const blockManagementMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 const manageMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
+const announcementMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
+const searchMenuItem = ref<globalThis.HTMLButtonElement | null>(null);
 
 function closeMore(options: { restoreFocus?: boolean } = {}): void {
   showMore.value = false;
@@ -201,7 +189,7 @@ function toggleMore(): void {
 }
 
 function menuItems(): globalThis.HTMLButtonElement[] {
-  return [favoritesMenuItem.value, keySearchMenuItem.value, membersMenuItem.value, blockManagementMenuItem.value, manageMenuItem.value]
+  return [announcementMenuItem.value, searchMenuItem.value, keySearchMenuItem.value, favoritesMenuItem.value, membersMenuItem.value, blockManagementMenuItem.value, manageMenuItem.value]
     .filter((item): item is globalThis.HTMLButtonElement => item != null);
 }
 
@@ -229,21 +217,6 @@ function selectBack(): void {
   emit('back');
 }
 
-function selectSearch(): void {
-  closeMore();
-  emit('search');
-}
-
-function selectAnnouncement(): void {
-  closeMore();
-  emit('announcement');
-}
-
-function selectKeySearch(): void {
-  closeMore();
-  emit('keySearch');
-}
-
 function selectMore(action: MoreAction): void {
   closeMore();
 
@@ -253,8 +226,14 @@ function selectMore(action: MoreAction): void {
     emit('members');
   } else if (action === 'blockManage') {
     emit('blockManage');
-  } else {
+  } else if (action === 'manage') {
     emit('manage');
+  } else if (action === 'announcement') {
+    emit('announcement');
+  } else if (action === 'search') {
+    emit('search');
+  } else {
+    emit('keySearch');
   }
 }
 

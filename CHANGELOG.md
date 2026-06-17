@@ -2,6 +2,14 @@
 
 This repository can contain multiple mini apps. Changelog entries are grouped by release version and then by subproject.
 
+## 0.7.14 - 2026-06-16
+
+### chat
+
+#### Changed
+
+- Moved all chat header action buttons (announcement, search, key search, members) into the "more" overflow menu, leaving only the HP/WS connection status indicator visible in the header bar.
+
 ## 0.7.13 - 2026-06-15
 
 ### chat
